@@ -1,10 +1,17 @@
-.App {
-  text-align: center;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+}
+
+/* Styling the main App container */
+.App {
+  text-align: center;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -15,7 +22,7 @@
 
 .App-header {
   background-color: #282c34;
-  min-height: 100vh;
+  /* min-height: 100vh; */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -35,4 +42,64 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Input and Button Styles */
+input[type='text'],
+input[type='number'],
+select {
+  padding: 0.5rem;
+  margin-right: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+
+input[type='number'] {
+  width: 100px;
+}
+
+button {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  background-color: #333;
+  color: #fff;
+  transition: background-color 0.3s ease;
+}
+
+button:hover,
+button:focus {
+  background-color: #555;
+}
+
+button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Connection Status */
+.connection-status {
+  margin-top: 1rem;
+  padding: 0.5rem;
+  font-size: 1rem;
+  color: #fff;
+  border-radius: 5px;
+}
+
+.connected {
+  margin-left: 10px;
+  background-color: #28a745;
+}
+
+.disconnected {
+  margin-left: 10px;
+  background-color: #dc3545;
+}
+
+.section {
+  outline: solid;
+  padding: 10px;
 }

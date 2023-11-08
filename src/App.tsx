@@ -1,25 +1,26 @@
+// src/App.tsx
 import React from 'react';
-import logo from './logo.svg';
 import './App.css';
+import FtcLiveConnectionManager from './components/FtcLiveConnectionManager';
+import { FtcLiveProvider } from './contexts/FtcLiveContext';
+import { ObsStudioProvider } from './contexts/ObsStudioContext';
+import ObsStudioManager from './components/ObsStudioConnectionManager';
+import SceneMapper from './components/SceneMapper';
 
 function App() {
   return (
+    <FtcLiveProvider>
+    <ObsStudioProvider>
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
+        <h1>OBS WebSocket Client</h1>
       </header>
+        <FtcLiveConnectionManager />
+        <ObsStudioManager />
+        <SceneMapper />
     </div>
+    </ObsStudioProvider>
+    </FtcLiveProvider>
   );
 }
 
