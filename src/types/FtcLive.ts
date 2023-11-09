@@ -11,10 +11,10 @@ export interface Event {
 };
 
 
-
+export type UpdateType = 'MATCH_LOAD' | 'MATCH_START' | 'MATCH_ABORT' | 'MATCH_COMMIT' | 'MATCH_POST' | 'SHOW_PREVIEW' | 'SHOW_RANDOM' | 'SHOW_MATCH';
 export interface FtcLiveSteamData {
   updateTime: number;
-  updateType: 'MATCH_LOAD' | 'MATCH_START' | 'MATCH_ABORT' | 'MATCH_COMMIT' | 'MATCH_POST' | 'SHOW_PREVIEW' | 'SHOW_RANDOM' | 'SHOW_MATCH';
+  updateType: UpdateType;
   payload: {
     number: number;
     shortName: string;
@@ -22,7 +22,7 @@ export interface FtcLiveSteamData {
   };
 };
 
-export const UpdateTypes = [
+export const UpdateTypes: UpdateType[] = [
   'MATCH_LOAD',
   'MATCH_START',
   'MATCH_ABORT',

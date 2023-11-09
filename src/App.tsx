@@ -9,8 +9,8 @@ import SceneMapper from './components/SceneMapper';
 
 function App() {
   return (
-    <FtcLiveProvider>
     <ObsStudioProvider>
+    <FtcLiveProvider>
     <div className="App">
       <header className="App-header">
         <h1>OBS WebSocket Client</h1>
@@ -19,8 +19,8 @@ function App() {
         <ObsStudioManager />
         <SceneMapper />
     </div>
-    </ObsStudioProvider>
     </FtcLiveProvider>
+    </ObsStudioProvider>
   );
 }
 

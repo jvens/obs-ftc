@@ -1,7 +1,7 @@
 // src/contexts/FtcLiveContext.tsx
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { Event, FtcLiveSteamData } from '../types/FtcLive';
-import { Socket } from 'dgram';
+import { Event, FtcLiveSteamData, UpdateType } from '../types/FtcLive';
+import { useObsStudio } from './ObsStudioContext';
 
 type FtcLiveProviderProps = {
   children: ReactNode;
@@ -17,6 +17,8 @@ interface FtcLiveContextData {
   allStreamData: FtcLiveSteamData[];
   latestStreamData?: FtcLiveSteamData;
   connectWebSocket: (connect: boolean) => void;
+  selectedTriggers: UpdateType[];
+  setSelectedTriggers: React.Dispatch<React.SetStateAction<UpdateType[]>>;
 }
 
 // Create the context
@@ -29,12 +31,15 @@ export const useFtcLive = () => {
 
 // WebSocketProvider component that will wrap your application or part of it
 export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) => {
+  const { setActiveField } = useObsStudio();
   const [serverUrl, setServerUrl] = useState<string>('localhost');
   const [selectedEvent, setSelectedEvent] = useState<Event|undefined>();
   const [allStreamData, setAllStreamData] = useState<FtcLiveSteamData[]>([]);
   const [latestStreamData, setLatestStreamData] = useState<FtcLiveSteamData|undefined>();
   const [isConnected, setConnected] = useState<boolean>(false);
   const [socket, setSocket] = useState<WebSocket | undefined>();
+  const [selectedTriggers, setSelectedTriggers] = useState<UpdateType[]>(['SHOW_PREVIEW', 'SHOW_MATCH', 'SHOW_RANDOM', 'MATCH_START', 'MATCH_POST']);
+
   // ... other states like ws, isConnected, etc.
 
   // The function to connect the WebSocket and handle messages
@@ -61,22 +66,29 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
         const data = message.data;
         if (data === 'pong') return; // ignore pong messages
 
-        const streamData = data as FtcLiveSteamData;
+        const streamData = JSON.parse(data) as FtcLiveSteamData;
         console.log('Websocket Message: ', streamData)
         setAllStreamData(prevMessages => [...prevMessages, streamData]);
         setLatestStreamData(streamData);
+        console.log('Selected Triggers:', selectedTriggers)
+        if (selectedTriggers.some(trigger => trigger === streamData.updateType)) {
+          console.log('Set the active field')
+          setActiveField(streamData.payload.field)
+        } else {
+          console.log('Event was not in the selected triggers list:', streamData.updateType)
+        }
       }
     } else if (!connect) {
       socket?.close();
       setConnected(false);
     }
-  }, [serverUrl, socket, selectedEvent]);
+  }, [serverUrl, socket, selectedEvent, selectedTriggers, setActiveField]);
 
   // ... other logic
 
   // Provide the context value to children
   return (
-    <FtcLiveContext.Provider value={{ serverUrl, setServerUrl, selectedEvent, setSelectedEvent, allStreamData, connectWebSocket, isConnected, latestStreamData }}>
+    <FtcLiveContext.Provider value={{ serverUrl, setServerUrl, selectedEvent, setSelectedEvent, allStreamData, connectWebSocket, isConnected, latestStreamData, selectedTriggers, setSelectedTriggers }}>
       {children}
     </FtcLiveContext.Provider>
   );

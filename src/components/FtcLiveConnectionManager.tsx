@@ -24,39 +24,6 @@ const FtcLiveConnectionManager: React.FC = () => {
     }
   };
 
-  // // Initialize WebSocket connection
-  // const connectWebSocket = () => {
-  //   if (selectedEventCode) {
-  //     const socket = new WebSocket(`ws://${serverUrl}/api/v2/stream/?code=${selectedEventCode}`);
-
-  //     socket.onopen = () => {
-  //       console.log('WebSocket connected');
-  //       setIsConnected(true);
-  //     };
-
-  //     socket.onclose = () => {
-  //       console.log('WebSocket disconnected');
-  //       setIsConnected(false);
-  //     };
-
-  //     socket.onerror = (error) => {
-  //       console.error('WebSocket error:', error);
-  //     };
-
-  //     // Update the WebSocket in state
-  //     setWs(socket);
-  //   }
-  // };
-
-  // // Cleanup WebSocket on unmount
-  // useEffect(() => {
-  //   return () => {
-  //     if (ws) {
-  //       ws.close();
-  //     }
-  //   };
-  // }, [ws]);
-
   return (
     <div className="section">
       <h2>FTC Live Server</h2>
