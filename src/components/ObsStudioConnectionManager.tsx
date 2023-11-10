@@ -31,7 +31,7 @@ const ObsStudioManager: React.FC = () => {
         onChange={(e) => setObsPassword(e.target.value)}
       />
 
-      <button onClick={(e) => connectToObs()} disabled={!obsUrl || !obsPort}>
+      <button onClick={(e) => isConnected ? disconnectFromObs : connectToObs()} disabled={!obsUrl || !obsPort}>
         {isConnected ? 'Disconnnect' : 'Connect'}
       </button>
 

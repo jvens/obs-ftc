@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { Event, FtcLiveSteamData, UpdateType } from '../types/FtcLive';
 import { useObsStudio } from './ObsStudioContext';
+import { usePersistentState } from '../helpers/persistant';
 
 type FtcLiveProviderProps = {
   children: ReactNode;
@@ -32,13 +33,13 @@ export const useFtcLive = () => {
 // WebSocketProvider component that will wrap your application or part of it
 export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) => {
   const { setActiveField } = useObsStudio();
-  const [serverUrl, setServerUrl] = useState<string>('localhost');
-  const [selectedEvent, setSelectedEvent] = useState<Event|undefined>();
-  const [allStreamData, setAllStreamData] = useState<FtcLiveSteamData[]>([]);
+  const [serverUrl, setServerUrl] = usePersistentState<string>('FTC_URL', 'localhost');
+  const [selectedEvent, setSelectedEvent] = usePersistentState<Event|undefined>('FTC_Event', undefined);
+  const [allStreamData, setAllStreamData] = usePersistentState<FtcLiveSteamData[]>('Socket_Messages', []);
   const [latestStreamData, setLatestStreamData] = useState<FtcLiveSteamData|undefined>();
   const [isConnected, setConnected] = useState<boolean>(false);
   const [socket, setSocket] = useState<WebSocket | undefined>();
-  const [selectedTriggers, setSelectedTriggers] = useState<UpdateType[]>(['SHOW_PREVIEW', 'SHOW_MATCH', 'SHOW_RANDOM', 'MATCH_START', 'MATCH_POST']);
+  const [selectedTriggers, setSelectedTriggers] = usePersistentState<UpdateType[]>('Selected_Trigers', ['SHOW_PREVIEW', 'SHOW_MATCH', 'SHOW_RANDOM', 'MATCH_START', 'MATCH_POST']);
 
   // ... other states like ws, isConnected, etc.
 
@@ -82,7 +83,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
       socket?.close();
       setConnected(false);
     }
-  }, [serverUrl, socket, selectedEvent, selectedTriggers, setActiveField]);
+  }, [serverUrl, socket, selectedEvent, selectedTriggers, setActiveField, setAllStreamData]);
 
   // ... other logic
 

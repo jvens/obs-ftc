@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useRef, useEffect } from 'react';
 import OBSWebSocket from 'obs-websocket-js';
+import { usePersistentState } from '../helpers/persistant';
 
 type ObsStudioProviderProps = {
   children: ReactNode;
@@ -37,13 +38,12 @@ export const useObsStudio = () => {
 
 // ObsStudioProvider component that will wrap your application or part of it
 export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }) => {
-  const [obsUrl, setObsUrl] = useState('localhost');
-  const [obsPort, setObsPort] = useState(4455);
-  const [obsPassword, setObsPassword] = useState('');
+  const [obsUrl, setObsUrl] = usePersistentState('OBS_URL', 'localhost');
+  const [obsPort, setObsPort] = usePersistentState('OBS_Port', 4455);
+  const [obsPassword, setObsPassword] = usePersistentState('OBS_Password', '');
   const [isConnected, setIsConnected] = useState(false);
-  const [field1Scene, setField1Scene] = useState<string|undefined>()
-  const [field2Scene, setField2Scene] = useState<string|undefined>()
-  
+  const [field1Scene, setField1Scene] = usePersistentState<string|undefined>('Field1_Scene', undefined)
+  const [field2Scene, setField2Scene] = usePersistentState<string|undefined>('Field2_Scene', undefined)
 
   const connectToObs = useCallback(async () => {
     try {
@@ -74,8 +74,17 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     }
   }, []);
 
+  const field1SceneRef = useRef(field1Scene)
+  const field2SceneRef = useRef(field2Scene)
+  const isConnectedRef = useRef(isConnected);
+  useEffect(() => {
+    field1SceneRef.current = field1Scene;
+    field2SceneRef.current = field2Scene;
+    isConnectedRef.current = isConnected;
+  }, [field1Scene, field2Scene, isConnected])
+
   const switchScenes = async (scene: string) => {
-    if (obs && isConnected) {
+    if (obs && isConnectedRef.current) {
       console.log('Switch Scenes to', scene)
       obs.call('SetCurrentProgramScene', { sceneName: scene });
     } else {
@@ -84,6 +93,8 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   }
 
   const setActiveField = async (field: number) => {
+    const field1Scene = field1SceneRef.current
+    const field2Scene = field2SceneRef.current
     if (field === 1 && field1Scene) {
       await switchScenes(field1Scene)
     } else if (field === 2 && field2Scene) {

@@ -32,3 +32,28 @@ export const UpdateTypes: UpdateType[] = [
   'SHOW_RANDOM',
   'SHOW_MATCH'
 ]
+
+export interface FtcMatch {
+  matchName: string;
+  matchNumber: number;
+  field: number;
+  red: {
+    team1: number;
+    team2: number;
+    team3?: number;
+    isTeam1Surrogate: boolean;
+    isTeam2Surrogate: boolean;
+    isTeam3Surrogate?: boolean;
+  };
+  blue: {
+    team1: number;
+    team2: number;
+    team3?: number;
+    isTeam1Surrogate: boolean;
+    isTeam2Surrogate: boolean;
+    isTeam3Surrogate?: boolean;
+  };
+  finished: boolean;
+  matchState: string;
+  time: number;
+}
