@@ -5,11 +5,6 @@ type ObsStudioProviderProps = {
   children: ReactNode;
 };
 
-export interface ObsScene {
-  index: number;
-  name: string;
-};
-
 const obs = new OBSWebSocket();
 
 // Define the context data types
@@ -23,13 +18,13 @@ interface ObsStudioContextData {
   isConnected: boolean;
   connectToObs: () => void;
   disconnectFromObs: () => void;
-  fetchScenes: () => Promise<ObsScene[]>;
-  switchScenes: (scene: ObsScene) => void;
+  fetchScenes: () => Promise<string[]>;
+  switchScenes: (scene: string) => void;
   setActiveField: (field: number) => void;
-  field1Scene?: ObsScene;
-  setField1Scene: React.Dispatch<React.SetStateAction<ObsScene|undefined>>;
-  field2Scene?: ObsScene;
-  setField2Scene: React.Dispatch<React.SetStateAction<ObsScene|undefined>>;
+  field1Scene?: string;
+  setField1Scene: React.Dispatch<React.SetStateAction<string|undefined>>;
+  field2Scene?: string;
+  setField2Scene: React.Dispatch<React.SetStateAction<string|undefined>>;
 }
 
 // Create the context
@@ -46,8 +41,8 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   const [obsPort, setObsPort] = useState(4455);
   const [obsPassword, setObsPassword] = useState('');
   const [isConnected, setIsConnected] = useState(false);
-  const [field1Scene, setField1Scene] = useState<ObsScene|undefined>()
-  const [field2Scene, setField2Scene] = useState<ObsScene|undefined>()
+  const [field1Scene, setField1Scene] = useState<string|undefined>()
+  const [field2Scene, setField2Scene] = useState<string|undefined>()
   
 
   const connectToObs = useCallback(async () => {
@@ -67,10 +62,10 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     setIsConnected(false);
   }, []);
 
-  const fetchScenes = useCallback(async () => {
+  const fetchScenes = useCallback(async (): Promise<string[]> => {
     try {
       const { scenes } = await obs.call('GetSceneList');
-      const sceneList = scenes.map((s: any): ObsScene => {return {name: s.sceneName, index: s.sceneIndex}})
+      const sceneList = scenes.map((s: any): string => s.sceneName).reverse()
       console.log("scenes:", sceneList)
       return sceneList;
     } catch (error) {
@@ -79,10 +74,10 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     }
   }, []);
 
-  const switchScenes = async (scene: ObsScene) => {
+  const switchScenes = async (scene: string) => {
     if (obs && isConnected) {
-      console.log('Switch Scenes to', scene.name)
-      obs.call('SetCurrentProgramScene', { sceneName: scene.name });
+      console.log('Switch Scenes to', scene)
+      obs.call('SetCurrentProgramScene', { sceneName: scene });
     } else {
       console.error("Unable to switch scene. Not connected");
     }
