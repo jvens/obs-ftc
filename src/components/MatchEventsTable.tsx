@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react"
 import { useFtcLive } from "../contexts/FtcLiveContext";
 import { usePersistentState } from "../helpers/persistant";
 import { FtcMatch } from "../types/FtcLive";
+import { TypeParameterDeclaration } from "typescript";
 
 interface MatchRow {
   number: number;
@@ -23,8 +24,26 @@ interface MatchRow {
   MATCH_POST?: number;
 }
 
+type TeamData = {
+  number: number;
+  name: string;
+  school: string;
+  cit: string;
+  state: string;
+  country: string;
+  rookie: number;
+}
+
+type Team = {
+  number: number;
+  name: string;
+}
+
 const MatchEventsTable: React.FC = () => {
   const [rows, setRows] = usePersistentState<MatchRow[]>('Match_Events', [])
+  const [teams, setTeams] = usePersistentState<Team[]>('Teams', [])
+  const [chapters, setChapters] = usePersistentState<string[]>('Video_Chapters', [])
+  const [offsetTime, setOffsetTime] = usePersistentState<number>('Offset_Time', 0)
   const {isConnected, serverUrl, selectedEvent} = useFtcLive()
   const {latestStreamData} = useFtcLive()
 
@@ -57,6 +76,35 @@ const MatchEventsTable: React.FC = () => {
   }, [latestStreamData, setRows]); // Removed 'rows' and 'setRows' from the dependencies
 
 
+  useEffect(() => {
+    const getTeamName = (number?: number) => {
+      if (!number) return undefined;
+      return teams.find(team => team.number === number)
+    }
+    const firstTime = rows[0]?.SHOW_PREVIEW ?? 0
+    let chapters: string[] = rows.map(r => {
+      let blueTeams = `${r.blue1} ${getTeamName(r.blue1)?.name}, ${r.blue2} ${getTeamName(r.blue2)?.name}`
+      if (r.blue3)
+        blueTeams += `${r.blue3} ${getTeamName(r.blue3)?.name}`
+      let redTeams = `${r.red1} ${getTeamName(r.red1)?.name}, ${r.red2} ${getTeamName(r.red2)?.name}`
+      if (r.red3)
+        redTeams += `${r.red3} ${getTeamName(r.red3)?.name}`
+      let time = ((r.SHOW_PREVIEW ?? 0) - firstTime)/1000 + offsetTime
+      const hours = Math.floor(time/3600)
+      time -= hours * 3600
+      const minutes = Math.floor(time/60)
+      time -= minutes * 60
+      const seconds = Math.floor(time)
+      const timeString = `${hours < 10 ? '0' + hours : hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`
+      return `${timeString} ${r.name} - Blue: ${blueTeams}; Red: ${redTeams}`
+    })
+    setChapters(['00:00:00 Event Start', ...chapters])
+  }, [rows, setChapters, teams, offsetTime])
+
+  const delay = (seconds: number) => {
+    return new Promise(resolve => setTimeout(resolve, seconds * 1000))
+  }
+
   const fetchMatches = async() => {
     try {
       const response = await fetch(`http://${serverUrl}/api/v1/events/${selectedEvent?.eventCode}/matches/`)
@@ -79,19 +127,51 @@ const MatchEventsTable: React.FC = () => {
         return row
       })
       setRows(newRows)
+      const teamsResponse = await fetch(`http://${serverUrl}/api/v1/events/${selectedEvent?.eventCode}/teams/`)
+      const teamNumbers = (await teamsResponse.json()).teamNumbers as number[];
+      const newTeams = await Promise.all(teamNumbers.map(async teamNumber => {
+        let retryCount = 0;
+        let teamDataResponse = await fetch(`http://${serverUrl}/api/v1/events/${selectedEvent?.eventCode}/teams/${teamNumber}/`)
+        while(retryCount < 10 && teamDataResponse.status === 429) {
+            retryCount++;
+            await delay(60 * 5); // wait 5 minute before trying again
+        }
+        const teamData = (await teamDataResponse.json()) as TeamData;
+        return {
+          number: teamNumber,
+          name: teamData.name
+        };
+      }))
+      setTeams(newTeams)
     } catch (error) {
-      console.error('Fetching matches faileD: ', error)
+      console.error('Fetching matches failed: ', error)
     }
   }
 
   const clearRows = () => {
     setRows([])
+    setTeams([])
+    setOffsetTime(0)
+  }
+
+  const exportData = () => {
+    const fileData = JSON.stringify({matches: rows, teams: teams}, null, 2);
+    const blob = new Blob([fileData], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.download = `${selectedEvent?.eventCode ?? 'event_data'}.json`
+    link.href = url;
+    link.click();
+
+    URL.revokeObjectURL(url);
   }
 
   return (
     <div className="section">
       <button onClick={fetchMatches} disabled={!isConnected}>Get Match List</button>
       <button onClick={clearRows}>Clear All Data</button>
+      <button onClick={exportData}>Export Data</button>
       <table>
         <thead>
           <tr>
@@ -138,6 +218,18 @@ const MatchEventsTable: React.FC = () => {
           ))}
         </tbody>
       </table>
+      <br/>
+      Video Offset Time (seconds to Match 1 Show Preview)
+      <input
+        type="number"
+        placeholder='Offset Time'
+        value={offsetTime}
+        onChange={(e) => setOffsetTime(parseInt(e.target.value))}
+      />
+      <br/>
+      <div>
+        {chapters.map((chapter, i) => (<div key={i}>{chapter}</div>))}
+      </div>
 
     </div>
   )
