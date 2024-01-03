@@ -114,6 +114,8 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       await switchScenes(field1Scene)
     } else if (field === 2 && field2Scene) {
       await switchScenes(field2Scene)
+    } else if (field === 0) {
+      console.log("Finals Match, manual switching required")
     } else {
       console.error("Unable to switch stream to field ", field)
       console.log('field 1:', field1Scene)

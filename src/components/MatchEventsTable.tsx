@@ -51,7 +51,7 @@ const MatchEventsTable: React.FC = () => {
     if (latestStreamData) {
       setRows(currentRows => {
         // Check if the row already exists
-        const rowIndex = currentRows.findIndex(row => row.number === latestStreamData.payload.number);
+        const rowIndex = currentRows.findIndex(row => row.name === latestStreamData.payload.shortName);
         if (rowIndex !== -1) {
           console.log('update row');
           // Clone the array and update the specific row
@@ -82,7 +82,7 @@ const MatchEventsTable: React.FC = () => {
       return teams.find(team => team.number === number)
     }
     const firstTime = rows[0]?.SHOW_PREVIEW ?? 0
-    let chapters: string[] = rows.map(r => {
+    let chapters: string[] = rows.sort((a, b) => (a.SHOW_PREVIEW ?? 0) - (b.SHOW_PREVIEW ?? 0)).map(r => {
       let blueTeams = `${r.blue1} ${getTeamName(r.blue1)?.name}, ${r.blue2} ${getTeamName(r.blue2)?.name}`
       if (r.blue3)
         blueTeams += `${r.blue3} ${getTeamName(r.blue3)?.name}`
@@ -111,7 +111,7 @@ const MatchEventsTable: React.FC = () => {
       const response = await fetch(`http://${serverUrl}/api/v1/events/${selectedEvent?.eventCode}/matches/`)
       const matches = (await response.json()).matches as FtcMatch[];
       const newRows = matches.map(match => {
-        const rowIndex = rows.findIndex(row => row.number === match.matchNumber)
+        const rowIndex = rows.findIndex(row => row.name === match.matchName)
         let row: MatchRow;
         if (rowIndex !== -1) {
           row = { ...rows[rowIndex] }
