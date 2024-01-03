@@ -35,7 +35,7 @@ const FtcLiveConnectionManager: React.FC = () => {
         onChange={(e) => setServerUrl(e.target.value)}
       />
       <button onClick={fetchEvents} disabled={isConnected}>Get Event Codes</button>
-      <br/>
+      <br /><br />
       <select
         value={selectedEvent?.eventCode}
         onChange={(e) => setSelectedEvent(events.filter(evt => evt.eventCode === e.target.value)[0])}
@@ -52,8 +52,8 @@ const FtcLiveConnectionManager: React.FC = () => {
       <button onClick={(e) => connectWebSocket(!isConnected)} disabled={!selectedEvent}>
         {isConnected ? 'Disconnnect' : 'Connect'}
       </button>
-
-      <div>Connection Status: 
+      <div><br />
+        Connection Status:
         <span className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
           {isConnected ? 'Connected' : 'Disconnected'}
         </span>

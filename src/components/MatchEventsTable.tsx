@@ -44,8 +44,8 @@ const MatchEventsTable: React.FC = () => {
   const [teams, setTeams] = usePersistentState<Team[]>('Teams', [])
   const [chapters, setChapters] = usePersistentState<string[]>('Video_Chapters', [])
   const [offsetTime, setOffsetTime] = usePersistentState<number>('Offset_Time', 0)
-  const {isConnected, serverUrl, selectedEvent} = useFtcLive()
-  const {latestStreamData} = useFtcLive()
+  const { isConnected, serverUrl, selectedEvent } = useFtcLive()
+  const { latestStreamData } = useFtcLive()
 
   useEffect(() => {
     if (latestStreamData) {
@@ -89,10 +89,10 @@ const MatchEventsTable: React.FC = () => {
       let redTeams = `${r.red1} ${getTeamName(r.red1)?.name}, ${r.red2} ${getTeamName(r.red2)?.name}`
       if (r.red3)
         redTeams += `${r.red3} ${getTeamName(r.red3)?.name}`
-      let time = ((r.SHOW_PREVIEW ?? 0) - firstTime)/1000 + offsetTime
-      const hours = Math.floor(time/3600)
+      let time = ((r.SHOW_PREVIEW ?? 0) - firstTime) / 1000 + offsetTime
+      const hours = Math.floor(time / 3600)
       time -= hours * 3600
-      const minutes = Math.floor(time/60)
+      const minutes = Math.floor(time / 60)
       time -= minutes * 60
       const seconds = Math.floor(time)
       const timeString = `${hours < 10 ? '0' + hours : hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`
@@ -105,17 +105,18 @@ const MatchEventsTable: React.FC = () => {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000))
   }
 
-  const fetchMatches = async() => {
+  const fetchMatches = async () => {
+    console.log('fetching matches')
     try {
       const response = await fetch(`http://${serverUrl}/api/v1/events/${selectedEvent?.eventCode}/matches/`)
       const matches = (await response.json()).matches as FtcMatch[];
       const newRows = matches.map(match => {
         const rowIndex = rows.findIndex(row => row.number === match.matchNumber)
         let row: MatchRow;
-        if(rowIndex !== -1) {
+        if (rowIndex !== -1) {
           row = { ...rows[rowIndex] }
         } else {
-          row = { name: match.matchName, number: match.matchNumber}
+          row = { name: match.matchName, number: match.matchNumber }
         }
         row.blue1 = match.blue.team1
         row.blue2 = match.blue.team2
@@ -132,9 +133,9 @@ const MatchEventsTable: React.FC = () => {
       const newTeams = await Promise.all(teamNumbers.map(async teamNumber => {
         let retryCount = 0;
         let teamDataResponse = await fetch(`http://${serverUrl}/api/v1/events/${selectedEvent?.eventCode}/teams/${teamNumber}/`)
-        while(retryCount < 10 && teamDataResponse.status === 429) {
-            retryCount++;
-            await delay(60 * 5); // wait 5 minute before trying again
+        while (retryCount < 10 && teamDataResponse.status === 429) {
+          retryCount++;
+          await delay(60 * 5); // wait 5 minute before trying again
         }
         const teamData = (await teamDataResponse.json()) as TeamData;
         return {
@@ -155,8 +156,8 @@ const MatchEventsTable: React.FC = () => {
   }
 
   const exportData = () => {
-    const fileData = JSON.stringify({matches: rows, teams: teams}, null, 2);
-    const blob = new Blob([fileData], {type: 'application/json'});
+    const fileData = JSON.stringify({ matches: rows, teams: teams }, null, 2);
+    const blob = new Blob([fileData], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement('a');
@@ -218,7 +219,7 @@ const MatchEventsTable: React.FC = () => {
           ))}
         </tbody>
       </table>
-      <br/>
+      <br />
       Video Offset Time (seconds to Match 1 Show Preview)
       <input
         type="number"
@@ -226,7 +227,7 @@ const MatchEventsTable: React.FC = () => {
         value={offsetTime}
         onChange={(e) => setOffsetTime(parseInt(e.target.value))}
       />
-      <br/>
+      <br />
       <div>
         {chapters.map((chapter, i) => (<div key={i}>{chapter}</div>))}
       </div>

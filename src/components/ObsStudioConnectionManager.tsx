@@ -2,7 +2,7 @@ import React from 'react';
 import { useObsStudio } from '../contexts/ObsStudioContext';
 
 const ObsStudioManager: React.FC = () => {
-  const { obsUrl, setObsUrl, obsPort, setObsPort, obsPassword, setObsPassword, isConnected, connectToObs, disconnectFromObs } = useObsStudio();
+  const { obsUrl, setObsUrl, obsPort, setObsPort, obsPassword, setObsPassword, isConnected, connectToObs, disconnectFromObs, error } = useObsStudio();
 
   // ... UI for setting URL and password
   // ... Button to trigger connectToObs
@@ -23,7 +23,7 @@ const ObsStudioManager: React.FC = () => {
         value={obsPort}
         onChange={(e) => setObsPort(parseInt(e.target.value))}
       />
-      <br/>
+      <br /><br />
       <input
         type="text"
         placeholder='OBS Websocket Password'
@@ -35,7 +35,9 @@ const ObsStudioManager: React.FC = () => {
         {isConnected ? 'Disconnnect' : 'Connect'}
       </button>
 
-      <div>Connection Status: 
+      {error && <div className="error">Error: {error}</div>}
+
+      <div><br />Connection Status:
         <span className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
           {isConnected ? 'Connected' : 'Disconnected'}
         </span>

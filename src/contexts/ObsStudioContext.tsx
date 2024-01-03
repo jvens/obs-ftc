@@ -17,15 +17,16 @@ interface ObsStudioContextData {
   obsPassword: string;
   setObsPassword: React.Dispatch<React.SetStateAction<string>>;
   isConnected: boolean;
+  error: string | undefined;
   connectToObs: () => void;
   disconnectFromObs: () => void;
   fetchScenes: () => Promise<string[]>;
   switchScenes: (scene: string) => void;
   setActiveField: (field: number) => void;
   field1Scene?: string;
-  setField1Scene: React.Dispatch<React.SetStateAction<string|undefined>>;
+  setField1Scene: React.Dispatch<React.SetStateAction<string | undefined>>;
   field2Scene?: string;
-  setField2Scene: React.Dispatch<React.SetStateAction<string|undefined>>;
+  setField2Scene: React.Dispatch<React.SetStateAction<string | undefined>>;
 }
 
 // Create the context
@@ -42,24 +43,38 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   const [obsPort, setObsPort] = usePersistentState('OBS_Port', 4455);
   const [obsPassword, setObsPassword] = usePersistentState('OBS_Password', '');
   const [isConnected, setIsConnected] = useState(false);
-  const [field1Scene, setField1Scene] = usePersistentState<string|undefined>('Field1_Scene', undefined)
-  const [field2Scene, setField2Scene] = usePersistentState<string|undefined>('Field2_Scene', undefined)
+  const [field1Scene, setField1Scene] = usePersistentState<string | undefined>('Field1_Scene', undefined)
+  const [field2Scene, setField2Scene] = usePersistentState<string | undefined>('Field2_Scene', undefined)
+  const [error, setError] = useState<string | undefined>(undefined)
 
   const connectToObs = useCallback(async () => {
     try {
       const hello = await obs.connect(`ws://${obsUrl}:${obsPort}`, obsPassword);
       console.log('Hello message:', hello)
       setIsConnected(true);
+      setError(undefined)
       // ... additional setup if needed
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to connect to OBS:', error);
       setIsConnected(false);
+      if (error.code) {
+        console.log('Error code:', error.code)
+        if (error.code === 1006)
+          setError("Unable to connect. Check the URL and OBS Websocket settings.")
+        else if (error.code === 4009)
+          setError("Unable to connect. Check the OBS Websocket password.")
+        else
+          setError(`Unknown Error: ${JSON.stringify(error)}`);
+      } else {
+        setError(`Unknown Error: ${JSON.stringify(error)}`);
+      }
     }
   }, [obsUrl, obsPort, obsPassword]);
 
   const disconnectFromObs = useCallback(() => {
     obs.disconnect();
     setIsConnected(false);
+    setError(undefined)
   }, []);
 
   const fetchScenes = useCallback(async (): Promise<string[]> => {
@@ -107,7 +122,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   }
 
   return (
-    <ObsStudioContext.Provider value={{ obsUrl, setObsUrl, obsPort, setObsPort, obsPassword, setObsPassword, isConnected, connectToObs, disconnectFromObs, fetchScenes, switchScenes, field1Scene, field2Scene, setField1Scene, setField2Scene, setActiveField }}>
+    <ObsStudioContext.Provider value={{ obsUrl, setObsUrl, obsPort, setObsPort, obsPassword, setObsPassword, isConnected, connectToObs, disconnectFromObs, fetchScenes, switchScenes, field1Scene, field2Scene, setField1Scene, setField2Scene, setActiveField, error }}>
       {children}
     </ObsStudioContext.Provider>
   );

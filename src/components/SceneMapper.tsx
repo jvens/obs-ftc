@@ -5,6 +5,7 @@ import { useFtcLive } from '../contexts/FtcLiveContext';
 
 const SceneMapper = () => {
   const { fetchScenes, isConnected, field1Scene, field2Scene, setField1Scene, setField2Scene } = useObsStudio();
+  const { isConnected: isFtcLiveConnected } = useFtcLive();
   const { selectedTriggers, setSelectedTriggers } = useFtcLive();
   const [scenes, setScenes] = useState<string[]>([]);
 
@@ -21,11 +22,13 @@ const SceneMapper = () => {
     );
   };
 
+  const getStatus = isConnected && isFtcLiveConnected && field1Scene && field2Scene;
+
   return (
     <div className="section">
       <h2>Scene Swiching Settings</h2>
       <button onClick={handleFetchScenes} disabled={!isConnected}>Fetch Scenes</button>
-      <br/>
+      <br />
       <div>
         <h3>Scene Assignments</h3>
         Field 1 Scene:
@@ -41,7 +44,7 @@ const SceneMapper = () => {
             </option>
           ))}
         </select>
-        <br/>
+        <br />
         Field 2 Scene:
         <select
           onChange={(e) => setField2Scene(scenes.find(s => s === e.target.value))}
@@ -56,7 +59,7 @@ const SceneMapper = () => {
           ))}
         </select>
       </div>
-      <br/>
+      <br />
       <div>
         <h3>Transition Triggers</h3>
         {UpdateTypes.map((type) => (
@@ -70,9 +73,16 @@ const SceneMapper = () => {
             <label onClick={() => handleTriggerChange(type)}>
               {type}
             </label>
-            <br/>
+            <br />
           </div>
         ))}
+      </div>
+      <br />
+      <div>
+        Status:
+        <span className={`connection-status ${getStatus ? 'connected' : 'disconnected'}`}>
+          {getStatus ? 'Running' : 'Not Running'}
+        </span>
       </div>
     </div>
   );
