@@ -87,6 +87,7 @@ const MatchEventsTable: React.FC = () => {
       // Otherwise when loading a match list, you get weird negative values on run matches
       const prev_time = prev.SHOW_PREVIEW ?? 0
       const curr_time = curr.SHOW_PREVIEW ?? 0
+      // Use match number as a tie-breaker
       if(prev_time === curr_time) return prev.number-curr.number
       if(prev_time === 0) return 1
       if(curr_time === 0) return -1
@@ -104,6 +105,7 @@ const MatchEventsTable: React.FC = () => {
       let time = ((r.SHOW_PREVIEW ?? 0) - firstTime) / 1000 + offsetTime
       let timeString = "N/A"
       if (time>=0) {
+        // Negative times look bad so show N/A instead
         const hours = Math.floor(time / 3600)
         time -= hours * 3600
         const minutes = Math.floor(time / 60)
