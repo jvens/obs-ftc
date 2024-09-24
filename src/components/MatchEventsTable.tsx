@@ -3,6 +3,7 @@ import { useFtcLive } from "../contexts/FtcLiveContext";
 import { usePersistentState } from "../helpers/persistant";
 import { FtcMatch } from "../types/FtcLive";
 import { TypeParameterDeclaration } from "typescript";
+import {useObsStudio} from "../contexts/ObsStudioContext";
 
 interface MatchRow {
   number: number;
@@ -46,6 +47,8 @@ const MatchEventsTable: React.FC = () => {
   const [offsetTime, setOffsetTime] = usePersistentState<number>('Offset_Time', 0)
   const { isConnected, serverUrl, selectedEvent } = useFtcLive()
   const { latestStreamData } = useFtcLive()
+  const { startStreamTime } = useObsStudio()
+  const [useStreamTime, setUseStreamTime] = usePersistentState<boolean>('Use_Stream_Time', false)
 
   useEffect(() => {
     if (latestStreamData) {
@@ -81,7 +84,7 @@ const MatchEventsTable: React.FC = () => {
       if (!number) return undefined;
       return teams.find(team => team.number === number)
     }
-    const firstTime = rows[0]?.SHOW_PREVIEW ?? 0
+    const firstTime = useStreamTime? startStreamTime:rows[0]?.SHOW_PREVIEW ?? 0
     let chapters: string[] = rows.sort((a, b) => (a.SHOW_PREVIEW ?? 0) - (b.SHOW_PREVIEW ?? 0)).map(r => {
       let blueTeams = `${r.blue1} ${getTeamName(r.blue1)?.name}, ${r.blue2} ${getTeamName(r.blue2)?.name}`
       if (r.blue3)
@@ -99,7 +102,7 @@ const MatchEventsTable: React.FC = () => {
       return `${timeString} ${r.name} - Blue: ${blueTeams}; Red: ${redTeams}`
     })
     setChapters(['00:00:00 Event Start', ...chapters])
-  }, [rows, setChapters, teams, offsetTime])
+  }, [rows, setChapters, teams, offsetTime, startStreamTime, useStreamTime])
 
   const delay = (seconds: number) => {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000))
@@ -153,6 +156,7 @@ const MatchEventsTable: React.FC = () => {
     setRows([])
     setTeams([])
     setOffsetTime(0)
+    setUseStreamTime(false)
   }
 
   const exportData = () => {
@@ -226,6 +230,12 @@ const MatchEventsTable: React.FC = () => {
         placeholder='Offset Time'
         value={offsetTime}
         onChange={(e) => setOffsetTime(parseInt(e.target.value))}
+      />
+      <br />
+      Use streaming start time {new Date(startStreamTime).toLocaleTimeString()} for reference time:
+      <input type="checkbox"
+             checked={useStreamTime}
+             onChange={(e) => setUseStreamTime(e.target.checked)}
       />
       <br />
       <div>
