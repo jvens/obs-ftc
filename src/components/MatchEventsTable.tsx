@@ -84,8 +84,22 @@ const MatchEventsTable: React.FC = () => {
       if (!number) return undefined;
       return teams.find(team => team.number === number)
     }
+
+
+    rows.sort((prev, curr) => {
+      // Ensure that values without preview times get sorted to the end
+      // Otherwise when loading a match list, you get weird negative values on run matches
+      const prev_time = prev.SHOW_PREVIEW ?? 0
+      const curr_time = curr.SHOW_PREVIEW ?? 0
+      // Use match number as a tie-breaker
+      if(prev_time === curr_time) return prev.number-curr.number
+      if(prev_time === 0) return 1
+      if(curr_time === 0) return -1
+      return prev_time - curr_time
+    });
+
     const firstTime = useStreamTime? startStreamTime:rows[0]?.SHOW_PREVIEW ?? 0
-    let chapters: string[] = rows.sort((a, b) => (a.SHOW_PREVIEW ?? 0) - (b.SHOW_PREVIEW ?? 0)).map(r => {
+    let chapters: string[] = rows.map(r => {
       let blueTeams = `${r.blue1} ${getTeamName(r.blue1)?.name}, ${r.blue2} ${getTeamName(r.blue2)?.name}`
       if (r.blue3)
         blueTeams += `${r.blue3} ${getTeamName(r.blue3)?.name}`
@@ -93,12 +107,16 @@ const MatchEventsTable: React.FC = () => {
       if (r.red3)
         redTeams += `${r.red3} ${getTeamName(r.red3)?.name}`
       let time = ((r.SHOW_PREVIEW ?? 0) - firstTime) / 1000 + offsetTime
-      const hours = Math.floor(time / 3600)
-      time -= hours * 3600
-      const minutes = Math.floor(time / 60)
-      time -= minutes * 60
-      const seconds = Math.floor(time)
-      const timeString = `${hours < 10 ? '0' + hours : hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`
+      let timeString = "N/A"
+      if (time>=0) {
+        // Negative times look bad so show N/A instead
+        const hours = Math.floor(time / 3600)
+        time -= hours * 3600
+        const minutes = Math.floor(time / 60)
+        time -= minutes * 60
+        const seconds = Math.floor(time)
+        timeString = `${hours < 10 ? '0' + hours : hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`
+      }
       return `${timeString} ${r.name} - Blue: ${blueTeams}; Red: ${redTeams}`
     })
     setChapters(['00:00:00 Event Start', ...chapters])
