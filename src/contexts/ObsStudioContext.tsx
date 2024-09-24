@@ -54,6 +54,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       const hello = await obs.connect(`ws://${obsUrl}:${obsPort}`, obsPassword);
       console.log('Hello message:', hello)
 
+      // Watch for streaming started, and save the time
       obs.on('StreamStateChanged',(data: OBSEventTypes["StreamStateChanged"] ) => {
         if (data.outputState === "OBS_WEBSOCKET_OUTPUT_STARTED"){
           console.log("Stream started at ", Date.now())
