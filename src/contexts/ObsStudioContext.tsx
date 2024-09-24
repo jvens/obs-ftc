@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useRef, useEffect } from 'react';
 import OBSWebSocket from 'obs-websocket-js';
 import { usePersistentState } from '../helpers/persistant';
+import type {OBSEventTypes} from "obs-websocket-js/dist/types";
 
 type ObsStudioProviderProps = {
   children: ReactNode;
@@ -27,6 +28,7 @@ interface ObsStudioContextData {
   setField1Scene: React.Dispatch<React.SetStateAction<string | undefined>>;
   field2Scene?: string;
   setField2Scene: React.Dispatch<React.SetStateAction<string | undefined>>;
+  startStreamTime: number;
 }
 
 // Create the context
@@ -46,11 +48,19 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   const [field1Scene, setField1Scene] = usePersistentState<string | undefined>('Field1_Scene', undefined)
   const [field2Scene, setField2Scene] = usePersistentState<string | undefined>('Field2_Scene', undefined)
   const [error, setError] = useState<string | undefined>(undefined)
-
+  const [startStreamTime, setStartStreamTime] = usePersistentState<number>('Stream_Start', 0);
   const connectToObs = useCallback(async () => {
     try {
       const hello = await obs.connect(`ws://${obsUrl}:${obsPort}`, obsPassword);
       console.log('Hello message:', hello)
+
+      // Watch for streaming started, and save the time
+      obs.on('StreamStateChanged',(data: OBSEventTypes["StreamStateChanged"] ) => {
+        if (data.outputState === "OBS_WEBSOCKET_OUTPUT_STARTED"){
+          console.log("Stream started at ", Date.now())
+          setStartStreamTime(Date.now())
+        }})
+
       setIsConnected(true);
       setError(undefined)
       // ... additional setup if needed
@@ -69,7 +79,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
         setError(`Unknown Error: ${JSON.stringify(error)}`);
       }
     }
-  }, [obsUrl, obsPort, obsPassword]);
+  }, [obsUrl, obsPort, obsPassword, setStartStreamTime]);
 
   const disconnectFromObs = useCallback(() => {
     obs.disconnect();
@@ -124,7 +134,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   }
 
   return (
-    <ObsStudioContext.Provider value={{ obsUrl, setObsUrl, obsPort, setObsPort, obsPassword, setObsPassword, isConnected, connectToObs, disconnectFromObs, fetchScenes, switchScenes, field1Scene, field2Scene, setField1Scene, setField2Scene, setActiveField, error }}>
+    <ObsStudioContext.Provider value={{ obsUrl, setObsUrl, obsPort, setObsPort, obsPassword, setObsPassword, isConnected, connectToObs, disconnectFromObs, fetchScenes, switchScenes, field1Scene, field2Scene, setField1Scene, setField2Scene, setActiveField, error, startStreamTime}}>
       {children}
     </ObsStudioContext.Provider>
   );
