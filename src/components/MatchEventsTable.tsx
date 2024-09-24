@@ -103,7 +103,7 @@ const MatchEventsTable: React.FC = () => {
         redTeams += `${r.red3} ${getTeamName(r.red3)?.name}`
       let time = ((r.SHOW_PREVIEW ?? 0) - firstTime) / 1000 + offsetTime
       let timeString = "N/A"
-      if (time>0) {
+      if (time>=0) {
         const hours = Math.floor(time / 3600)
         time -= hours * 3600
         const minutes = Math.floor(time / 60)
