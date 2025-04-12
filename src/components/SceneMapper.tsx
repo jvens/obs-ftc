@@ -4,8 +4,8 @@ import { UpdateTypes, UpdateType } from '../types/FtcLive';
 import { useFtcLive } from '../contexts/FtcLiveContext';
 
 const SceneMapper = () => {
-  const { fetchScenes, status, field1Scene, field2Scene, setField1Scene, setField2Scene } = useObsStudio();
-  const { transitionTriggers: selectedTriggers, setTransitionTriggers: setSelectedTriggers, enableReplayBuffer, setEnableReplayBuffer, postMatchReplayTime, setPostMatchReplayTime, startRecordingTriggers, stopRecordingTriggers, toggleRecordingStartTrigger, toggleRecordingStopTrigger, isConnected: isFtcLiveConnected } = useFtcLive();
+  const { fetchScenes, status, field0Scene, field1Scene, field2Scene, setField0Scene, setField1Scene, setField2Scene } = useObsStudio();
+  const { transitionTriggers: selectedTriggers, setTransitionTriggers: setSelectedTriggers, enableReplayBuffer, setEnableReplayBuffer, postMatchReplayTime, setPostMatchReplayTime, startRecordingTriggers, stopRecordingTriggers, toggleRecordingStartTrigger, toggleRecordingStopTrigger, isConnected: isFtcLiveConnected, stopRecordingDelays, setStopRecordingDelays } = useFtcLive();
   const [scenes, setScenes] = useState<string[]>([]);
 
   const handleFetchScenes = async () => {
@@ -57,6 +57,20 @@ const SceneMapper = () => {
             </option>
           ))}
         </select>
+        <br />
+        Finals Scene:
+        <select
+          onChange={(e) => setField0Scene(scenes.find(s => s === e.target.value))}
+          value={field0Scene || 'Select Scene'}
+          disabled={scenes.length === 0 || !status.connected}
+        >
+          <option value="Select Scene">Select Scene</option>
+          {scenes.map((scene) => (
+            <option key={scene} value={scene}>
+              {scene}
+            </option>
+          ))}
+        </select>
       </div>
       <br />
       <div>
@@ -71,7 +85,7 @@ const SceneMapper = () => {
               <th>Transition</th>
               <th>Start Record</th>
               <th>Stop Record</th>
-              {/*<th>Recording Stop Offset</th> */}
+              <th>Stop Delay</th>
             </tr>
           </thead>
           <tbody>
@@ -102,24 +116,25 @@ const SceneMapper = () => {
                     onChange={() => toggleRecordingStopTrigger(type)}
                   />
                 </td>
-                {/* <td>
+                <td>
                   <input
-                    name={`${type}-record-stop-offset`}
+                    name={`${type}-record-stop-delay`}
                     type="number"
                     placeholder="Offset"
+                    disabled={!stopRecordingTriggers.includes(type)}
                     min={0}
-                    value={stopRecordingOffsets[type] || 0}
+                    value={stopRecordingDelays[type] || 0}
                     onChange={(e) => {
                       const value = parseInt(e.target.value);
                       if (!isNaN(value)) {
-                        setStopRecordingOffsets((prevOffsets) => ({
-                          ...prevOffsets,
+                        setStopRecordingDelays((prevDelays) => ({
+                          ...prevDelays,
                           [type]: value,
                         }));
                       }
                     }}
                   />
-                </td> */}
+                </td>
               </tr>
             ))}
           </tbody>
