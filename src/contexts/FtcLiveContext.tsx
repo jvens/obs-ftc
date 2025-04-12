@@ -5,7 +5,7 @@ import { useObsStudio } from './ObsStudioContext';
 import { usePersistentState } from '../helpers/persistant';
 import { json } from 'stream/consumers';
 
-const MATCH_TIME_SECONDS = 0; //158 as const; // 2:38 in seconds
+const MATCH_TIME_SECONDS = 158 as const; // 2:38 in seconds
 
 type FtcLiveProviderProps = {
   children: ReactNode;
@@ -47,7 +47,7 @@ export const useFtcLive = () => {
 
 // WebSocketProvider component that will wrap your application or part of it
 export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) => {
-  const { setActiveField, startRecording, stopRecording, status, saveReplayBuffer } = useObsStudio();
+  const { setActiveField, setRecording, saveReplayBuffer } = useObsStudio();
   const [serverUrl, setServerUrl] = usePersistentState<string>('FTC_URL', 'localhost');
   const [selectedEvent, setSelectedEvent] = usePersistentState<Event | undefined>('FTC_Event', undefined);
   const [allStreamData, setAllStreamData] = usePersistentState<FtcLiveSteamData[]>('Socket_Messages', []);
@@ -144,15 +144,16 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
       }
     }
 
-    if (startRecordingTriggers.some(trigger => trigger === streamData.updateType) && !status.recording) {
-      console.log('Start recording');
-      startRecording();
-    }
-    if (stopRecordingTriggers.some(trigger => trigger === streamData.updateType && status.recording)) {
+    if (stopRecordingTriggers.some(trigger => trigger === streamData.updateType)) {
       console.log('Stop recording');
-      stopRecording();
+      const path = setRecording(false);
+      console.log(`Recording path: ${path}`);
     }
-  }, [setAllStreamData, transitionTriggers, enableReplayBuffer, startRecordingTriggers, status.recording, stopRecordingTriggers, setActiveField, postMatchReplayTime, saveOffReplayBuffer, recordingMatch, startRecording, stopRecording]);
+    if (startRecordingTriggers.some(trigger => trigger === streamData.updateType)) {
+      console.log('Start recording');
+      setRecording(true);
+    }
+  }, [setAllStreamData, transitionTriggers, enableReplayBuffer, stopRecordingTriggers, startRecordingTriggers, setActiveField, postMatchReplayTime, saveOffReplayBuffer, recordingMatch, setRecording]);
 
   // The function to connect the WebSocket and handle messages
   const connectWebSocket = useCallback((connect: boolean) => {

@@ -28,8 +28,7 @@ interface ObsStudioContextData {
   setField1Scene: React.Dispatch<React.SetStateAction<string | undefined>>;
   field2Scene?: string;
   setField2Scene: React.Dispatch<React.SetStateAction<string | undefined>>;
-  startRecording: () => Promise<void>;
-  stopRecording: () => Promise<{ outputPath: string }>;
+  setRecording: (start: boolean) => Promise<string | undefined>;
   saveReplayBuffer: () => Promise<string>;
   // isRecording: boolean;
   status: {
@@ -190,6 +189,28 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     }
   }
 
+  const setRecording = useCallback(async (start: boolean) => {
+    console.log('Set recording to', start)
+    if (obs && isConnectedRef.current) {
+      const recordingStatus = await obs.call('GetRecordStatus');
+      console.log('Recording status:', recordingStatus);
+      if (recordingStatus.outputActive !== start) {
+        if (start) {
+          console.log('Start recording');
+          await obs.call('StartRecord');
+          setIsRecording(true);
+        } else {
+          console.log('Stop recording');
+          const outputPath = await obs.call('StopRecord');
+          setIsRecording(false);
+          return outputPath.outputPath;
+        }
+      }
+    } else {
+      console.error('Unable to set recording. Not connected');
+    }
+  }, []);
+
   return (
     <ObsStudioContext.Provider value={{
       obsUrl, setObsUrl,
@@ -202,7 +223,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       saveReplayBuffer,
       error,
       startStreamTime,
-      startRecording: () => obs.call('StartRecord'), stopRecording: () => obs.call('StopRecord'),
+      setRecording,
       status: {
         connected: isConnected,
         streaming: isStreaming,
