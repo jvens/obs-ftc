@@ -29,7 +29,7 @@ export const UpdateTypes: UpdateType[] = [
   'MATCH_COMMIT',
   'MATCH_POST',
   'SHOW_PREVIEW',
-  'SHOW_RANDOM',
+  // 'SHOW_RANDOM',
   'SHOW_MATCH'
 ]
 

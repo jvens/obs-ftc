@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect } from "react"
 import { useFtcLive } from "../contexts/FtcLiveContext";
 import { usePersistentState } from "../helpers/persistant";
 import { FtcMatch } from "../types/FtcLive";
@@ -23,6 +23,7 @@ interface MatchRow {
   MATCH_ABORT?: number;
   MATCH_COMMIT?: number;
   MATCH_POST?: number;
+  recordingFile?: string;
 }
 
 type TeamData = {
@@ -42,11 +43,11 @@ type Team = {
 
 const MatchEventsTable: React.FC = () => {
   const [rows, setRows] = usePersistentState<MatchRow[]>('Match_Events', [])
-  const [teams, setTeams] = usePersistentState<Team[]>('Teams', [])
+  // const [teams, setTeams] = usePersistentState<Team[]>('Teams', [])
   const [chapters, setChapters] = usePersistentState<string[]>('Video_Chapters', [])
   const [offsetTime, setOffsetTime] = usePersistentState<number>('Offset_Time', 0)
-  const { isConnected, serverUrl, selectedEvent } = useFtcLive()
-  const { latestStreamData } = useFtcLive()
+  const { serverUrl, selectedEvent , recordings, clearRecordings} = useFtcLive()
+  const { latestStreamData , isConnected} = useFtcLive()
   const { startStreamTime } = useObsStudio()
   const [useStreamTime, setUseStreamTime] = usePersistentState<boolean>('Use_Stream_Time', false)
 
@@ -78,49 +79,48 @@ const MatchEventsTable: React.FC = () => {
     }
   }, [latestStreamData, setRows]); // Removed 'rows' and 'setRows' from the dependencies
 
+  useEffect(() => {
+    setRows(currentRows => {
+      const newRows = [];
+      for (let row of currentRows) {
+        let newRow = { ...row }
+        if (recordings[row.name]) {
+          newRow.recordingFile = recordings[row.name];
+        }
+        newRows.push(newRow);
+      }
+      return newRows;
+    })
+  }, [setRows, recordings]);
 
   useEffect(() => {
-    const getTeamName = (number?: number) => {
-      if (!number) return undefined;
-      return teams.find(team => team.number === number)
-    }
-
-
-    rows.sort((prev, curr) => {
-      // Ensure that values without preview times get sorted to the end
-      // Otherwise when loading a match list, you get weird negative values on run matches
-      const prev_time = prev.SHOW_PREVIEW ?? 0
-      const curr_time = curr.SHOW_PREVIEW ?? 0
-      // Use match number as a tie-breaker
-      if(prev_time === curr_time) return prev.number-curr.number
-      if(prev_time === 0) return 1
-      if(curr_time === 0) return -1
-      return prev_time - curr_time
-    });
-
-    const firstTime = useStreamTime? startStreamTime:rows[0]?.SHOW_PREVIEW ?? 0
+    // const getTeamName = (number?: number) => {
+    //   if (!number) return undefined;
+    //   return teams.find(team => team.number === number)
+    // }
+    const firstTime = rows[0]?.SHOW_PREVIEW ?? 0
     let chapters: string[] = rows.map(r => {
-      let blueTeams = `${r.blue1} ${getTeamName(r.blue1)?.name}, ${r.blue2} ${getTeamName(r.blue2)?.name}`
-      if (r.blue3)
-        blueTeams += `${r.blue3} ${getTeamName(r.blue3)?.name}`
-      let redTeams = `${r.red1} ${getTeamName(r.red1)?.name}, ${r.red2} ${getTeamName(r.red2)?.name}`
-      if (r.red3)
-        redTeams += `${r.red3} ${getTeamName(r.red3)?.name}`
-      let time = ((r.SHOW_PREVIEW ?? 0) - firstTime) / 1000 + offsetTime
-      let timeString = "N/A"
-      if (time>=0) {
-        // Negative times look bad so show N/A instead
-        const hours = Math.floor(time / 3600)
-        time -= hours * 3600
-        const minutes = Math.floor(time / 60)
-        time -= minutes * 60
-        const seconds = Math.floor(time)
-        timeString = `${hours < 10 ? '0' + hours : hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`
+      let allianceString = '';
+      if (r.blue1 && r.red1) {
+        let blueTeams = `${r.blue1}, ${r.blue2}`
+        if (r.blue3)
+          blueTeams += `, ${r.blue3}`
+        let redTeams = `${r.red1}, ${r.red2}`
+        if (r.red3)
+          redTeams += `, ${r.red3}`
+        allianceString = `- Blue: ${blueTeams}; Red: ${redTeams}`
       }
-      return `${timeString} ${r.name} - Blue: ${blueTeams}; Red: ${redTeams}`
+      let time = ((r.SHOW_PREVIEW ?? 0) - firstTime)/1000 + offsetTime
+      const hours = Math.floor(time/3600)
+      time -= hours * 3600
+      const minutes = Math.floor(time/60)
+      time -= minutes * 60
+      const seconds = Math.floor(time)
+      const timeString = `${hours < 10 ? '0' + hours : hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`
+      return `${timeString} ${r.name} ${allianceString}`
     })
     setChapters(['00:00:00 Event Start', ...chapters])
-  }, [rows, setChapters, teams, offsetTime, startStreamTime, useStreamTime])
+  }, [rows, setChapters, offsetTime, startStreamTime, useStreamTime])
 
   const delay = (seconds: number) => {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000))
@@ -149,22 +149,22 @@ const MatchEventsTable: React.FC = () => {
         return row
       })
       setRows(newRows)
-      const teamsResponse = await fetch(`http://${serverUrl}/api/v1/events/${selectedEvent?.eventCode}/teams/`)
-      const teamNumbers = (await teamsResponse.json()).teamNumbers as number[];
-      const newTeams = await Promise.all(teamNumbers.map(async teamNumber => {
-        let retryCount = 0;
-        let teamDataResponse = await fetch(`http://${serverUrl}/api/v1/events/${selectedEvent?.eventCode}/teams/${teamNumber}/`)
-        while (retryCount < 10 && teamDataResponse.status === 429) {
-          retryCount++;
-          await delay(60 * 5); // wait 5 minute before trying again
-        }
-        const teamData = (await teamDataResponse.json()) as TeamData;
-        return {
-          number: teamNumber,
-          name: teamData.name
-        };
-      }))
-      setTeams(newTeams)
+      // const teamsResponse = await fetch(`http://${serverUrl}/api/v1/events/${selectedEvent?.eventCode}/teams/`)
+      // const teamNumbers = (await teamsResponse.json()).teamNumbers as number[];
+      // const newTeams = await Promise.all(teamNumbers.map(async teamNumber => {
+      //   let retryCount = 0;
+      //   let teamDataResponse = await fetch(`http://${serverUrl}/api/v1/events/${selectedEvent?.eventCode}/teams/${teamNumber}/`)
+      //   while(retryCount < 10 && teamDataResponse.status === 429) {
+      //       retryCount++;
+      //       await delay(60 * 5); // wait 5 minute before trying again
+      //   }
+      //   const teamData = (await teamDataResponse.json()) as TeamData;
+      //   return {
+      //     number: teamNumber,
+      //     name: teamData.name
+      //   };
+      // }))
+      // setTeams(newTeams)
     } catch (error) {
       console.error('Fetching matches failed: ', error)
     }
@@ -172,14 +172,15 @@ const MatchEventsTable: React.FC = () => {
 
   const clearRows = () => {
     setRows([])
-    setTeams([])
+    // setTeams([])
+    clearRecordings();
     setOffsetTime(0)
     setUseStreamTime(false)
   }
 
   const exportData = () => {
-    const fileData = JSON.stringify({ matches: rows, teams: teams }, null, 2);
-    const blob = new Blob([fileData], { type: 'application/json' });
+    const fileData = JSON.stringify({matches: rows}, null, 2);
+    const blob = new Blob([fileData], {type: 'application/json'});
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement('a');
@@ -192,29 +193,26 @@ const MatchEventsTable: React.FC = () => {
 
   return (
     <div className="section">
-      <button onClick={fetchMatches} disabled={!isConnected}>Get Match List</button>
-      <button onClick={clearRows}>Clear All Data</button>
-      <button onClick={exportData}>Export Data</button>
-      <table>
+      <button className="matches-button" onClick={fetchMatches} disabled={!isConnected}>Get Match List</button>
+      <button className="matches-button" onClick={clearRows}>Clear All Data</button>
+      <button className="matches-button" onClick={exportData}>Export Data</button>
+      <table className="matches-table">
         <thead>
           <tr>
             <th>Number</th>
             <th>Name</th>
-            <th>Schedule Time</th>
-            <th>Blue 1</th>
-            <th>Blue 2</th>
-            <th>Blue 3</th>
-            <th>Red 1</th>
-            <th>Red 2</th>
-            <th>Red 3</th>
+            <th>Scheduled</th>
+            <th>Blue</th>
+            <th>Red</th>
             <th>LOAD</th>
-            <th>SHOW PREVIEW</th>
-            <th>SHOW RANDOM</th>
-            <th>SHOW MATCH</th>
+            <th>PREVIEW</th>
+            {/* <th>SHOW RANDOM</th> */}
+            <th>SHOW</th>
             <th>START</th>
             <th>ABORT</th>
             <th>COMMIT</th>
             <th>POST</th>
+            <th>Recording</th>
           </tr>
         </thead>
         <tbody>
@@ -223,20 +221,25 @@ const MatchEventsTable: React.FC = () => {
               <td>{row.number}</td>
               <td>{row.name}</td>
               <td>{row.scheduledTime ? new Date(row.scheduledTime).toLocaleTimeString() : ''}</td>
-              <td>{row.blue1}</td>
-              <td>{row.blue2}</td>
-              <td>{row.blue3}</td>
-              <td>{row.red1}</td>
-              <td>{row.red2}</td>
-              <td>{row.red3}</td>
+              <td>
+                {row.blue1}<br />
+                {row.blue2}<br/>
+                {row.blue3}
+              </td>
+              <td>
+                {row.red1}<br />
+                {row.red2}<br />
+                {row.red3}
+              </td>
               <td>{row.MATCH_LOAD ? new Date(row.MATCH_LOAD).toLocaleTimeString() : ''}</td>
               <td>{row.SHOW_PREVIEW ? new Date(row.SHOW_PREVIEW).toLocaleTimeString() : ''}</td>
-              <td>{row.SHOW_RANDOM ? new Date(row.SHOW_RANDOM).toLocaleTimeString() : ''}</td>
+              {/* <td>{row.SHOW_RANDOM ? new Date(row.SHOW_RANDOM).toLocaleTimeString() : ''}</td> */}
               <td>{row.SHOW_MATCH ? new Date(row.SHOW_MATCH).toLocaleTimeString() : ''}</td>
               <td>{row.MATCH_START ? new Date(row.MATCH_START).toLocaleTimeString() : ''}</td>
               <td>{row.MATCH_ABORT ? new Date(row.MATCH_ABORT).toLocaleTimeString() : ''}</td>
               <td>{row.MATCH_COMMIT ? new Date(row.MATCH_COMMIT).toLocaleTimeString() : ''}</td>
               <td>{row.MATCH_POST ? new Date(row.MATCH_POST).toLocaleTimeString() : ''}</td>
+              <td><a href={`${recordings[row.name]}`}>{recordings[row.name]}</a></td>
             </tr>
           ))}
         </tbody>

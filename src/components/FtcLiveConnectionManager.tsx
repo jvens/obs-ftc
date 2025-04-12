@@ -35,7 +35,7 @@ const FtcLiveConnectionManager: React.FC = () => {
         onChange={(e) => setServerUrl(e.target.value)}
       />
       <button onClick={fetchEvents} disabled={isConnected}>Get Event Codes</button>
-      <br /><br />
+      <br />
       <select
         value={selectedEvent?.eventCode}
         onChange={(e) => setSelectedEvent(events.filter(evt => evt.eventCode === e.target.value)[0])}
@@ -52,11 +52,22 @@ const FtcLiveConnectionManager: React.FC = () => {
       <button onClick={(e) => connectWebSocket(!isConnected)} disabled={!selectedEvent}>
         {isConnected ? 'Disconnnect' : 'Connect'}
       </button>
-      <div><br />
+      <div>
         Connection Status:
         <span className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
           {isConnected ? 'Connected' : 'Disconnected'}
         </span>
+      </div>
+
+      <div className="connection-helper">
+        <p>You may need to enable "Insecure content" in your browser settings<br/>for this tool to access the scoring system. For example, in Chrome:</p>
+        <div className="connection-helper-steps">
+        <ol>
+          <li>Select the icon next to the URL and go to "Site settings"</li>
+          <li>Find "Insecure content" and set it to "Allow"</li>
+          <li>Refresh this page</li>
+        </ol>
+        </div>
       </div>
     </div>
   );
