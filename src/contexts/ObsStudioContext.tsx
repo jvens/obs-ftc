@@ -17,7 +17,7 @@ interface ObsStudioContextData {
   setObsPort: React.Dispatch<React.SetStateAction<number>>;
   obsPassword: string;
   setObsPassword: React.Dispatch<React.SetStateAction<string>>;
-  isConnected: boolean;
+  // isConnected: boolean;
   error: string | undefined;
   connectToObs: () => void;
   disconnectFromObs: () => void;
@@ -28,6 +28,15 @@ interface ObsStudioContextData {
   setField1Scene: React.Dispatch<React.SetStateAction<string | undefined>>;
   field2Scene?: string;
   setField2Scene: React.Dispatch<React.SetStateAction<string | undefined>>;
+  setRecording: (start: boolean) => Promise<string | undefined>;
+  saveReplayBuffer: () => Promise<string>;
+  // isRecording: boolean;
+  status: {
+    connected: boolean;
+    streaming: boolean;
+    recording: boolean;
+    replayBuffer: boolean;
+  };
   startStreamTime: number;
 }
 
@@ -45,25 +54,60 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   const [obsPort, setObsPort] = usePersistentState('OBS_Port', 4455);
   const [obsPassword, setObsPassword] = usePersistentState('OBS_Password', '');
   const [isConnected, setIsConnected] = useState(false);
-  const [field1Scene, setField1Scene] = usePersistentState<string | undefined>('Field1_Scene', undefined)
+  const [field1Scene, setField1Scene] = usePersistentState<string|undefined>('Field1_Scene', undefined)
   const [field2Scene, setField2Scene] = usePersistentState<string | undefined>('Field2_Scene', undefined)
-  const [error, setError] = useState<string | undefined>(undefined)
-  const [startStreamTime, setStartStreamTime] = usePersistentState<number>('Stream_Start', 0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isReplayRecording, setIsReplayRecording] = useState(false);
+  const [error, setError] = useState<string | undefined>(undefined);
+  const [startStreamTime, setStartStreamTime] = useState<number>(0);
+
   const connectToObs = useCallback(async () => {
     try {
       const hello = await obs.connect(`ws://${obsUrl}:${obsPort}`, obsPassword);
       console.log('Hello message:', hello)
 
-      // Watch for streaming started, and save the time
-      obs.on('StreamStateChanged',(data: OBSEventTypes["StreamStateChanged"] ) => {
-        if (data.outputState === "OBS_WEBSOCKET_OUTPUT_STARTED"){
-          console.log("Stream started at ", Date.now())
-          setStartStreamTime(Date.now())
-        }})
-
       setIsConnected(true);
       setError(undefined)
       // ... additional setup if needed
+
+      const record = await obs.call('GetRecordStatus');
+      console.log('Record status:', record);
+      setIsRecording(record.outputActive);
+      obs.addListener('RecordStateChanged', (data: any) => {
+        console.log('Record state changed:', data);
+        if (data.outputActive) {
+          setIsRecording(true);
+        } else {
+          setIsRecording(false);
+        }
+      });
+
+      const stream = await obs.call('GetStreamStatus');
+      console.log('Stream status:', stream);
+      setIsRecording(stream.outputActive);
+      obs.addListener('StreamStateChanged', (data: any) => {
+        console.log('Stream state changed:', data);
+        if (data.outputActive) {
+          setIsStreaming(true);
+          console.log("Stream started at ", Date.now())
+          setStartStreamTime(Date.now())
+        } else {
+          setIsStreaming(false);
+        }
+      });
+  
+      const replayBuffer = await obs.call('GetReplayBufferStatus');
+      console.log('Replay buffer status:', replayBuffer);
+      setIsReplayRecording(replayBuffer.outputActive);
+      obs.addListener('ReplayBufferStateChanged', (data: any) => {
+        console.log('Replay buffer state changed:', data);
+        if (data.outputActive) {
+          setIsReplayRecording(true);
+        } else {
+          setIsReplayRecording(false);
+        }
+      });
     } catch (error: any) {
       console.error('Failed to connect to OBS:', error);
       setIsConnected(false);
@@ -96,6 +140,18 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     } catch (error) {
       console.error('Error fetching scenes:', error);
       return [];
+    }
+  }, []);
+
+  const saveReplayBuffer = useCallback(async () => {
+    try {
+      await obs.call('SaveReplayBuffer');
+      const outputPath = await obs.call('GetLastReplayBufferReplay');
+      console.log('Replay buffer saved to:', outputPath);
+      return outputPath.savedReplayPath;
+    } catch (error) {
+      console.error('Error saving replay buffer:', error);
+      throw error;
     }
   }, []);
 
@@ -133,8 +189,48 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     }
   }
 
+  const setRecording = useCallback(async (start: boolean) => {
+    console.log('Set recording to', start)
+    if (obs && isConnectedRef.current) {
+      const recordingStatus = await obs.call('GetRecordStatus');
+      console.log('Recording status:', recordingStatus);
+      if (recordingStatus.outputActive !== start) {
+        if (start) {
+          console.log('Start recording');
+          await obs.call('StartRecord');
+          setIsRecording(true);
+        } else {
+          console.log('Stop recording');
+          const outputPath = await obs.call('StopRecord');
+          setIsRecording(false);
+          return outputPath.outputPath;
+        }
+      }
+    } else {
+      console.error('Unable to set recording. Not connected');
+    }
+  }, []);
+
   return (
-    <ObsStudioContext.Provider value={{ obsUrl, setObsUrl, obsPort, setObsPort, obsPassword, setObsPassword, isConnected, connectToObs, disconnectFromObs, fetchScenes, switchScenes, field1Scene, field2Scene, setField1Scene, setField2Scene, setActiveField, error, startStreamTime}}>
+    <ObsStudioContext.Provider value={{
+      obsUrl, setObsUrl,
+      obsPort, setObsPort,
+      obsPassword, setObsPassword,
+      connectToObs, disconnectFromObs,
+      fetchScenes, switchScenes,
+      field1Scene, field2Scene,
+      setField1Scene, setField2Scene, setActiveField,
+      saveReplayBuffer,
+      error,
+      startStreamTime,
+      setRecording,
+      status: {
+        connected: isConnected,
+        streaming: isStreaming,
+        recording: isRecording,
+        replayBuffer: isReplayRecording
+      }
+    }}>
       {children}
     </ObsStudioContext.Provider>
   );

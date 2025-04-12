@@ -88,6 +88,7 @@ button:disabled {
   font-size: 1rem;
   color: #fff;
   border-radius: 5px;
+  display: inline-block;
 }
 
 .connected {
@@ -103,4 +104,69 @@ button:disabled {
 .section {
   outline: solid;
   padding: 10px;
+  max-width: 1500px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 20px;
+  margin-top: 10px;
+}
+
+.trigger-table {
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+}
+.trigger-table th {
+  background-color: #f2f2f2;
+  padding: 10px;
+  text-align: left;
+}
+
+.matches-table {
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+}
+.matches-table th {
+  background-color: #f2f2f2;
+  padding: 10px;
+  text-align: left;
+}
+.matches-table td {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.matches-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+.matches-table tr:nth-child(odd) {
+  background-color: #fff;
+}
+.matches-table tr:hover {
+  background-color: #f1f1f1;
+}
+
+.matches-button {
+  margin: 10px;
+}
+input, select {
+  margin: 5px;
+}
+
+ol {
+  padding-left: 20px;
+  text-align: left;
+  margin-left: auto;
+  margin-right: auto;
+}
+ol li {
+  margin-bottom: 0px;
+}
+
+.connection-helper-steps {
+  text-align: left;
+  margin-left: auto;
+  margin-right: auto;
+  display: inline-block;
 }
