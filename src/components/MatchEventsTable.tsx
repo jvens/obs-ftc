@@ -23,7 +23,10 @@ interface MatchRow {
   MATCH_ABORT?: number;
   MATCH_COMMIT?: number;
   MATCH_POST?: number;
+  replayFile?: string;
   recordingFile?: string;
+  previewScreenshot?: string;
+  scoreScreenshot?: string;
 }
 
 type TeamData = {
@@ -85,7 +88,10 @@ const MatchEventsTable: React.FC = () => {
       for (let row of currentRows) {
         let newRow = { ...row }
         if (recordings[row.name]) {
-          newRow.recordingFile = recordings[row.name];
+          newRow.recordingFile = recordings[row.name].recording;
+          newRow.replayFile = recordings[row.name].replay;
+          newRow.previewScreenshot = recordings[row.name].preview;
+          newRow.scoreScreenshot = recordings[row.name].score;
         }
         newRows.push(newRow);
       }
@@ -213,6 +219,9 @@ const MatchEventsTable: React.FC = () => {
             <th>COMMIT</th>
             <th>POST</th>
             <th>Recording</th>
+            <th>Replay</th>
+            <th>Preview</th>
+            <th>Score</th>
           </tr>
         </thead>
         <tbody>
@@ -239,7 +248,10 @@ const MatchEventsTable: React.FC = () => {
               <td>{row.MATCH_ABORT ? new Date(row.MATCH_ABORT).toLocaleTimeString() : ''}</td>
               <td>{row.MATCH_COMMIT ? new Date(row.MATCH_COMMIT).toLocaleTimeString() : ''}</td>
               <td>{row.MATCH_POST ? new Date(row.MATCH_POST).toLocaleTimeString() : ''}</td>
-              <td><a href={`${recordings[row.name]}`}>{recordings[row.name]}</a></td>
+              <td>{row.recordingFile && <a href={`${row.recordingFile}`} download={`${row.name}_recording.mkv`}>Link</a>}</td>
+              <td>{row.replayFile && <a href={`${row.replayFile}`} download={`${row.name}_replay.mkv`}>Link</a>}</td>
+              <td>{row.previewScreenshot && <a href={`${row.previewScreenshot}`} download={`${row.name}_preview.png`}>Link</a>}</td>
+              <td>{row.scoreScreenshot && <a href={`${row.scoreScreenshot}`} download={`${row.name}_score.png`}>Link</a>}</td>
             </tr>
           ))}
         </tbody>

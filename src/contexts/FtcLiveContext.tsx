@@ -11,6 +11,12 @@ type FtcLiveProviderProps = {
   children: ReactNode;
 };
 
+type Recording = {
+  recording?: string;
+  replay?: string;
+  preview?: string;
+  score?: string;
+}
 // Define the context data types
 interface FtcLiveContextData {
   serverUrl: string;
@@ -25,15 +31,15 @@ interface FtcLiveContextData {
   setTransitionTriggers: React.Dispatch<React.SetStateAction<UpdateType[]>>;
   startRecordingTriggers: UpdateType[];
   stopRecordingTriggers: UpdateType[];
-  stopRecordingOffsets: Record<UpdateType, number>
-  setStopRecordingOffsets: React.Dispatch<React.SetStateAction<Record<UpdateType, number>>>;
+  stopRecordingDelays: Record<UpdateType, number>
+  setStopRecordingDelays: React.Dispatch<React.SetStateAction<Record<UpdateType, number>>>;
   toggleRecordingStartTrigger: (trigger: UpdateType) => void;
   toggleRecordingStopTrigger: (trigger: UpdateType) => void;
   postMatchReplayTime: number;
   setPostMatchReplayTime: React.Dispatch<React.SetStateAction<number>>;
   enableReplayBuffer: boolean;
   setEnableReplayBuffer: React.Dispatch<React.SetStateAction<boolean>>;
-  recordings: Record<string, string>;
+  recordings: Record<string, Recording>;
   clearRecordings: () => void;
 }
 
@@ -47,7 +53,7 @@ export const useFtcLive = () => {
 
 // WebSocketProvider component that will wrap your application or part of it
 export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) => {
-  const { setActiveField, setRecording, saveReplayBuffer } = useObsStudio();
+  const { setActiveField, setRecording, saveReplayBuffer, takeScreenshot } = useObsStudio();
   const [serverUrl, setServerUrl] = usePersistentState<string>('FTC_URL', 'localhost');
   const [selectedEvent, setSelectedEvent] = usePersistentState<Event | undefined>('FTC_Event', undefined);
   const [allStreamData, setAllStreamData] = usePersistentState<FtcLiveSteamData[]>('Socket_Messages', []);
@@ -55,14 +61,14 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
   const [isConnected, setConnected] = useState<boolean>(false);
   const [socket, setSocket] = useState<WebSocket | undefined>();
   const [transitionTriggers, setTransitionTriggers] = usePersistentState<UpdateType[]>('Selected_Trigers', ['SHOW_PREVIEW', 'SHOW_MATCH', 'SHOW_RANDOM', 'MATCH_START', 'MATCH_POST']);
-  const [startRecordingTriggers, setStartRecordingTriggers] = usePersistentState<UpdateType[]>('Start_Recording_Triggers', ['SHOW_PREVIEW', 'MATCH_START']);
-  const [stopRecordingTriggers, setStopRecordingTriggers] = usePersistentState<UpdateType[]>('Stop_Recording_Triggers', ['MATCH_ABORT', 'MATCH_START', 'SHOW_PREVIEW']);
-  const [stopRecordingOffsets, setStopRecordingOffsets] = usePersistentState<Record<UpdateType, number>>('Stop_Recording_Offsets', {
+  const [startRecordingTriggers, setStartRecordingTriggers] = usePersistentState<UpdateType[]>('Start_Recording_Triggers', ['SHOW_PREVIEW', 'MATCH_START', 'SHOW_MATCH']);
+  const [stopRecordingTriggers, setStopRecordingTriggers] = usePersistentState<UpdateType[]>('Stop_Recording_Triggers', ['MATCH_ABORT', 'SHOW_PREVIEW', 'MATCH_POST']);
+  const [stopRecordingDelays, setStopRecordingDelays] = usePersistentState<Record<UpdateType, number>>('Stop_Recording_Offsets', {
     MATCH_LOAD: 0,
     MATCH_START: 240,
     MATCH_ABORT: 0,
     MATCH_COMMIT: 0,
-    MATCH_POST: 0,
+    MATCH_POST: 16, // Note, animation is about 10 seconds
     SHOW_PREVIEW: 0,
     SHOW_RANDOM: 0,
     SHOW_MATCH: 0
@@ -72,13 +78,22 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
   const [enableReplayBuffer, setEnableReplayBuffer] = useState<boolean>(true);
   const [recordingMatch, setRecordingMatch] = useState<string | null>(null);
   const [savedRecordings, setSavedRecordings] = usePersistentState<string>('Recordings', JSON.stringify({}));
-  const [recordings, setRecordings] = useState<Record<string, string>>({});
+  const [recordings, setRecordings] = useState<Record<string, Recording>>({});
+  const [recordingsLoaded, setRecordingsLoaded] = useState<boolean>(false);
+
+  const recordingMatchRef = useRef<string | null>(null);
+  const stopRecordingDelaysRef = useRef<Record<UpdateType, number>>(stopRecordingDelays);
 
   useEffect(() => {
-    if ( Object.keys(recordings).length === 0) {
+    stopRecordingDelaysRef.current = stopRecordingDelays;
+  }, [stopRecordingDelays]);
+
+  useEffect(() => {
+    if ( !recordingsLoaded ) {
       setRecordings(JSON.parse(savedRecordings));
+      setRecordingsLoaded(true);
     }
-  }, [savedRecordings]);
+  }, [savedRecordings, recordingsLoaded, setRecordings]);
 
   useEffect(() => {
     if (Object.keys(recordings).length > 0) {
@@ -106,7 +121,11 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
     console.log('Stopping replay buffer');
     const file = await saveReplayBuffer();
     console.log(`Replay buffer saved for match ${matchName}: ${file}`);
-    setRecordings((prevRecordings) => { return { ...prevRecordings, [matchName]: file } });
+    setRecordings((prevRecordings) => {
+      const newRecording = prevRecordings[matchName] || { };
+      newRecording.replay = file;
+      return { ...prevRecordings, [matchName]: newRecording };
+    });
   }, [saveReplayBuffer, setRecordings]);
 
   const onFtcEvent = useCallback(async (streamData: FtcLiveSteamData) => {
@@ -120,6 +139,28 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
       setActiveField(streamData.payload.field)
     } else {
       console.log('Event was not in the selected triggers list:', streamData.updateType)
+    }
+
+    if (streamData.updateType === 'SHOW_PREVIEW') {
+      setTimeout(async () => {
+        const fileName = `${streamData.payload.shortName}_preview.png`;
+        const file = await takeScreenshot(fileName, streamData.payload.field);
+        setRecordings((prevRecordings) => {
+          const newRecording = prevRecordings[streamData.payload.shortName] || { };
+          newRecording.preview = file;
+          return { ...prevRecordings, [streamData.payload.shortName]: newRecording };
+        });
+      }, 1500);
+    } else if (streamData.updateType === 'MATCH_POST') {
+      setTimeout(async () => {
+        const fileName = `${streamData.payload.shortName}_score.png`;
+        const file = await takeScreenshot(fileName, streamData.payload.field);
+        setRecordings((prevRecordings) => {
+          const newRecording = prevRecordings[streamData.payload.shortName] || { };
+          newRecording.score = file;
+          return { ...prevRecordings, [streamData.payload.shortName]: newRecording };
+        });
+      }, 11000);
     }
 
     if (enableReplayBuffer) {
@@ -145,15 +186,35 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
     }
 
     if (stopRecordingTriggers.some(trigger => trigger === streamData.updateType)) {
-      console.log('Stop recording');
-      const path = setRecording(false);
-      console.log(`Recording path: ${path}`);
+      const delay = stopRecordingDelaysRef.current[streamData.updateType];
+      const doStop = async () => {
+        const path = await setRecording(false);
+        if (recordingMatchRef.current !== null) {
+          const match = recordingMatchRef.current;
+          recordingMatchRef.current = null;
+          setRecordings((prevRecordings) => {
+            const newRecording = prevRecordings[match] || {};
+            newRecording.recording = path;
+            return { ...prevRecordings, [match]: newRecording };
+          });
+        }
+      }
+
+      if (delay > 0) {
+        console.log(`Stop recording in ${delay} seconds`);
+        setTimeout(doStop, delay * 1000);
+      } else {
+        console.log('Stop recording');
+        await doStop();
+      }
+    
     }
     if (startRecordingTriggers.some(trigger => trigger === streamData.updateType)) {
       console.log('Start recording');
       setRecording(true);
+      recordingMatchRef.current = streamData.payload.shortName;
     }
-  }, [setAllStreamData, transitionTriggers, enableReplayBuffer, stopRecordingTriggers, startRecordingTriggers, setActiveField, postMatchReplayTime, saveOffReplayBuffer, recordingMatch, setRecording]);
+  }, [setAllStreamData, transitionTriggers, enableReplayBuffer, stopRecordingTriggers, startRecordingTriggers, setActiveField, takeScreenshot, postMatchReplayTime, saveOffReplayBuffer, recordingMatch, setRecording]);
 
   // The function to connect the WebSocket and handle messages
   const connectWebSocket = useCallback((connect: boolean) => {
@@ -190,7 +251,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
 
   // Provide the context value to children
   return (
-    <FtcLiveContext.Provider value={{ serverUrl, setServerUrl, selectedEvent, setSelectedEvent, allStreamData, connectWebSocket, isConnected, latestStreamData, transitionTriggers, setTransitionTriggers, startRecordingTriggers, toggleRecordingStartTrigger, stopRecordingTriggers, toggleRecordingStopTrigger, stopRecordingOffsets, setStopRecordingOffsets, postMatchReplayTime, setPostMatchReplayTime, enableReplayBuffer, setEnableReplayBuffer, recordings, clearRecordings: () => setRecordings({}) }}>
+    <FtcLiveContext.Provider value={{ serverUrl, setServerUrl, selectedEvent, setSelectedEvent, allStreamData, connectWebSocket, isConnected, latestStreamData, transitionTriggers, setTransitionTriggers, startRecordingTriggers, toggleRecordingStartTrigger, stopRecordingTriggers, toggleRecordingStopTrigger, stopRecordingDelays, setStopRecordingDelays, postMatchReplayTime, setPostMatchReplayTime, enableReplayBuffer, setEnableReplayBuffer, recordings, clearRecordings: () => setRecordings({}) }}>
       {children}
     </FtcLiveContext.Provider>
   );

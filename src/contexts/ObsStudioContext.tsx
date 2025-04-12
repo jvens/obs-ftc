@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import OBSWebSocket from 'obs-websocket-js';
 import { usePersistentState } from '../helpers/persistant';
 import type {OBSEventTypes} from "obs-websocket-js/dist/types";
+import { StringDecoder } from 'node:string_decoder';
 
 type ObsStudioProviderProps = {
   children: ReactNode;
@@ -24,12 +25,15 @@ interface ObsStudioContextData {
   fetchScenes: () => Promise<string[]>;
   switchScenes: (scene: string) => void;
   setActiveField: (field: number) => void;
+  field0Scene?: string;
+  setField0Scene: React.Dispatch<React.SetStateAction<string | undefined>>;
   field1Scene?: string;
   setField1Scene: React.Dispatch<React.SetStateAction<string | undefined>>;
   field2Scene?: string;
   setField2Scene: React.Dispatch<React.SetStateAction<string | undefined>>;
   setRecording: (start: boolean) => Promise<string | undefined>;
   saveReplayBuffer: () => Promise<string>;
+  takeScreenshot: (fileName: string, field: number) => Promise<string>;
   // isRecording: boolean;
   status: {
     connected: boolean;
@@ -54,13 +58,15 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   const [obsPort, setObsPort] = usePersistentState('OBS_Port', 4455);
   const [obsPassword, setObsPassword] = usePersistentState('OBS_Password', '');
   const [isConnected, setIsConnected] = useState(false);
-  const [field1Scene, setField1Scene] = usePersistentState<string|undefined>('Field1_Scene', undefined)
+  const [field0Scene, setField0Scene] = usePersistentState<string | undefined>('Field0_Scene', undefined)
+  const [field1Scene, setField1Scene] = usePersistentState<string | undefined>('Field1_Scene', undefined)
   const [field2Scene, setField2Scene] = usePersistentState<string | undefined>('Field2_Scene', undefined)
   const [isRecording, setIsRecording] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isReplayRecording, setIsReplayRecording] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [startStreamTime, setStartStreamTime] = useState<number>(0);
+  const [recordDirectory, setRecordDirectory] = useState<string>('');
 
   const connectToObs = useCallback(async () => {
     try {
@@ -68,6 +74,10 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       console.log('Hello message:', hello)
 
       setIsConnected(true);
+      const recordDirectory = await obs.call('GetRecordDirectory');
+      console.log('Record directory:', recordDirectory.recordDirectory);
+      setRecordDirectory(recordDirectory.recordDirectory);
+
       setError(undefined)
       // ... additional setup if needed
 
@@ -123,7 +133,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
         setError(`Unknown Error: ${JSON.stringify(error)}`);
       }
     }
-  }, [obsUrl, obsPort, obsPassword, setStartStreamTime]);
+  }, [obsUrl, obsPort, obsPassword, setStartStreamTime, setRecordDirectory]);
 
   const disconnectFromObs = useCallback(() => {
     obs.disconnect();
@@ -155,14 +165,46 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     }
   }, []);
 
+  const field0SceneRef = useRef(field0Scene)
   const field1SceneRef = useRef(field1Scene)
   const field2SceneRef = useRef(field2Scene)
+  const recordDirectoryRef = useRef(recordDirectory)
   const isConnectedRef = useRef(isConnected);
   useEffect(() => {
+    field0SceneRef.current = field0Scene
     field1SceneRef.current = field1Scene;
     field2SceneRef.current = field2Scene;
     isConnectedRef.current = isConnected;
-  }, [field1Scene, field2Scene, isConnected])
+    recordDirectoryRef.current = recordDirectory;
+  }, [field0Scene, field1Scene, field2Scene, isConnected, recordDirectory])
+
+  const takeScreenshot = async (fileName: string, field: number) => {
+    const field0Scene = field0SceneRef.current
+    const field1Scene = field1SceneRef.current
+    const field2Scene = field2SceneRef.current
+    let sourceName: string;
+    if (field === 1 && field1Scene)
+      sourceName = field1Scene
+    else if (field === 2 && field2Scene)
+      sourceName = field2Scene
+    else if (field === 0 && field0Scene)
+      sourceName = field0Scene
+    else
+      return '';
+    try {
+      const imageFilePath = `${recordDirectoryRef.current}/${fileName}`;
+      const result = await obs.call('SaveSourceScreenshot', {
+        sourceName,
+        imageFormat: 'png',
+        imageFilePath
+      })
+      console.log('screenshot', result)
+      return imageFilePath;
+    } catch (error) {
+      console.error('Error saving screenshot:', error);
+      return '';
+    }
+  }
 
   const switchScenes = async (scene: string) => {
     if (obs && isConnectedRef.current) {
@@ -174,16 +216,20 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   }
 
   const setActiveField = async (field: number) => {
+    const field0Scene = field0SceneRef.current
     const field1Scene = field1SceneRef.current
     const field2Scene = field2SceneRef.current
     if (field === 1 && field1Scene) {
       await switchScenes(field1Scene)
     } else if (field === 2 && field2Scene) {
       await switchScenes(field2Scene)
+    } else if (field === 0 && field0Scene) {
+      await switchScenes(field0Scene)
     } else if (field === 0) {
       console.log("Finals Match, manual switching required")
     } else {
       console.error("Unable to switch stream to field ", field)
+      console.log("Field 0:", field0Scene)
       console.log('field 1:', field1Scene)
       console.log('field 2:', field2Scene)
     }
@@ -218,12 +264,13 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       obsPassword, setObsPassword,
       connectToObs, disconnectFromObs,
       fetchScenes, switchScenes,
-      field1Scene, field2Scene,
-      setField1Scene, setField2Scene, setActiveField,
+      field0Scene, field1Scene, field2Scene,
+      setField0Scene, setField1Scene, setField2Scene, setActiveField,
       saveReplayBuffer,
       error,
       startStreamTime,
       setRecording,
+      takeScreenshot,
       status: {
         connected: isConnected,
         streaming: isStreaming,
