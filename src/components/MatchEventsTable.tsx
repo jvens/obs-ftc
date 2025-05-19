@@ -248,10 +248,10 @@ const MatchEventsTable: React.FC = () => {
               <td>{row.MATCH_ABORT ? new Date(row.MATCH_ABORT).toLocaleTimeString() : ''}</td>
               <td>{row.MATCH_COMMIT ? new Date(row.MATCH_COMMIT).toLocaleTimeString() : ''}</td>
               <td>{row.MATCH_POST ? new Date(row.MATCH_POST).toLocaleTimeString() : ''}</td>
-              <td>{row.recordingFile && <a href={`${row.recordingFile}`} download={`${row.name}_recording.mkv`}>Link</a>}</td>
-              <td>{row.replayFile && <a href={`${row.replayFile}`} download={`${row.name}_replay.mkv`}>Link</a>}</td>
-              <td>{row.previewScreenshot && <a href={`${row.previewScreenshot}`} download={`${row.name}_preview.png`}>Link</a>}</td>
-              <td>{row.scoreScreenshot && <a href={`${row.scoreScreenshot}`} download={`${row.name}_score.png`}>Link</a>}</td>
+              <td>{row.recordingFile && <a href={`file:///${row.recordingFile}`} download={`${row.name}_recording.mkv`}>Link</a>}</td>
+              <td>{row.replayFile && <a href={`file:///${row.replayFile}`} download={`${row.name}_replay.mkv`}>Link</a>}</td>
+              <td>{row.previewScreenshot && <a href={`file:///${row.previewScreenshot}`} download={`${row.name}_preview.png`}>Link</a>}</td>
+              <td>{row.scoreScreenshot && <a href={`file:///${row.scoreScreenshot}`} download={`${row.name}_score.png`}>Link</a>}</td>
             </tr>
           ))}
         </tbody>
