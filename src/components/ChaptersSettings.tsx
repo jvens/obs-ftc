@@ -13,6 +13,20 @@ const ChapterEventOptions: { value: UpdateType; label: string }[] = [
   { value: 'MATCH_POST', label: 'Match Post' },
 ];
 
+// Convert HH:MM:SS time string to milliseconds timestamp for today
+const timeStringToTimestamp = (timeStr: string): number => {
+  const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+  const now = new Date();
+  now.setHours(hours, minutes, seconds, 0);
+  return now.getTime();
+};
+
+// Convert milliseconds timestamp to HH:MM:SS time string
+const timestampToTimeString = (timestamp: number): string => {
+  const date = new Date(timestamp);
+  return date.toTimeString().slice(0, 8); // HH:MM:SS
+};
+
 const ChaptersSettings: React.FC = () => {
   const rows = useAppSelector(state => state.matchData.matches);
   const [chapterEvent, setChapterEvent] = usePersistentState<UpdateType>('Chapter_Event', 'SHOW_PREVIEW')
@@ -20,9 +34,15 @@ const ChaptersSettings: React.FC = () => {
   const [includeTestMatches, setIncludeTestMatches] = usePersistentState<boolean>('Chapter_Include_Test', false)
   const [includePracticeMatches, setIncludePracticeMatches] = usePersistentState<boolean>('Chapter_Include_Practice', false)
   const [includeTeamNumbers, setIncludeTeamNumbers] = usePersistentState<boolean>('Chapter_Include_Team_Numbers', false)
-  const [useStreamTime, setUseStreamTime] = usePersistentState<boolean>('Chapter_Use_Stream_Time', false)
+  const [streamStartTime, setStreamStartTime] = usePersistentState<number>('Chapter_Stream_Start_Time', 0)
 
-  const { startStreamTime } = useObsStudio()
+  const { startStreamTime: obsStreamTime } = useObsStudio()
+
+  const syncToStreamTime = useCallback(() => {
+    if (obsStreamTime > 0) {
+      setStreamStartTime(obsStreamTime);
+    }
+  }, [obsStreamTime, setStreamStartTime]);
 
   const formatTeamInfo = useCallback((row: MatchRow): string => {
     if (!includeTeamNumbers) return '';
@@ -61,8 +81,8 @@ const ChaptersSettings: React.FC = () => {
 
     // Calculate reference time
     let referenceTime: number;
-    if (useStreamTime && startStreamTime > 0) {
-      referenceTime = startStreamTime;
+    if (streamStartTime > 0) {
+      referenceTime = streamStartTime;
     } else {
       referenceTime = filteredRows[0]?.[chapterEvent] ?? 0;
     }
@@ -94,7 +114,7 @@ const ChaptersSettings: React.FC = () => {
     }
 
     return chapterLines;
-  }, [rows, chapterEvent, offsetTime, includeTestMatches, includePracticeMatches, useStreamTime, startStreamTime, formatTeamInfo]);
+  }, [rows, chapterEvent, offsetTime, includeTestMatches, includePracticeMatches, streamStartTime, formatTeamInfo]);
 
   const chaptersText = useMemo(() => chapters.join('\n'), [chapters]);
 
@@ -123,6 +143,20 @@ const ChaptersSettings: React.FC = () => {
         </div>
 
         <div className="chapters-option-row">
+          <label htmlFor="stream-start-time">Stream Start Time:</label>
+          <input
+            id="stream-start-time"
+            type="time"
+            step="1"
+            value={streamStartTime > 0 ? timestampToTimeString(streamStartTime) : ''}
+            onChange={(e) => setStreamStartTime(e.target.value ? timeStringToTimestamp(e.target.value) : 0)}
+          />
+          <button onClick={syncToStreamTime} disabled={obsStreamTime === 0}>
+            Sync with OBS
+          </button>
+        </div>
+
+        <div className="chapters-option-row">
           <label htmlFor="video-offset">Video Offset (seconds):</label>
           <input
             id="video-offset"
@@ -130,18 +164,6 @@ const ChaptersSettings: React.FC = () => {
             value={offsetTime}
             onChange={(e) => setOffsetTime(parseInt(e.target.value) || 0)}
           />
-        </div>
-
-        <div className="chapters-option-row">
-          <label>
-            <input
-              type="checkbox"
-              checked={useStreamTime}
-              onChange={(e) => setUseStreamTime(e.target.checked)}
-            />
-            Use stream start time as reference
-            {startStreamTime > 0 && ` (${new Date(startStreamTime).toLocaleTimeString()})`}
-          </label>
         </div>
 
         <div className="chapters-option-row">
