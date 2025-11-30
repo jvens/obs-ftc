@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 import FtcLiveConnectionManager from './components/FtcLiveConnectionManager';
 import { FtcLiveProvider } from './contexts/FtcLiveContext';
@@ -11,9 +11,16 @@ import SceneMapper from './components/SceneMapper';
 import ScreenshotSettings from './components/ScreenshotSettings';
 import MatchEventsTable from './components/MatchEventsTable';
 import AboutModal from './components/AboutModal';
+import { initializeAnalytics, trackPageView } from './helpers/analytics';
 
 function App() {
   const [showAbout, setShowAbout] = useState(false);
+
+  // Initialize analytics on app load
+  useEffect(() => {
+    initializeAnalytics();
+    trackPageView('Home');
+  }, []);
 
   return (
     <ObsStudioProvider>

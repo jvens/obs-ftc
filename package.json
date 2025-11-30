@@ -42,7 +42,7 @@
     ]
   },
   "devDependencies": {
-    "firebase": "^10.6.0",
+    "firebase": "^10.14.1",
     "firebase-tools": "^12.8.1"
   }
 }

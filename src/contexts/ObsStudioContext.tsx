@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useRef, useEffect } from 'react';
 import OBSWebSocket from 'obs-websocket-js';
 import { usePersistentState } from '../helpers/persistant';
+import { trackEvent, AnalyticsEvents } from '../helpers/analytics';
 
 type ObsStudioProviderProps = {
   children: ReactNode;
@@ -80,6 +81,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       })
 
       setIsConnected(true);
+      trackEvent(AnalyticsEvents.OBS_CONNECTED);
       const recordDirectory = await obs.call('GetRecordDirectory');
       console.log('Record directory:', recordDirectory.recordDirectory);
       setRecordDirectory(recordDirectory.recordDirectory);

@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import { Event, FtcLiveSteamData, UpdateType } from '../types/FtcLive';
 import { useObsStudio } from './ObsStudioContext';
 import { usePersistentState } from '../helpers/persistant';
+import { trackEvent, trackFeatureEnabled, trackUserConfig, AnalyticsEvents } from '../helpers/analytics';
 
 const MATCH_TIME_SECONDS = 158 as const; // 2:38 in seconds
 
@@ -156,6 +157,19 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
     screenshotRandomDelayRef.current = screenshotRandomDelay;
     screenshotResultDelayRef.current = screenshotResultDelay;
   }, [transitionTriggers, recordStartCondition, recordStopCondition, recordStopDelay, enableMatchRecording, enableReplayBuffer, postMatchReplayTime, enableScreenshots, screenshotPreviewDelay, screenshotRandomDelay, screenshotResultDelay]);
+
+  // Track feature toggles
+  useEffect(() => {
+    trackFeatureEnabled('replay_buffer', enableReplayBuffer);
+  }, [enableReplayBuffer]);
+
+  useEffect(() => {
+    trackFeatureEnabled('match_recording', enableMatchRecording);
+  }, [enableMatchRecording]);
+
+  useEffect(() => {
+    trackFeatureEnabled('screenshots', enableScreenshots);
+  }, [enableScreenshots]);
 
   useEffect(() => {
     if ( !recordingsLoaded ) {
@@ -326,6 +340,14 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
       socket.onopen = () => {
         console.log('WebSocket connected');
         setConnected(true);
+        trackEvent(AnalyticsEvents.FTC_LIVE_CONNECTED);
+        // Track user configuration when connected
+        trackUserConfig({
+          replayBufferEnabled: enableReplayBufferRef.current,
+          matchRecordingEnabled: enableMatchRecordingRef.current,
+          screenshotsEnabled: enableScreenshotsRef.current,
+          transitionTriggersCount: transitionTriggersRef.current.length,
+        });
       };
 
       socket.onclose = () => {
