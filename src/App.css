@@ -12,6 +12,7 @@ body {
 /* Styling the main App container */
 .App {
   text-align: center;
+  overflow-x: hidden;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -258,6 +259,7 @@ button:disabled {
 /* Full-width sections always span 12 columns */
 .section.full-width {
   grid-column: span 12;
+  overflow-x: auto;
 }
 
 /* Tall sections span 2 rows */
