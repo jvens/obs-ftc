@@ -2,27 +2,35 @@
 import React, { useState, useContext } from 'react';
 import { FtcLiveContext } from '../contexts/FtcLiveContext';
 import { Event } from '../types/FtcLive';
+import { fetchAllEvents } from '../services/ftcLiveApi';
+import { selectFtcServerUrl, selectSelectedEvent, setFtcServerUrl, setSelectedEvent } from '../store/connectionSlice';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 
 
 const FtcLiveConnectionManager: React.FC = () => {
-  const { isConnected, serverUrl, setServerUrl, connectWebSocket, selectedEvent, setSelectedEvent } = useContext(FtcLiveContext);
+  const { isConnected, connectWebSocket } = useContext(FtcLiveContext);
+  const dispatch = useAppDispatch();
+  const selectedEvent = useAppSelector(selectSelectedEvent);
+  const serverUrl = useAppSelector(selectFtcServerUrl);
   const [events, setEvents] = useState<Event[]>([]);
 
   // Fetch event codes from the server
   const fetchEvents = async () => {
     try {
-      const response = await fetch(`http://${serverUrl}/api/v1/events/`);
-      const eventCodes = (await response.json()).eventCodes;
-      const events: Event[] = await Promise.all(eventCodes.map(async (code: string): Promise<Event> => {
-        const response = await fetch(`http://${serverUrl}/api/v1/events/${code}/`);
-        const event = await response.json() as Event;
-        return event;
-      }));
+      const events = await fetchAllEvents(serverUrl);
       setEvents(events);
     } catch (error) {
       console.error('Fetching events failed:', error);
+      setEvents([]);
     }
   };
+
+  const selectEvent = (eventCode: string) => {
+    const event = events.find(evt => evt.eventCode === eventCode) || null;
+    dispatch(setSelectedEvent(event));
+  }
+
+  const eventList = events.length > 0 ? events : selectedEvent ? [selectedEvent] : [];
 
   return (
     <div className="section">
@@ -32,17 +40,17 @@ const FtcLiveConnectionManager: React.FC = () => {
         placeholder="Enter server IP"
         value={serverUrl}
         disabled={isConnected}
-        onChange={(e) => setServerUrl(e.target.value)}
+        onChange={(e) => dispatch(setFtcServerUrl(e.target.value))}
       />
       <button onClick={fetchEvents} disabled={isConnected}>Get Event Codes</button>
       <br />
       <select
         value={selectedEvent?.eventCode}
-        onChange={(e) => setSelectedEvent(events.filter(evt => evt.eventCode === e.target.value)[0])}
+        onChange={(e) => selectEvent(e.target.value)}
         disabled={events.length === 0 || isConnected}
       >
         <option value="">Select an event</option>
-        {events.map((event) => (
+        {eventList.map((event) => (
           <option key={event.eventCode} value={event.eventCode}>
             {event.eventCode} - {event.name}
           </option>

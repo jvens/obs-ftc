@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useCallback } from "react"
 import { useFtcLive } from "../contexts/FtcLiveContext";
 import { usePersistentState } from "../helpers/persistant";
-import { FtcMatch } from "../types/FtcLive";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
-import { MatchRow, setMatches, clearAllData } from "../store/matchDataSlice";
+import { MatchRow, clearAllData, fetchMatchList, selectLoading, selectError, clearError } from "../store/matchDataSlice";
+import { selectFtcServerUrl, selectSelectedEvent } from "../store/connectionSlice";
 
 type SortKey = keyof MatchRow;
 type SortDirection = 'asc' | 'desc';
@@ -11,10 +11,12 @@ type SortDirection = 'asc' | 'desc';
 const MatchEventsTable: React.FC = () => {
   const dispatch = useAppDispatch();
   const rows = useAppSelector(state => state.matchData.matches);
+  const loading = useAppSelector(selectLoading);
+  const error = useAppSelector(selectError);
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [showPaths, setShowPaths] = usePersistentState<boolean>('Show_Paths', false)
-  const { serverUrl, selectedEvent, enableScreenshots, enableReplayBuffer, enableMatchRecording } = useFtcLive()
+  const { enableScreenshots, enableReplayBuffer, enableMatchRecording } = useFtcLive()
   const { isConnected } = useFtcLive()
 
   // Determine which column groups to show
@@ -86,30 +88,17 @@ const MatchEventsTable: React.FC = () => {
     return `sortable sorted-${sortDirection}`;
   };
 
-  const fetchMatches = async () => {
-    console.log('fetching matches')
-    try {
-      const response = await fetch(`http://${serverUrl}/api/v1/events/${selectedEvent?.eventCode}/matches/`)
-      const matches = (await response.json()).matches as FtcMatch[];
-      const newRows = matches.map(match => {
-        const existingRow = rows.find(row => row.name === match.matchName);
-        const row: MatchRow = existingRow
-          ? { ...existingRow }
-          : { name: match.matchName, number: match.matchNumber };
+  const selectedEvent = useAppSelector(selectSelectedEvent);
+  const serverUrl = useAppSelector(selectFtcServerUrl);
 
-        row.blue1 = match.blue.team1;
-        row.blue2 = match.blue.team2;
-        row.blue3 = match.blue.team3;
-        row.red1 = match.red.team1;
-        row.red2 = match.red.team2;
-        row.red3 = match.red.team3;
-        row.scheduledTime = match.time;
-        return row;
-      });
-      dispatch(setMatches(newRows));
-    } catch (error) {
-      console.error('Fetching matches failed: ', error)
+  const handleFetchMatches = () => {
+    if (selectedEvent?.eventCode) {
+      dispatch(fetchMatchList({ eventCode: selectedEvent.eventCode, serverUrl }));
     }
+  }
+
+  const handleClearError = () => {
+    dispatch(clearError());
   }
 
   const clearRows = () => {
@@ -132,9 +121,18 @@ const MatchEventsTable: React.FC = () => {
   return (
     <div className="section full-width">
       <h2>Match Events</h2>
-      <button className="matches-button" onClick={fetchMatches} disabled={!isConnected}>Get Match List</button>
+      <button className="matches-button" onClick={handleFetchMatches} disabled={!isConnected || loading}>
+        {loading ? 'Loading...' : 'Get Match List'}
+      </button>
       <button className="matches-button" onClick={clearRows}>Clear All Data</button>
       <button className="matches-button" onClick={exportData}>Export Data</button>
+
+      {error && (
+        <div className="error-message">
+          Error: {error}
+          <button onClick={handleClearError}>Dismiss</button>
+        </div>
+      )}
 
       {(numberVideos > 0 || showScreenshots) && <><input type="checkbox" checked={showPaths} onChange={(e) => setShowPaths(e.target.checked)} /> Show File Paths </>}
 

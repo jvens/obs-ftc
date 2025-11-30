@@ -41,7 +41,7 @@ const ChaptersSettings: React.FC = () => {
     // Filter rows based on includeTestMatches
     let filteredRows = rows.filter(r => {
       // Test matches typically start with 'T' or 'P' (practice)
-      const isTestMatch = r.name.startsWith('T') || r.name.startsWith('P');
+      const isTestMatch = r.name && (r.name.startsWith('T') || r.name.startsWith('P'));
       return includeTestMatches || !isTestMatch;
     });
 

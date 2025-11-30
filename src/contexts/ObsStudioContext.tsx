@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import OBSWebSocket from 'obs-websocket-js';
 import { usePersistentState } from '../helpers/persistant';
 import { trackEvent, AnalyticsEvents } from '../helpers/analytics';
+import { useAppSelector, useAppDispatch } from '../store/hooks';
+import { setObsUrl as setObsUrlAction, setObsPort as setObsPortAction, setObsPassword as setObsPasswordAction, selectObsUrl, selectObsPort, selectObsPassword } from '../store/connectionSlice';
 
 type ObsStudioProviderProps = {
   children: ReactNode;
@@ -12,11 +14,11 @@ const obs = new OBSWebSocket();
 // Define the context data types
 interface ObsStudioContextData {
   obsUrl: string;
-  setObsUrl: React.Dispatch<React.SetStateAction<string>>;
+  setObsUrl: (url: string) => void;
   obsPort: number;
-  setObsPort: React.Dispatch<React.SetStateAction<number>>;
+  setObsPort: (port: number) => void;
   obsPassword: string;
-  setObsPassword: React.Dispatch<React.SetStateAction<string>>;
+  setObsPassword: (password: string) => void;
   // isConnected: boolean;
   error: string | undefined;
   connectToObs: () => void;
@@ -55,9 +57,15 @@ export const useObsStudio = () => {
 
 // ObsStudioProvider component that will wrap your application or part of it
 export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }) => {
-  const [obsUrl, setObsUrl] = usePersistentState('OBS_URL', 'localhost');
-  const [obsPort, setObsPort] = usePersistentState('OBS_Port', 4455);
-  const [obsPassword, setObsPassword] = usePersistentState('OBS_Password', '');
+  const dispatch = useAppDispatch();
+
+  // Redux state for connection settings
+  const obsUrl = useAppSelector(selectObsUrl);
+  const obsPort = useAppSelector(selectObsPort);
+  const obsPassword = useAppSelector(selectObsPassword);
+  const setObsUrl = useCallback((url: string) => dispatch(setObsUrlAction(url)), [dispatch]);
+  const setObsPort = useCallback((port: number) => dispatch(setObsPortAction(port)), [dispatch]);
+  const setObsPassword = useCallback((password: string) => dispatch(setObsPasswordAction(password)), [dispatch]);
   const [isConnected, setIsConnected] = useState(false);
   const [field0Scene, setField0Scene] = usePersistentState<string | undefined>('Field0_Scene', undefined)
   const [field1Scene, setField1Scene] = usePersistentState<string | undefined>('Field1_Scene', undefined)

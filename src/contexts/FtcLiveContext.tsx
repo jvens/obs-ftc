@@ -1,11 +1,13 @@
 // src/contexts/FtcLiveContext.tsx
 import React, { createContext, useContext, useState, useCallback, ReactNode, useRef, useEffect } from 'react';
-import { Event, FtcLiveSteamData, UpdateType } from '../types/FtcLive';
+import { FtcLiveSteamData, UpdateType } from '../types/FtcLive';
 import { useObsStudio } from './ObsStudioContext';
 import { usePersistentState } from '../helpers/persistant';
 import { trackEvent, trackFeatureEnabled, trackUserConfig, AnalyticsEvents } from '../helpers/analytics';
 import { store } from '../store';
-import { updateMatchEvent, updateMatchInfo } from '../store/matchDataSlice';
+import { updateMatchEvent, updateMatchInfo, fetchMatchIfUnknown } from '../store/matchDataSlice';
+import { useAppSelector } from '../store/hooks';
+import { selectFtcServerUrl, selectSelectedEvent } from '../store/connectionSlice';
 
 const MATCH_TIME_SECONDS = 158 as const; // 2:38 in seconds
 
@@ -45,13 +47,7 @@ export const RecordStopConditions: { value: RecordStopCondition; label: string }
 
 // Define the context data types
 interface FtcLiveContextData {
-  serverUrl: string;
-  setServerUrl: React.Dispatch<React.SetStateAction<string>>;
-  selectedEvent?: Event;
-  setSelectedEvent: React.Dispatch<React.SetStateAction<Event|undefined>>;
   isConnected: boolean;
-  allStreamData: FtcLiveSteamData[];
-  latestStreamData?: FtcLiveSteamData;
   connectWebSocket: (connect: boolean) => void;
   transitionTriggers: UpdateType[];
   setTransitionTriggers: React.Dispatch<React.SetStateAction<UpdateType[]>>;
@@ -92,10 +88,11 @@ export const useFtcLive = () => {
 // WebSocketProvider component that will wrap your application or part of it
 export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) => {
   const { setActiveField, setRecording, saveReplayBuffer, takeScreenshot } = useObsStudio();
-  const [serverUrl, setServerUrl] = usePersistentState<string>('FTC_URL', 'localhost');
-  const [selectedEvent, setSelectedEvent] = usePersistentState<Event | undefined>('FTC_Event', undefined);
-  const [allStreamData, setAllStreamData] = usePersistentState<FtcLiveSteamData[]>('Socket_Messages', []);
-  const [latestStreamData, setLatestStreamData] = useState<FtcLiveSteamData | undefined>();
+
+  // Redux state for connection settings
+  const serverUrl = useAppSelector(selectFtcServerUrl);
+  const selectedEvent = useAppSelector(selectSelectedEvent);
+
   const [isConnected, setConnected] = useState<boolean>(false);
   const [socket, setSocket] = useState<WebSocket | undefined>();
   const [transitionTriggers, setTransitionTriggers] = usePersistentState<UpdateType[]>('Selected_Trigers', ['SHOW_PREVIEW', 'SHOW_MATCH', 'SHOW_RANDOM', 'MATCH_START', 'MATCH_POST']);
@@ -175,8 +172,6 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
   const onFtcEvent = useCallback(async (streamData: FtcLiveSteamData) => {
     console.log('Selected Event:', streamData);
     console.log('Websocket Message: ', streamData)
-    setAllStreamData(prevMessages => [...prevMessages, streamData]);
-    setLatestStreamData(streamData);
 
     // Dispatch to Redux store
     store.dispatch(updateMatchEvent({
@@ -185,7 +180,20 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
       updateType: streamData.updateType,
       updateTime: streamData.updateTime,
     }));
-    console.log('Selected Triggers:', transitionTriggersRef.current)
+
+    // Auto-fetch match info if we don't have it yet
+    const connectionState = store.getState().connection;
+    if (connectionState.selectedEvent?.eventCode) {
+      console.log('Fetching match info for', streamData.payload.shortName);
+      store.dispatch(fetchMatchIfUnknown({
+        eventCode: connectionState.selectedEvent.eventCode,
+        matchName: streamData.payload.shortName,
+        serverUrl: connectionState.ftcServerUrl,
+      }) as any);
+    } else {
+      console.warn('No selected event code in connection state, cannot fetch match info');
+    }
+
     if (transitionTriggersRef.current.some(trigger => trigger === streamData.updateType)) {
       console.log('Set the active field')
       setActiveField(streamData.payload.field)
@@ -225,6 +233,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
       }
     }
 
+    // Replay buffer logic
     if (enableReplayBufferRef.current) {
       if (streamData.updateType === 'MATCH_START') {
         if (replayBufferTime.current) {
@@ -310,7 +319,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
         }
       }
     }
-  }, [setAllStreamData, setActiveField, takeScreenshot, saveOffReplayBuffer, setRecording]);
+  }, [setActiveField, takeScreenshot, saveOffReplayBuffer, setRecording]);
 
   // The function to connect the WebSocket and handle messages
   const connectWebSocket = useCallback((connect: boolean) => {
@@ -356,9 +365,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
   // Provide the context value to children
   return (
     <FtcLiveContext.Provider value={{
-      serverUrl, setServerUrl,
-      selectedEvent, setSelectedEvent,
-      allStreamData, connectWebSocket, isConnected, latestStreamData,
+      connectWebSocket, isConnected,
       transitionTriggers, setTransitionTriggers,
       postMatchReplayTime, setPostMatchReplayTime,
       enableReplayBuffer, setEnableReplayBuffer,
