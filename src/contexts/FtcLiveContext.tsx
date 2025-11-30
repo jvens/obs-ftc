@@ -3,7 +3,6 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import { Event, FtcLiveSteamData, UpdateType } from '../types/FtcLive';
 import { useObsStudio } from './ObsStudioContext';
 import { usePersistentState } from '../helpers/persistant';
-import { json } from 'stream/consumers';
 
 const MATCH_TIME_SECONDS = 158 as const; // 2:38 in seconds
 

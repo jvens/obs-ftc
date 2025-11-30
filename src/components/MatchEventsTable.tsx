@@ -2,7 +2,6 @@ import React, { useEffect } from "react"
 import { useFtcLive } from "../contexts/FtcLiveContext";
 import { usePersistentState } from "../helpers/persistant";
 import { FtcMatch } from "../types/FtcLive";
-import { TypeParameterDeclaration } from "typescript";
 import {useObsStudio} from "../contexts/ObsStudioContext";
 
 interface MatchRow {
@@ -27,21 +26,6 @@ interface MatchRow {
   recordingFile?: string;
   previewScreenshot?: string;
   scoreScreenshot?: string;
-}
-
-type TeamData = {
-  number: number;
-  name: string;
-  school: string;
-  cit: string;
-  state: string;
-  country: string;
-  rookie: number;
-}
-
-type Team = {
-  number: number;
-  name: string;
 }
 
 const MatchEventsTable: React.FC = () => {
@@ -127,10 +111,6 @@ const MatchEventsTable: React.FC = () => {
     })
     setChapters(['00:00:00 Event Start', ...chapters])
   }, [rows, setChapters, offsetTime, startStreamTime, useStreamTime])
-
-  const delay = (seconds: number) => {
-    return new Promise(resolve => setTimeout(resolve, seconds * 1000))
-  }
 
   const fetchMatches = async () => {
     console.log('fetching matches')
