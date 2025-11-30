@@ -264,11 +264,34 @@ button:disabled {
   border-collapse: collapse;
   margin-left: auto;
   margin-right: auto;
+  width: 100%;
+  max-width: 300px;
+}
+.trigger-table th,
+.trigger-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border: 1px solid #ddd;
 }
 .trigger-table th {
   background-color: #f2f2f2;
-  padding: 10px;
-  text-align: left;
+  font-weight: 600;
+}
+.trigger-table td:last-child {
+  text-align: center;
+  width: 100px;
+}
+.trigger-table tbody tr:hover {
+  background-color: #f5f5f5;
+}
+.trigger-table label {
+  cursor: pointer;
+  display: block;
+}
+.trigger-table input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
 }
 
 .matches-table {
