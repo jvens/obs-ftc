@@ -117,20 +117,20 @@ const MatchRecordingSettings: React.FC = () => {
               )}
             </>
           )}
+          <div>
+            Status:
+            <span className={`connection-status ${isReady ? 'connected' : 'disconnected'}`}>
+              {isReady ? 'Ready' : 'Not Ready'}
+            </span>
+            {isReady && (
+              <span className={`connection-status ${isRecordingReplay ? 'connected' : 'connected'}`}>
+                {isRecordingReplay ? `Recording: ${currentRecordingMatch}` : 'Waiting for Match'}
+              </span>
+            )}
+          </div>
         </>
       )}
 
-      <div>
-        Status:
-        <span className={`connection-status ${isReady ? 'connected' : 'disconnected'}`}>
-          {isReady ? 'Ready' : 'Not Ready'}
-        </span>
-        {isReady && (
-          <span className={`connection-status ${isRecordingReplay ? 'connected' : 'connected'}`}>
-            {isRecordingReplay ? `Recording: ${currentRecordingMatch}` : 'Waiting for Match'}
-          </span>
-        )}
-      </div>
     </div>
   );
 };
