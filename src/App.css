@@ -399,3 +399,64 @@ ol li {
   margin-right: auto;
   display: inline-block;
 }
+
+/* Chapters Settings */
+.chapters-options {
+  text-align: left;
+  display: inline-block;
+  margin-bottom: 15px;
+}
+
+.chapters-option-row {
+  margin: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chapters-option-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.chapters-option-row > label:first-child {
+  min-width: 120px;
+}
+
+.chapters-option-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.chapters-output {
+  margin-top: 15px;
+}
+
+.chapters-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 0 5px;
+}
+
+.chapters-header span {
+  font-size: 0.9em;
+  color: #666;
+}
+
+.chapters-textarea {
+  width: 100%;
+  max-width: 600px;
+  height: 200px;
+  font-family: monospace;
+  font-size: 0.85em;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  resize: vertical;
+  background-color: #f9f9f9;
+}

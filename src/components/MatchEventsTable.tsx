@@ -2,7 +2,6 @@ import React, { useEffect, useState, useMemo, useCallback } from "react"
 import { useFtcLive } from "../contexts/FtcLiveContext";
 import { usePersistentState } from "../helpers/persistant";
 import { FtcMatch } from "../types/FtcLive";
-import {useObsStudio} from "../contexts/ObsStudioContext";
 
 interface MatchRow {
   number: number;
@@ -36,9 +35,6 @@ const MatchEventsTable: React.FC = () => {
   const [rows, setRows] = usePersistentState<MatchRow[]>('Match_Events', [])
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  // const [teams, setTeams] = usePersistentState<Team[]>('Teams', [])
-  const [chapters, setChapters] = usePersistentState<string[]>('Video_Chapters', [])
-  const [offsetTime, setOffsetTime] = usePersistentState<number>('Offset_Time', 0)
   const [showPaths, setShowPaths] = usePersistentState<boolean>('Show_Paths', false)
   const { serverUrl, selectedEvent , recordings, clearRecordings, enableScreenshots, enableReplayBuffer, enableMatchRecording } = useFtcLive()
   const { latestStreamData , isConnected} = useFtcLive()
@@ -55,8 +51,6 @@ const MatchEventsTable: React.FC = () => {
       console.error('Failed to copy path:', err);
     });
   }, []);
-  const { startStreamTime } = useObsStudio()
-  const [useStreamTime, setUseStreamTime] = usePersistentState<boolean>('Use_Stream_Time', false)
 
   useEffect(() => {
     if (latestStreamData) {
@@ -103,35 +97,6 @@ const MatchEventsTable: React.FC = () => {
       return newRows;
     })
   }, [setRows, recordings]);
-
-  useEffect(() => {
-    // const getTeamName = (number?: number) => {
-    //   if (!number) return undefined;
-    //   return teams.find(team => team.number === number)
-    // }
-    const firstTime = rows[0]?.SHOW_PREVIEW ?? 0
-    let chapters: string[] = rows.map(r => {
-      let allianceString = '';
-      if (r.blue1 && r.red1) {
-        let blueTeams = `${r.blue1}, ${r.blue2}`
-        if (r.blue3)
-          blueTeams += `, ${r.blue3}`
-        let redTeams = `${r.red1}, ${r.red2}`
-        if (r.red3)
-          redTeams += `, ${r.red3}`
-        allianceString = `- Blue: ${blueTeams}; Red: ${redTeams}`
-      }
-      let time = ((r.SHOW_PREVIEW ?? 0) - firstTime)/1000 + offsetTime
-      const hours = Math.floor(time/3600)
-      time -= hours * 3600
-      const minutes = Math.floor(time/60)
-      time -= minutes * 60
-      const seconds = Math.floor(time)
-      const timeString = `${hours < 10 ? '0' + hours : hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`
-      return `${timeString} ${r.name} ${allianceString}`
-    })
-    setChapters(['00:00:00 Event Start', ...chapters])
-  }, [rows, setChapters, offsetTime, startStreamTime, useStreamTime])
 
   // Sorting logic
   const handleSort = (key: SortKey) => {
@@ -235,10 +200,7 @@ const MatchEventsTable: React.FC = () => {
 
   const clearRows = () => {
     setRows([])
-    // setTeams([])
     clearRecordings();
-    setOffsetTime(0)
-    setUseStreamTime(false)
   }
 
   const exportData = () => {
@@ -324,25 +286,6 @@ const MatchEventsTable: React.FC = () => {
           ))}
         </tbody>
       </table>
-      <br />
-      Video Offset Time (seconds to Match 1 Show Preview)
-      <input
-        type="number"
-        placeholder='Offset Time'
-        value={offsetTime}
-        onChange={(e) => setOffsetTime(parseInt(e.target.value))}
-      />
-      <br />
-      Use streaming start time {new Date(startStreamTime).toLocaleTimeString()} for reference time:
-      <input type="checkbox"
-             checked={useStreamTime}
-             onChange={(e) => setUseStreamTime(e.target.checked)}
-      />
-      <br />
-      <div>
-        {chapters.map((chapter, i) => (<div key={i}>{chapter}</div>))}
-      </div>
-
     </div>
   )
 }

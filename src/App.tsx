@@ -10,6 +10,7 @@ import MatchRecordSettings from './components/MatchRecordSettings';
 import SceneMapper from './components/SceneMapper';
 import ScreenshotSettings from './components/ScreenshotSettings';
 import MatchEventsTable from './components/MatchEventsTable';
+import ChaptersSettings from './components/ChaptersSettings';
 import AboutModal from './components/AboutModal';
 import { initializeAnalytics, trackPageView } from './helpers/analytics';
 
@@ -47,6 +48,7 @@ function App() {
         <ScreenshotSettings />
         <MatchRecordingSettings />
         <MatchRecordSettings />
+        <ChaptersSettings />
         <MatchEventsTable />
       </div>
     </div>
