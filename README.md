@@ -8,7 +8,9 @@ A web application that integrates OBS Studio with the FTC Live scoring system, e
 - **Match Recording**: Control OBS recording start/stop based on configurable match events
 - **Replay Buffer**: Automatically save replay buffer clips for each match
 - **Screenshots**: Capture screenshots at key moments (match preview, randomization, final scores)
+- **YouTube Chapters**: Generate video chapter markers for YouTube uploads
 - **Match Events Table**: Track all match events with timestamps, recordings, and screenshots
+- **Auto-Reconnect**: Automatically reconnects to OBS and FTC Live if the connection is lost
 
 ## Requirements
 
@@ -47,7 +49,7 @@ Since the FTC Live scoring system uses HTTP (not HTTPS), you may need to allow i
 
 ### Prerequisites
 
-- Node.js (v16 or later)
+- Node.js (v18 or later recommended)
 - npm
 
 ### Getting Started
@@ -70,19 +72,27 @@ The app will be available at [http://localhost:3000](http://localhost:3000).
 
 #### `npm start`
 
-Runs the app in development mode. The page will reload when you make edits.
-
-#### `npm test`
-
-Launches the test runner in interactive watch mode.
+Runs the app in development mode using Vite. The page will hot-reload when you make edits.
 
 #### `npm run build`
 
-Builds the app for production to the `build` folder. The build is minified and optimized for best performance.
+Builds the app for production to the `build` folder using TypeScript compiler and Vite. The build is minified and optimized for best performance.
+
+#### `npm run preview`
+
+Locally preview the production build before deploying.
 
 #### `npm run deploy`
 
 Builds the app and deploys it to Firebase Hosting.
+
+### Tech Stack
+
+- **React 18** - UI framework
+- **TypeScript** - Type-safe JavaScript
+- **Vite** - Fast build tool and dev server
+- **Redux Toolkit** - State management
+- **obs-websocket-js** - OBS WebSocket client
 
 ## Contributing
 
