@@ -219,6 +219,19 @@ button:disabled {
   background-color: #f1f1f1 !important;
 }
 
+/* File path link styling */
+.file-link {
+  color: #0066cc;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.file-link:hover {
+  color: #004499;
+}
+.file-link:active {
+  color: #002266;
+}
+
 .matches-button {
   margin: 10px;
 }

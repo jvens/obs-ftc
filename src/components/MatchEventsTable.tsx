@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react"
+import React, { useEffect, useState, useMemo, useCallback } from "react"
 import { useFtcLive } from "../contexts/FtcLiveContext";
 import { usePersistentState } from "../helpers/persistant";
 import { FtcMatch } from "../types/FtcLive";
@@ -39,13 +39,22 @@ const MatchEventsTable: React.FC = () => {
   // const [teams, setTeams] = usePersistentState<Team[]>('Teams', [])
   const [chapters, setChapters] = usePersistentState<string[]>('Video_Chapters', [])
   const [offsetTime, setOffsetTime] = usePersistentState<number>('Offset_Time', 0)
+  const [showPaths, setShowPaths] = usePersistentState<boolean>('Show_Paths', false)
   const { serverUrl, selectedEvent , recordings, clearRecordings, enableScreenshots, enableReplayBuffer, enableMatchRecording } = useFtcLive()
   const { latestStreamData , isConnected} = useFtcLive()
 
   // Determine which column groups to show
-  const showVideos = enableMatchRecording || enableReplayBuffer;
   const numberVideos = (enableMatchRecording ? 1 : 0) + (enableReplayBuffer ? 1 : 0);
   const showScreenshots = enableScreenshots;
+
+  // Copy file path to clipboard
+  const copyToClipboard = useCallback((path: string) => {
+    navigator.clipboard.writeText(path).then(() => {
+      // Could add a toast notification here
+    }).catch(err => {
+      console.error('Failed to copy path:', err);
+    });
+  }, []);
   const { startStreamTime } = useObsStudio()
   const [useStreamTime, setUseStreamTime] = usePersistentState<boolean>('Use_Stream_Time', false)
 
@@ -250,6 +259,9 @@ const MatchEventsTable: React.FC = () => {
       <button className="matches-button" onClick={fetchMatches} disabled={!isConnected}>Get Match List</button>
       <button className="matches-button" onClick={clearRows}>Clear All Data</button>
       <button className="matches-button" onClick={exportData}>Export Data</button>
+
+      {(numberVideos > 0 || showScreenshots) && <><input type="checkbox" checked={showPaths} onChange={(e) => setShowPaths(e.target.checked)} /> Show File Paths </>}
+
       <table className="matches-table">
         <thead>
           <tr>
@@ -303,11 +315,11 @@ const MatchEventsTable: React.FC = () => {
               <td className="col-timestamps">{row.MATCH_ABORT ? new Date(row.MATCH_ABORT).toLocaleTimeString() : ''}</td>
               <td className="col-timestamps">{row.MATCH_COMMIT ? new Date(row.MATCH_COMMIT).toLocaleTimeString() : ''}</td>
               <td className="col-timestamps">{row.MATCH_POST ? new Date(row.MATCH_POST).toLocaleTimeString() : ''}</td>
-              {enableMatchRecording && <td className="col-recordings">{row.recordingFile && <a href={`file:///${row.recordingFile}`} download={`${row.name}_recording.mkv`}>Link</a>}</td>}
-              {enableReplayBuffer && <td className="col-recordings">{row.replayFile && <a href={`file:///${row.replayFile}`} download={`${row.name}_replay.mkv`}>Link</a>}</td>}
-              {showScreenshots && <td className="col-screenshots">{row.previewScreenshot && <a href={`file:///${row.previewScreenshot}`} download={`${row.name}_preview.png`}>Link</a>}</td>}
-              {showScreenshots && <td className="col-screenshots">{row.randomScreenshot && <a href={`file:///${row.randomScreenshot}`} download={`${row.name}_random.png`}>Link</a>}</td>}
-              {showScreenshots && <td className="col-screenshots">{row.scoreScreenshot && <a href={`file:///${row.scoreScreenshot}`} download={`${row.name}_score.png`}>Link</a>}</td>}
+              {enableMatchRecording && <td className="col-recordings">{row.recordingFile && <span className="file-link" onClick={() => copyToClipboard(row.recordingFile!)} title={row.recordingFile}>{showPaths ? row.recordingFile : 'Copy Path'}</span>}</td>}
+              {enableReplayBuffer && <td className="col-recordings">{row.replayFile && <span className="file-link" onClick={() => copyToClipboard(row.replayFile!)} title={row.replayFile}>{showPaths ? row.replayFile : 'Copy Path'}</span>}</td>}
+              {showScreenshots && <td className="col-screenshots">{row.previewScreenshot && <span className="file-link" onClick={() => copyToClipboard(row.previewScreenshot!)} title={row.previewScreenshot}>{showPaths ? row.previewScreenshot : 'Copy Path'}</span>}</td>}
+              {showScreenshots && <td className="col-screenshots">{row.randomScreenshot && <span className="file-link" onClick={() => copyToClipboard(row.randomScreenshot!)} title={row.randomScreenshot}>{showPaths ? row.randomScreenshot : 'Copy Path'}</span>}</td>}
+              {showScreenshots && <td className="col-screenshots">{row.scoreScreenshot && <span className="file-link" onClick={() => copyToClipboard(row.scoreScreenshot!)} title={row.scoreScreenshot}>{showPaths ? row.scoreScreenshot : 'Copy Path'}</span>}</td>}
             </tr>
           ))}
         </tbody>
