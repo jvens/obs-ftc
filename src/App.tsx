@@ -5,6 +5,7 @@ import FtcLiveConnectionManager from './components/FtcLiveConnectionManager';
 import { FtcLiveProvider } from './contexts/FtcLiveContext';
 import { ObsStudioProvider } from './contexts/ObsStudioContext';
 import ObsStudioManager from './components/ObsStudioConnectionManager';
+import MatchRecordingSettings from './components/MatchRecordingSettings';
 import SceneMapper from './components/SceneMapper';
 import MatchEventsTable from './components/MatchEventsTable';
 
@@ -18,6 +19,7 @@ function App() {
       </header>
         <FtcLiveConnectionManager />
         <ObsStudioManager />
+        <MatchRecordingSettings />
         <SceneMapper />
         <MatchEventsTable />
     </div>

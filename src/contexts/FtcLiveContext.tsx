@@ -41,6 +41,8 @@ interface FtcLiveContextData {
   setEnableReplayBuffer: React.Dispatch<React.SetStateAction<boolean>>;
   recordings: Record<string, Recording>;
   clearRecordings: () => void;
+  isRecordingReplay: boolean;
+  currentRecordingMatch: string | null;
 }
 
 // Create the context
@@ -77,6 +79,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
   const [postMatchReplayTime, setPostMatchReplayTime] = useState<number>(15);
   const [enableReplayBuffer, setEnableReplayBuffer] = useState<boolean>(true);
   const [recordingMatch, setRecordingMatch] = useState<string | null>(null);
+  const [isRecordingReplay, setIsRecordingReplay] = useState<boolean>(false);
   const [savedRecordings, setSavedRecordings] = usePersistentState<string>('Recordings', JSON.stringify({}));
   const [recordings, setRecordings] = useState<Record<string, Recording>>({});
   const [recordingsLoaded, setRecordingsLoaded] = useState<boolean>(false);
@@ -118,6 +121,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
 
   const saveOffReplayBuffer = useCallback(async (matchName: string) => {
     replayBufferTime.current = null;
+    setIsRecordingReplay(false);
     console.log('Stopping replay buffer');
     const file = await saveReplayBuffer();
     console.log(`Replay buffer saved for match ${matchName}: ${file}`);
@@ -172,6 +176,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
         }
         console.log('Starting replay buffer');
         setRecordingMatch(streamData.payload.shortName);
+        setIsRecordingReplay(true);
         replayBufferTime.current = setTimeout(async () => {
           await saveOffReplayBuffer(streamData.payload.shortName);
         }, (MATCH_TIME_SECONDS + postMatchReplayTime) * 1000);
@@ -180,6 +185,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
         if (replayBufferTime.current) {
           clearTimeout(replayBufferTime.current);
           replayBufferTime.current = null;
+          setIsRecordingReplay(false);
         }
         console.log('Cancel replay buffer');
       }
@@ -251,7 +257,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
 
   // Provide the context value to children
   return (
-    <FtcLiveContext.Provider value={{ serverUrl, setServerUrl, selectedEvent, setSelectedEvent, allStreamData, connectWebSocket, isConnected, latestStreamData, transitionTriggers, setTransitionTriggers, startRecordingTriggers, toggleRecordingStartTrigger, stopRecordingTriggers, toggleRecordingStopTrigger, stopRecordingDelays, setStopRecordingDelays, postMatchReplayTime, setPostMatchReplayTime, enableReplayBuffer, setEnableReplayBuffer, recordings, clearRecordings: () => setRecordings({}) }}>
+    <FtcLiveContext.Provider value={{ serverUrl, setServerUrl, selectedEvent, setSelectedEvent, allStreamData, connectWebSocket, isConnected, latestStreamData, transitionTriggers, setTransitionTriggers, startRecordingTriggers, toggleRecordingStartTrigger, stopRecordingTriggers, toggleRecordingStopTrigger, stopRecordingDelays, setStopRecordingDelays, postMatchReplayTime, setPostMatchReplayTime, enableReplayBuffer, setEnableReplayBuffer, recordings, clearRecordings: () => setRecordings({}), isRecordingReplay, currentRecordingMatch: recordingMatch }}>
       {children}
     </FtcLiveContext.Provider>
   );

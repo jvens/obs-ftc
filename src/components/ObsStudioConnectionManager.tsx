@@ -45,9 +45,6 @@ const ObsStudioManager: React.FC = () => {
         <span className={`connection-status ${status.recording ? 'connected' : 'disconnected'}`}>
           {status.recording ? 'Recording' : 'Not Recording'}
         </span>
-        <span className={`connection-status ${status.replayBuffer ? 'connected' : 'disconnected'}`}>
-          {status.replayBuffer ? 'Replay Ready' : 'Replay Not Ready'}
-        </span>
       </div>
 
       {error && (

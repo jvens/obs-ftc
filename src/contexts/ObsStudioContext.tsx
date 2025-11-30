@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useRef, useEffect } from 'react';
 import OBSWebSocket from 'obs-websocket-js';
 import { usePersistentState } from '../helpers/persistant';
-import type {OBSEventTypes} from "obs-websocket-js/dist/types";
-import { StringDecoder } from 'node:string_decoder';
 
 type ObsStudioProviderProps = {
   children: ReactNode;
@@ -34,12 +32,14 @@ interface ObsStudioContextData {
   setRecording: (start: boolean) => Promise<string | undefined>;
   saveReplayBuffer: () => Promise<string>;
   takeScreenshot: (fileName: string, field: number) => Promise<string>;
+  startReplayBuffer: () => Promise<boolean>;
   // isRecording: boolean;
   status: {
     connected: boolean;
     streaming: boolean;
     recording: boolean;
-    replayBuffer: boolean;
+    replayBufferRecording: boolean;
+    replayBufferEnabled: boolean;
   };
   startStreamTime: number;
 }
@@ -64,6 +64,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   const [isRecording, setIsRecording] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isReplayRecording, setIsReplayRecording] = useState(false);
+  const [isReplayBufferEnabled, setIsReplayBufferEnabled] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [startStreamTime, setStartStreamTime] = useState<number>(0);
   const [recordDirectory, setRecordDirectory] = useState<string>('');
@@ -111,17 +112,34 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
           setIsStreaming(false);
         }
       });
-  
-      const replayBuffer = await obs.call('GetReplayBufferStatus');
-      console.log('Replay buffer status:', replayBuffer);
-      setIsReplayRecording(replayBuffer.outputActive);
-      obs.addListener('ReplayBufferStateChanged', (data: any) => {
-        console.log('Replay buffer state changed:', data);
-        if (data.outputActive) {
-          setIsReplayRecording(true);
-        } else {
+
+      // Check if replay buffer is enabled by looking for it in the output list
+      const list = await obs.call('GetOutputList');
+      console.log('Output list:', list);
+      const replayOutput = list.outputs.find((o) => o.outputKind === 'replay_buffer');
+
+      if (replayOutput) {
+        console.log('Replay buffer output found:', replayOutput.outputName);
+        setIsReplayBufferEnabled(true);
+
+        // Check if replay buffer is currently active
+        try {
+          const outputStatus = await obs.call('GetOutputStatus', { outputName: replayOutput.outputName as string });
+          console.log('Replay buffer status:', outputStatus);
+          setIsReplayRecording(outputStatus.outputActive);
+        } catch (err) {
+          console.log('Error getting replay buffer status:', err);
           setIsReplayRecording(false);
         }
+      } else {
+        console.log('Replay buffer output not enabled in OBS settings');
+        setIsReplayBufferEnabled(false);
+        setIsReplayRecording(false);
+      }
+
+      obs.addListener('ReplayBufferStateChanged', (data: any) => {
+        console.log('Replay buffer state changed:', data);
+        setIsReplayRecording(data.outputActive);
       });
     } catch (error: any) {
       console.error('Failed to connect to OBS:', error);
@@ -141,13 +159,13 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   }, [obsUrl, obsPort, obsPassword, setStartStreamTime, setRecordDirectory]);
 
   const disconnectFromObs = useCallback(async () => {
-try {
-      await     obs.disconnect();
-} catch (err: unknown) {
+    try {
+      await obs.disconnect();
+    } catch (err: unknown) {
       console.error('Error disconnecting:', err)
       setError('Error disconnecting')
     } finally {
-    setIsConnected(false);
+      setIsConnected(false);
     }
   }, []);
 
@@ -165,13 +183,44 @@ try {
 
   const saveReplayBuffer = useCallback(async () => {
     try {
+      const p: Promise<string> = new Promise((resolve) => {
+        obs.once('ReplayBufferSaved', ({savedReplayPath}) => {
+          resolve(savedReplayPath)
+        })
+      })
+
       await obs.call('SaveReplayBuffer');
-      const outputPath = await obs.call('GetLastReplayBufferReplay');
+      const outputPath = await p;
       console.log('Replay buffer saved to:', outputPath);
-      return outputPath.savedReplayPath;
+      return outputPath;
     } catch (error) {
       console.error('Error saving replay buffer:', error);
       throw error;
+    }
+  }, []);
+
+  const startReplayBuffer = useCallback(async (): Promise<boolean> => {
+    if (!isConnectedRef.current) {
+      return false;
+    }
+    try {
+      // First check if replay buffer is enabled
+      const list = await obs.call('GetOutputList');
+      const replayOutput = list.outputs.find((o) => o.outputKind === 'replay_buffer');
+
+      if (!replayOutput) {
+        console.log('Cannot start replay buffer - not enabled in OBS settings');
+        return false;
+      }
+
+      // Start the replay buffer output
+      await obs.call('StartReplayBuffer');
+      // console.log('Replay buffer started');
+      // setIsReplayRecording(true);
+      return true;
+    } catch (err: unknown) {
+      console.error('Error starting replay buffer:', err);
+      return false;
     }
   }, []);
 
@@ -277,6 +326,7 @@ try {
       field0Scene, field1Scene, field2Scene,
       setField0Scene, setField1Scene, setField2Scene, setActiveField,
       saveReplayBuffer,
+      startReplayBuffer,
       error,
       startStreamTime,
       setRecording,
@@ -285,7 +335,8 @@ try {
         connected: isConnected,
         streaming: isStreaming,
         recording: isRecording,
-        replayBuffer: isReplayRecording
+        replayBufferRecording: isReplayRecording,
+        replayBufferEnabled: isReplayBufferEnabled
       }
     }}>
       {children}

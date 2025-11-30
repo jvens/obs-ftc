@@ -5,7 +5,7 @@ import { useFtcLive } from '../contexts/FtcLiveContext';
 
 const SceneMapper = () => {
   const { fetchScenes, status, field0Scene, field1Scene, field2Scene, setField0Scene, setField1Scene, setField2Scene } = useObsStudio();
-  const { transitionTriggers: selectedTriggers, setTransitionTriggers: setSelectedTriggers, enableReplayBuffer, setEnableReplayBuffer, postMatchReplayTime, setPostMatchReplayTime, startRecordingTriggers, stopRecordingTriggers, toggleRecordingStartTrigger, toggleRecordingStopTrigger, isConnected: isFtcLiveConnected, stopRecordingDelays, setStopRecordingDelays } = useFtcLive();
+  const { transitionTriggers: selectedTriggers, setTransitionTriggers: setSelectedTriggers, startRecordingTriggers, stopRecordingTriggers, toggleRecordingStartTrigger, toggleRecordingStopTrigger, isConnected: isFtcLiveConnected, stopRecordingDelays, setStopRecordingDelays } = useFtcLive();
   const [scenes, setScenes] = useState<string[]>([]);
 
   const handleFetchScenes = async () => {
@@ -139,33 +139,6 @@ const SceneMapper = () => {
             ))}
           </tbody>
         </table>
-      </div>
-      <br/>
-      <div>
-        <h3>Replay Buffer Recording</h3>
-        <p>
-          Triggers for saving the recording of the replay buffer to disk.  Set the replay buffer length to be the time of the match (158 seconds)
-          plus the amount of time you want before and after the match plus 5 seconds (Don't know why this 5 seconds is needed, but it is).  Set
-          the post match time to the amount of time you want post match end.  Recomendation is set Replay Buffer Length to 193 and post match to
-          15 which will give 15 second buffer pre and post match.
-        </p>
-        <input
-          type="checkbox"
-          checked={enableReplayBuffer}
-          onChange={(e) => setEnableReplayBuffer(e.target.checked)}
-        />
-        Enable Replay Buffer
-        <br />
-        <label>
-          Post Match Replay Time (seconds):
-          <input
-            type="number"
-            value={postMatchReplayTime}
-            onChange={(e) => setPostMatchReplayTime(parseInt(e.target.value))}
-            min={0}
-          />
-        </label>
-        <br />
       </div>
       <br />
       <div>
