@@ -73,6 +73,11 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       const hello = await obs.connect(`ws://${obsUrl}:${obsPort}`, obsPassword);
       console.log('Hello message:', hello)
 
+      obs.on('ConnectionClosed', (err) => {
+        console.warn('OBS Connection Closed:', err.message)
+        setIsConnected(false);
+      })
+
       setIsConnected(true);
       const recordDirectory = await obs.call('GetRecordDirectory');
       console.log('Record directory:', recordDirectory.recordDirectory);
@@ -135,10 +140,15 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     }
   }, [obsUrl, obsPort, obsPassword, setStartStreamTime, setRecordDirectory]);
 
-  const disconnectFromObs = useCallback(() => {
-    obs.disconnect();
+  const disconnectFromObs = useCallback(async () => {
+try {
+      await     obs.disconnect();
+} catch (err: unknown) {
+      console.error('Error disconnecting:', err)
+      setError('Error disconnecting')
+    } finally {
     setIsConnected(false);
-    setError(undefined)
+    }
   }, []);
 
   const fetchScenes = useCallback(async (): Promise<string[]> => {
