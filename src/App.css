@@ -154,25 +154,69 @@ button:disabled {
   border-collapse: collapse;
   margin-left: auto;
   margin-right: auto;
+  font-size: 0.9rem;
+}
+.matches-table th,
+.matches-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border: 1px solid #ddd;
 }
 .matches-table th {
   background-color: #f2f2f2;
-  padding: 10px;
-  text-align: left;
+  position: relative;
 }
-.matches-table td {
-  padding-left: 10px;
-  padding-right: 10px;
+.matches-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.matches-table th.sortable:hover {
+  background-color: #e0e0e0;
+}
+.matches-table th.sorted-asc::after {
+  content: ' \25B2';
+  font-size: 0.7em;
+}
+.matches-table th.sorted-desc::after {
+  content: ' \25BC';
+  font-size: 0.7em;
 }
 
-.matches-table tr:nth-child(even) {
-  background-color: #f9f9f9;
+/* Column group header styling */
+.matches-table th.col-group-header {
+  text-align: center;
+  font-weight: bold;
+  border-bottom: 2px solid #999;
 }
-.matches-table tr:nth-child(odd) {
-  background-color: #fff;
+.matches-table th.col-group-info {
+  background-color: #e3f2fd;
 }
-.matches-table tr:hover {
-  background-color: #f1f1f1;
+.matches-table th.col-group-timestamps {
+  background-color: #fff3e0;
+}
+.matches-table th.col-group-recordings {
+  background-color: #e8f5e9;
+}
+.matches-table th.col-group-screenshots {
+  background-color: #fce4ec;
+}
+
+/* Column styling for data rows */
+.matches-table td.col-info {
+  background-color: #f5faff;
+}
+.matches-table td.col-timestamps {
+  background-color: #fffaf5;
+}
+.matches-table td.col-recordings {
+  background-color: #f5fff5;
+}
+.matches-table td.col-screenshots {
+  background-color: #fff5f8;
+}
+
+.matches-table tbody tr:hover td {
+  background-color: #f1f1f1 !important;
 }
 
 .matches-button {

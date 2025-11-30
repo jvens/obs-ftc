@@ -1,4 +1,4 @@
-import React, { useEffect } from "react"
+import React, { useEffect, useState, useMemo } from "react"
 import { useFtcLive } from "../contexts/FtcLiveContext";
 import { usePersistentState } from "../helpers/persistant";
 import { FtcMatch } from "../types/FtcLive";
@@ -29,13 +29,23 @@ interface MatchRow {
   scoreScreenshot?: string;
 }
 
+type SortKey = keyof MatchRow;
+type SortDirection = 'asc' | 'desc';
+
 const MatchEventsTable: React.FC = () => {
   const [rows, setRows] = usePersistentState<MatchRow[]>('Match_Events', [])
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   // const [teams, setTeams] = usePersistentState<Team[]>('Teams', [])
   const [chapters, setChapters] = usePersistentState<string[]>('Video_Chapters', [])
   const [offsetTime, setOffsetTime] = usePersistentState<number>('Offset_Time', 0)
-  const { serverUrl, selectedEvent , recordings, clearRecordings} = useFtcLive()
+  const { serverUrl, selectedEvent , recordings, clearRecordings, enableScreenshots, enableReplayBuffer, enableMatchRecording } = useFtcLive()
   const { latestStreamData , isConnected} = useFtcLive()
+
+  // Determine which column groups to show
+  const showVideos = enableMatchRecording || enableReplayBuffer;
+  const numberVideos = (enableMatchRecording ? 1 : 0) + (enableReplayBuffer ? 1 : 0);
+  const showScreenshots = enableScreenshots;
   const { startStreamTime } = useObsStudio()
   const [useStreamTime, setUseStreamTime] = usePersistentState<boolean>('Use_Stream_Time', false)
 
@@ -114,6 +124,62 @@ const MatchEventsTable: React.FC = () => {
     setChapters(['00:00:00 Event Start', ...chapters])
   }, [rows, setChapters, offsetTime, startStreamTime, useStreamTime])
 
+  // Sorting logic
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
+
+  // Parse match name into prefix and number for natural sorting
+  const parseMatchName = (name: string): { prefix: string; num: number } => {
+    const match = name.match(/^([A-Za-z]+)-?(\d+)$/);
+    if (match) {
+      return { prefix: match[1].toUpperCase(), num: parseInt(match[2], 10) };
+    }
+    return { prefix: name, num: 0 };
+  };
+
+  const sortedRows = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      const aVal = a[sortKey];
+      const bVal = b[sortKey];
+
+      // Handle undefined values - put them at the end
+      if (aVal === undefined && bVal === undefined) return 0;
+      if (aVal === undefined) return 1;
+      if (bVal === undefined) return -1;
+
+      // Compare values
+      let comparison = 0;
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        // Use natural sorting for match names
+        if (sortKey === 'name') {
+          const aParsed = parseMatchName(aVal);
+          const bParsed = parseMatchName(bVal);
+          comparison = aParsed.prefix.localeCompare(bParsed.prefix);
+          if (comparison === 0) {
+            comparison = aParsed.num - bParsed.num;
+          }
+        } else {
+          comparison = aVal.localeCompare(bVal);
+        }
+      } else if (typeof aVal === 'number' && typeof bVal === 'number') {
+        comparison = aVal - bVal;
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [rows, sortKey, sortDirection]);
+
+  const getSortClass = (key: SortKey) => {
+    if (sortKey !== key) return 'sortable';
+    return `sortable sorted-${sortDirection}`;
+  };
+
   const fetchMatches = async () => {
     console.log('fetching matches')
     try {
@@ -187,61 +253,61 @@ const MatchEventsTable: React.FC = () => {
       <table className="matches-table">
         <thead>
           <tr>
-            <th colSpan={5}>Match Info</th>
-            <th colSpan={8}>Event Timestamps</th>
-            <th colSpan={2}>Recordings</th>
-            <th colSpan={3}>Screenshots</th>
+            <th colSpan={5} className="col-group-header col-group-info">Match Info</th>
+            <th colSpan={8} className="col-group-header col-group-timestamps">Event Timestamps</th>
+            {numberVideos > 0 && <th colSpan={numberVideos} className="col-group-header col-group-recordings">Videos</th>}
+            {showScreenshots && <th colSpan={3} className="col-group-header col-group-screenshots">Screenshots</th>}
           </tr>
           <tr>
-            <th>Number</th>
-            <th>Name</th>
-            <th>Scheduled</th>
-            <th>Blue</th>
-            <th>Red</th>
-            <th>LOAD</th>
-            <th>PREVIEW</th>
-            <th>SHOW RANDOM</th>
-            <th>SHOW</th>
-            <th>START</th>
-            <th>ABORT</th>
-            <th>COMMIT</th>
-            <th>POST</th>
-            <th>Recording</th>
-            <th>Replay</th>
-            <th>Preview</th>
-            <th>Random</th>
-            <th>Score</th>
+            <th className={`col-group-info ${getSortClass('number')}`} onClick={() => handleSort('number')}>Number</th>
+            <th className={`col-group-info ${getSortClass('name')}`} onClick={() => handleSort('name')}>Name</th>
+            <th className={`col-group-info ${getSortClass('scheduledTime')}`} onClick={() => handleSort('scheduledTime')}>Scheduled</th>
+            <th className="col-group-info">Blue</th>
+            <th className="col-group-info">Red</th>
+            <th className={`col-group-timestamps ${getSortClass('MATCH_LOAD')}`} onClick={() => handleSort('MATCH_LOAD')}>LOAD</th>
+            <th className={`col-group-timestamps ${getSortClass('SHOW_PREVIEW')}`} onClick={() => handleSort('SHOW_PREVIEW')}>PREVIEW</th>
+            <th className={`col-group-timestamps ${getSortClass('SHOW_RANDOM')}`} onClick={() => handleSort('SHOW_RANDOM')}>RANDOM</th>
+            <th className={`col-group-timestamps ${getSortClass('SHOW_MATCH')}`} onClick={() => handleSort('SHOW_MATCH')}>SHOW</th>
+            <th className={`col-group-timestamps ${getSortClass('MATCH_START')}`} onClick={() => handleSort('MATCH_START')}>START</th>
+            <th className={`col-group-timestamps ${getSortClass('MATCH_ABORT')}`} onClick={() => handleSort('MATCH_ABORT')}>ABORT</th>
+            <th className={`col-group-timestamps ${getSortClass('MATCH_COMMIT')}`} onClick={() => handleSort('MATCH_COMMIT')}>COMMIT</th>
+            <th className={`col-group-timestamps ${getSortClass('MATCH_POST')}`} onClick={() => handleSort('MATCH_POST')}>POST</th>
+            {enableMatchRecording && <th className="col-group-recordings">Recording</th>}
+            {enableReplayBuffer && <th className="col-group-recordings">Replay</th>}
+            {showScreenshots && <th className="col-group-screenshots">Preview</th>}
+            {showScreenshots && <th className="col-group-screenshots">Random</th>}
+            {showScreenshots && <th className="col-group-screenshots">Score</th>}
           </tr>
         </thead>
         <tbody>
-          {rows.map(row => (
-            <tr key={row.number}>
-              <td>{row.number}</td>
-              <td>{row.name}</td>
-              <td>{row.scheduledTime ? new Date(row.scheduledTime).toLocaleTimeString() : ''}</td>
-              <td>
+          {sortedRows.map(row => (
+            <tr key={row.name}>
+              <td className="col-info">{row.number}</td>
+              <td className="col-info">{row.name}</td>
+              <td className="col-info">{row.scheduledTime ? new Date(row.scheduledTime).toLocaleTimeString() : ''}</td>
+              <td className="col-info">
                 {row.blue1}<br />
                 {row.blue2}<br/>
                 {row.blue3}
               </td>
-              <td>
+              <td className="col-info">
                 {row.red1}<br />
                 {row.red2}<br />
                 {row.red3}
               </td>
-              <td>{row.MATCH_LOAD ? new Date(row.MATCH_LOAD).toLocaleTimeString() : ''}</td>
-              <td>{row.SHOW_PREVIEW ? new Date(row.SHOW_PREVIEW).toLocaleTimeString() : ''}</td>
-              <td>{row.SHOW_RANDOM ? new Date(row.SHOW_RANDOM).toLocaleTimeString() : ''}</td>
-              <td>{row.SHOW_MATCH ? new Date(row.SHOW_MATCH).toLocaleTimeString() : ''}</td>
-              <td>{row.MATCH_START ? new Date(row.MATCH_START).toLocaleTimeString() : ''}</td>
-              <td>{row.MATCH_ABORT ? new Date(row.MATCH_ABORT).toLocaleTimeString() : ''}</td>
-              <td>{row.MATCH_COMMIT ? new Date(row.MATCH_COMMIT).toLocaleTimeString() : ''}</td>
-              <td>{row.MATCH_POST ? new Date(row.MATCH_POST).toLocaleTimeString() : ''}</td>
-              <td>{row.recordingFile && <a href={`file:///${row.recordingFile}`} download={`${row.name}_recording.mkv`}>Link</a>}</td>
-              <td>{row.replayFile && <a href={`file:///${row.replayFile}`} download={`${row.name}_replay.mkv`}>Link</a>}</td>
-              <td>{row.previewScreenshot && <a href={`file:///${row.previewScreenshot}`} download={`${row.name}_preview.png`}>Link</a>}</td>
-              <td>{row.randomScreenshot && <a href={`file:///${row.randomScreenshot}`} download={`${row.name}_random.png`}>Link</a>}</td>
-              <td>{row.scoreScreenshot && <a href={`file:///${row.scoreScreenshot}`} download={`${row.name}_score.png`}>Link</a>}</td>
+              <td className="col-timestamps">{row.MATCH_LOAD ? new Date(row.MATCH_LOAD).toLocaleTimeString() : ''}</td>
+              <td className="col-timestamps">{row.SHOW_PREVIEW ? new Date(row.SHOW_PREVIEW).toLocaleTimeString() : ''}</td>
+              <td className="col-timestamps">{row.SHOW_RANDOM ? new Date(row.SHOW_RANDOM).toLocaleTimeString() : ''}</td>
+              <td className="col-timestamps">{row.SHOW_MATCH ? new Date(row.SHOW_MATCH).toLocaleTimeString() : ''}</td>
+              <td className="col-timestamps">{row.MATCH_START ? new Date(row.MATCH_START).toLocaleTimeString() : ''}</td>
+              <td className="col-timestamps">{row.MATCH_ABORT ? new Date(row.MATCH_ABORT).toLocaleTimeString() : ''}</td>
+              <td className="col-timestamps">{row.MATCH_COMMIT ? new Date(row.MATCH_COMMIT).toLocaleTimeString() : ''}</td>
+              <td className="col-timestamps">{row.MATCH_POST ? new Date(row.MATCH_POST).toLocaleTimeString() : ''}</td>
+              {enableMatchRecording && <td className="col-recordings">{row.recordingFile && <a href={`file:///${row.recordingFile}`} download={`${row.name}_recording.mkv`}>Link</a>}</td>}
+              {enableReplayBuffer && <td className="col-recordings">{row.replayFile && <a href={`file:///${row.replayFile}`} download={`${row.name}_replay.mkv`}>Link</a>}</td>}
+              {showScreenshots && <td className="col-screenshots">{row.previewScreenshot && <a href={`file:///${row.previewScreenshot}`} download={`${row.name}_preview.png`}>Link</a>}</td>}
+              {showScreenshots && <td className="col-screenshots">{row.randomScreenshot && <a href={`file:///${row.randomScreenshot}`} download={`${row.name}_random.png`}>Link</a>}</td>}
+              {showScreenshots && <td className="col-screenshots">{row.scoreScreenshot && <a href={`file:///${row.scoreScreenshot}`} download={`${row.name}_score.png`}>Link</a>}</td>}
             </tr>
           ))}
         </tbody>
