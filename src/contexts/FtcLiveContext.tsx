@@ -129,24 +129,33 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
   const [recordingsLoaded, setRecordingsLoaded] = useState<boolean>(false);
 
   const recordingMatchRef = useRef<string | null>(null);
+  const replayRecordingMatchRef = useRef<string | null>(null);
   const matchEndTimer = useRef<NodeJS.Timeout | null>(null);
+  const transitionTriggersRef = useRef<UpdateType[]>(transitionTriggers);
+  const recordStartConditionRef = useRef<RecordStartCondition>(recordStartCondition);
   const recordStopConditionRef = useRef<RecordStopCondition>(recordStopCondition);
   const recordStopDelayRef = useRef<number>(recordStopDelay);
   const enableMatchRecordingRef = useRef<boolean>(enableMatchRecording);
+  const enableReplayBufferRef = useRef<boolean>(enableReplayBuffer);
+  const postMatchReplayTimeRef = useRef<number>(postMatchReplayTime);
   const enableScreenshotsRef = useRef<boolean>(enableScreenshots);
   const screenshotPreviewDelayRef = useRef<number>(screenshotPreviewDelay);
   const screenshotRandomDelayRef = useRef<number>(screenshotRandomDelay);
   const screenshotResultDelayRef = useRef<number>(screenshotResultDelay);
 
   useEffect(() => {
+    transitionTriggersRef.current = transitionTriggers;
+    recordStartConditionRef.current = recordStartCondition;
     recordStopConditionRef.current = recordStopCondition;
     recordStopDelayRef.current = recordStopDelay;
     enableMatchRecordingRef.current = enableMatchRecording;
+    enableReplayBufferRef.current = enableReplayBuffer;
+    postMatchReplayTimeRef.current = postMatchReplayTime;
     enableScreenshotsRef.current = enableScreenshots;
     screenshotPreviewDelayRef.current = screenshotPreviewDelay;
     screenshotRandomDelayRef.current = screenshotRandomDelay;
     screenshotResultDelayRef.current = screenshotResultDelay;
-  }, [recordStopCondition, recordStopDelay, enableMatchRecording, enableScreenshots, screenshotPreviewDelay, screenshotRandomDelay, screenshotResultDelay]);
+  }, [transitionTriggers, recordStartCondition, recordStopCondition, recordStopDelay, enableMatchRecording, enableReplayBuffer, postMatchReplayTime, enableScreenshots, screenshotPreviewDelay, screenshotRandomDelay, screenshotResultDelay]);
 
   useEffect(() => {
     if ( !recordingsLoaded ) {
@@ -179,8 +188,8 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
     console.log('Websocket Message: ', streamData)
     setAllStreamData(prevMessages => [...prevMessages, streamData]);
     setLatestStreamData(streamData);
-    console.log('Selected Triggers:', transitionTriggers)
-    if (transitionTriggers.some(trigger => trigger === streamData.updateType)) {
+    console.log('Selected Triggers:', transitionTriggersRef.current)
+    if (transitionTriggersRef.current.some(trigger => trigger === streamData.updateType)) {
       console.log('Set the active field')
       setActiveField(streamData.payload.field)
     } else {
@@ -222,19 +231,20 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
       }
     }
 
-    if (enableReplayBuffer) {
+    if (enableReplayBufferRef.current) {
       if (streamData.updateType === 'MATCH_START') {
         if (replayBufferTime.current) {
-          await saveOffReplayBuffer(recordingMatch ?? 'Unknown');
+          await saveOffReplayBuffer(replayRecordingMatchRef.current ?? 'Unknown');
           clearTimeout(replayBufferTime.current);
           replayBufferTime.current = null;
         }
         console.log('Starting replay buffer');
+        replayRecordingMatchRef.current = streamData.payload.shortName;
         setRecordingMatch(streamData.payload.shortName);
         setIsRecordingReplay(true);
         replayBufferTime.current = setTimeout(async () => {
           await saveOffReplayBuffer(streamData.payload.shortName);
-        }, (MATCH_TIME_SECONDS + postMatchReplayTime) * 1000);
+        }, (MATCH_TIME_SECONDS + postMatchReplayTimeRef.current) * 1000);
       }
       else if (streamData.updateType === 'MATCH_ABORT') {
         if (replayBufferTime.current) {
@@ -268,7 +278,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
       // Check if this event is at or after the start condition (and we haven't already started)
       // This handles cases where an earlier event in the sequence was missed
       if (recordingMatchRef.current === null &&
-          isAtOrAfterStartCondition(streamData.updateType, recordStartCondition)) {
+          isAtOrAfterStartCondition(streamData.updateType, recordStartConditionRef.current)) {
         console.log(`Start recording (match recording) on ${streamData.updateType}`);
         setRecording(true);
         recordingMatchRef.current = streamData.payload.shortName;
@@ -305,7 +315,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
         }
       }
     }
-  }, [setAllStreamData, transitionTriggers, enableReplayBuffer, recordStartCondition, setActiveField, takeScreenshot, postMatchReplayTime, saveOffReplayBuffer, recordingMatch, setRecording]);
+  }, [setAllStreamData, setActiveField, takeScreenshot, saveOffReplayBuffer, setRecording]);
 
   // The function to connect the WebSocket and handle messages
   const connectWebSocket = useCallback((connect: boolean) => {
