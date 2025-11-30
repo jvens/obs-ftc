@@ -48,10 +48,10 @@ function App() {
         <FtcLiveConnectionManager />
         <ObsStudioManager />
         <SceneMapper />
+        <ChaptersSettings />
         <ScreenshotSettings />
         <MatchRecordingSettings />
         <MatchRecordSettings />
-        <ChaptersSettings />
         <MatchEventsTable />
       </div>
     </div>

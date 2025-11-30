@@ -18,6 +18,7 @@ const ChaptersSettings: React.FC = () => {
   const [chapterEvent, setChapterEvent] = usePersistentState<UpdateType>('Chapter_Event', 'SHOW_PREVIEW')
   const [offsetTime, setOffsetTime] = usePersistentState<number>('Chapter_Offset_Time', 0)
   const [includeTestMatches, setIncludeTestMatches] = usePersistentState<boolean>('Chapter_Include_Test', false)
+  const [includePracticeMatches, setIncludePracticeMatches] = usePersistentState<boolean>('Chapter_Include_Practice', false)
   const [includeTeamNumbers, setIncludeTeamNumbers] = usePersistentState<boolean>('Chapter_Include_Team_Numbers', false)
   const [useStreamTime, setUseStreamTime] = usePersistentState<boolean>('Chapter_Use_Stream_Time', false)
 
@@ -38,11 +39,14 @@ const ChaptersSettings: React.FC = () => {
   }, [includeTeamNumbers]);
 
   const chapters = useMemo(() => {
-    // Filter rows based on includeTestMatches
+    // Filter rows based on includeTestMatches and includePracticeMatches
     let filteredRows = rows.filter(r => {
-      // Test matches typically start with 'T' or 'P' (practice)
-      const isTestMatch = r.name && (r.name.startsWith('T') || r.name.startsWith('P'));
-      return includeTestMatches || !isTestMatch;
+      if (!r.name) return true;
+      const isTestMatch = r.name.startsWith('T');
+      const isPracticeMatch = r.name.startsWith('P');
+      if (isTestMatch && !includeTestMatches) return false;
+      if (isPracticeMatch && !includePracticeMatches) return false;
+      return true;
     });
 
     // Filter out rows that don't have the selected event timestamp
@@ -90,7 +94,7 @@ const ChaptersSettings: React.FC = () => {
     }
 
     return chapterLines;
-  }, [rows, chapterEvent, offsetTime, includeTestMatches, useStreamTime, startStreamTime, formatTeamInfo]);
+  }, [rows, chapterEvent, offsetTime, includeTestMatches, includePracticeMatches, useStreamTime, startStreamTime, formatTeamInfo]);
 
   const chaptersText = useMemo(() => chapters.join('\n'), [chapters]);
 
@@ -147,7 +151,18 @@ const ChaptersSettings: React.FC = () => {
               checked={includeTestMatches}
               onChange={(e) => setIncludeTestMatches(e.target.checked)}
             />
-            Include test/practice matches
+            Include test matches
+          </label>
+        </div>
+
+        <div className="chapters-option-row">
+          <label>
+            <input
+              type="checkbox"
+              checked={includePracticeMatches}
+              onChange={(e) => setIncludePracticeMatches(e.target.checked)}
+            />
+            Include practice matches
           </label>
         </div>
 

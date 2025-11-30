@@ -260,6 +260,13 @@ button:disabled {
   grid-column: span 12;
 }
 
+/* Tall sections span 2 rows */
+@media (min-width: 900px) {
+  .section.tall {
+    grid-row: span 2;
+  }
+}
+
 .trigger-table {
   border-collapse: collapse;
   margin-left: auto;

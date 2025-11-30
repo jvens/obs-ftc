@@ -38,7 +38,7 @@ const SceneMapper = () => {
     status.connected && isFtcLiveConnected && field1Scene && field2Scene;
 
   return (
-    <div className="section">
+    <div className="section tall">
       <h2>Scene Swiching Settings</h2>
       <button onClick={handleFetchScenes} disabled={!status.connected}>
         Fetch Scenes
