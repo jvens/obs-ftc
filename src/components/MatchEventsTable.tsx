@@ -1,43 +1,21 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react"
+import React, { useState, useMemo, useCallback } from "react"
 import { useFtcLive } from "../contexts/FtcLiveContext";
 import { usePersistentState } from "../helpers/persistant";
 import { FtcMatch } from "../types/FtcLive";
-
-interface MatchRow {
-  number: number;
-  name: string;
-  scheduledTime?: number;
-  blue1?: number;
-  blue2?: number;
-  blue3?: number;
-  red1?: number;
-  red2?: number;
-  red3?: number;
-  MATCH_LOAD?: number;
-  SHOW_PREVIEW?: number;
-  SHOW_RANDOM?: number;
-  SHOW_MATCH?: number;
-  MATCH_START?: number;
-  MATCH_ABORT?: number;
-  MATCH_COMMIT?: number;
-  MATCH_POST?: number;
-  replayFile?: string;
-  recordingFile?: string;
-  previewScreenshot?: string;
-  randomScreenshot?: string;
-  scoreScreenshot?: string;
-}
+import { useAppSelector, useAppDispatch } from "../store/hooks";
+import { MatchRow, setMatches, clearAllData } from "../store/matchDataSlice";
 
 type SortKey = keyof MatchRow;
 type SortDirection = 'asc' | 'desc';
 
 const MatchEventsTable: React.FC = () => {
-  const [rows, setRows] = usePersistentState<MatchRow[]>('Match_Events', [])
+  const dispatch = useAppDispatch();
+  const rows = useAppSelector(state => state.matchData.matches);
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [showPaths, setShowPaths] = usePersistentState<boolean>('Show_Paths', false)
-  const { serverUrl, selectedEvent , recordings, clearRecordings, enableScreenshots, enableReplayBuffer, enableMatchRecording } = useFtcLive()
-  const { latestStreamData , isConnected} = useFtcLive()
+  const { serverUrl, selectedEvent, enableScreenshots, enableReplayBuffer, enableMatchRecording } = useFtcLive()
+  const { isConnected } = useFtcLive()
 
   // Determine which column groups to show
   const numberVideos = (enableMatchRecording ? 1 : 0) + (enableReplayBuffer ? 1 : 0);
@@ -51,52 +29,6 @@ const MatchEventsTable: React.FC = () => {
       console.error('Failed to copy path:', err);
     });
   }, []);
-
-  useEffect(() => {
-    if (latestStreamData) {
-      setRows(currentRows => {
-        // Check if the row already exists
-        const rowIndex = currentRows.findIndex(row => row.name === latestStreamData.payload.shortName);
-        if (rowIndex !== -1) {
-          console.log('update row');
-          // Clone the array and update the specific row
-          const newRows = [...currentRows];
-          let newRow = { ...newRows[rowIndex] };
-          newRow[latestStreamData.updateType] = latestStreamData.updateTime;
-          newRow.name = latestStreamData.payload.shortName;
-          newRows[rowIndex] = newRow;
-          return newRows;
-        } else {
-          console.log('create new row');
-          // Create a new row and add it to the array
-          let newRow: MatchRow = {
-            number: latestStreamData.payload.number,
-            name: latestStreamData.payload.shortName,
-            [latestStreamData.updateType]: latestStreamData.updateTime
-          };
-          return [...currentRows, newRow];
-        }
-      });
-    }
-  }, [latestStreamData, setRows]); // Removed 'rows' and 'setRows' from the dependencies
-
-  useEffect(() => {
-    setRows(currentRows => {
-      const newRows = [];
-      for (let row of currentRows) {
-        let newRow = { ...row }
-        if (recordings[row.name]) {
-          newRow.recordingFile = recordings[row.name].recording;
-          newRow.replayFile = recordings[row.name].replay;
-          newRow.previewScreenshot = recordings[row.name].preview;
-          newRow.randomScreenshot = recordings[row.name].random;
-          newRow.scoreScreenshot = recordings[row.name].score;
-        }
-        newRows.push(newRow);
-      }
-      return newRows;
-    })
-  }, [setRows, recordings]);
 
   // Sorting logic
   const handleSort = (key: SortKey) => {
@@ -160,47 +92,28 @@ const MatchEventsTable: React.FC = () => {
       const response = await fetch(`http://${serverUrl}/api/v1/events/${selectedEvent?.eventCode}/matches/`)
       const matches = (await response.json()).matches as FtcMatch[];
       const newRows = matches.map(match => {
-        const rowIndex = rows.findIndex(row => row.name === match.matchName)
-        let row: MatchRow;
-        if (rowIndex !== -1) {
-          row = { ...rows[rowIndex] }
-        } else {
-          row = { name: match.matchName, number: match.matchNumber }
-        }
-        row.blue1 = match.blue.team1
-        row.blue2 = match.blue.team2
-        row.blue3 = match.blue.team3
-        row.red1 = match.red.team1
-        row.red2 = match.red.team2
-        row.red3 = match.red.team3
-        row.scheduledTime = match.time
-        return row
-      })
-      setRows(newRows)
-      // const teamsResponse = await fetch(`http://${serverUrl}/api/v1/events/${selectedEvent?.eventCode}/teams/`)
-      // const teamNumbers = (await teamsResponse.json()).teamNumbers as number[];
-      // const newTeams = await Promise.all(teamNumbers.map(async teamNumber => {
-      //   let retryCount = 0;
-      //   let teamDataResponse = await fetch(`http://${serverUrl}/api/v1/events/${selectedEvent?.eventCode}/teams/${teamNumber}/`)
-      //   while(retryCount < 10 && teamDataResponse.status === 429) {
-      //       retryCount++;
-      //       await delay(60 * 5); // wait 5 minute before trying again
-      //   }
-      //   const teamData = (await teamDataResponse.json()) as TeamData;
-      //   return {
-      //     number: teamNumber,
-      //     name: teamData.name
-      //   };
-      // }))
-      // setTeams(newTeams)
+        const existingRow = rows.find(row => row.name === match.matchName);
+        const row: MatchRow = existingRow
+          ? { ...existingRow }
+          : { name: match.matchName, number: match.matchNumber };
+
+        row.blue1 = match.blue.team1;
+        row.blue2 = match.blue.team2;
+        row.blue3 = match.blue.team3;
+        row.red1 = match.red.team1;
+        row.red2 = match.red.team2;
+        row.red3 = match.red.team3;
+        row.scheduledTime = match.time;
+        return row;
+      });
+      dispatch(setMatches(newRows));
     } catch (error) {
       console.error('Fetching matches failed: ', error)
     }
   }
 
   const clearRows = () => {
-    setRows([])
-    clearRecordings();
+    dispatch(clearAllData());
   }
 
   const exportData = () => {
@@ -218,6 +131,7 @@ const MatchEventsTable: React.FC = () => {
 
   return (
     <div className="section full-width">
+      <h2>Match Events</h2>
       <button className="matches-button" onClick={fetchMatches} disabled={!isConnected}>Get Match List</button>
       <button className="matches-button" onClick={clearRows}>Clear All Data</button>
       <button className="matches-button" onClick={exportData}>Export Data</button>

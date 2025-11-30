@@ -1,5 +1,7 @@
 // src/App.tsx
 import { useState, useEffect } from 'react';
+import { Provider } from 'react-redux';
+import { store } from './store';
 import './App.css';
 import FtcLiveConnectionManager from './components/FtcLiveConnectionManager';
 import { FtcLiveProvider } from './contexts/FtcLiveContext';
@@ -24,6 +26,7 @@ function App() {
   }, []);
 
   return (
+    <Provider store={store}>
     <ObsStudioProvider>
     <FtcLiveProvider>
     <div className="App">
@@ -54,6 +57,7 @@ function App() {
     </div>
     </FtcLiveProvider>
     </ObsStudioProvider>
+    </Provider>
   );
 }
 

@@ -4,20 +4,14 @@ import { Event, FtcLiveSteamData, UpdateType } from '../types/FtcLive';
 import { useObsStudio } from './ObsStudioContext';
 import { usePersistentState } from '../helpers/persistant';
 import { trackEvent, trackFeatureEnabled, trackUserConfig, AnalyticsEvents } from '../helpers/analytics';
+import { store } from '../store';
+import { updateMatchEvent, updateMatchInfo } from '../store/matchDataSlice';
 
 const MATCH_TIME_SECONDS = 158 as const; // 2:38 in seconds
 
 type FtcLiveProviderProps = {
   children: ReactNode;
 };
-
-type Recording = {
-  recording?: string;
-  replay?: string;
-  preview?: string;
-  random?: string;
-  score?: string;
-}
 // Start conditions for match recording
 // Order matters - events come in this sequence, and we start on the selected event OR any later one
 export type RecordStartCondition = 'MATCH_LOAD' | 'SHOW_PREVIEW' | 'SHOW_RANDOM' | 'SHOW_MATCH' | 'MATCH_START';
@@ -65,8 +59,6 @@ interface FtcLiveContextData {
   setPostMatchReplayTime: React.Dispatch<React.SetStateAction<number>>;
   enableReplayBuffer: boolean;
   setEnableReplayBuffer: React.Dispatch<React.SetStateAction<boolean>>;
-  recordings: Record<string, Recording>;
-  clearRecordings: () => void;
   isRecordingReplay: boolean;
   currentRecordingMatch: string | null;
   // Match recording settings
@@ -125,9 +117,6 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
   const [enableReplayBuffer, setEnableReplayBuffer] = useState<boolean>(true);
   const [recordingMatch, setRecordingMatch] = useState<string | null>(null);
   const [isRecordingReplay, setIsRecordingReplay] = useState<boolean>(false);
-  const [savedRecordings, setSavedRecordings] = usePersistentState<string>('Recordings', JSON.stringify({}));
-  const [recordings, setRecordings] = useState<Record<string, Recording>>({});
-  const [recordingsLoaded, setRecordingsLoaded] = useState<boolean>(false);
 
   const recordingMatchRef = useRef<string | null>(null);
   const replayRecordingMatchRef = useRef<string | null>(null);
@@ -171,37 +160,31 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
     trackFeatureEnabled('screenshots', enableScreenshots);
   }, [enableScreenshots]);
 
-  useEffect(() => {
-    if ( !recordingsLoaded ) {
-      setRecordings(JSON.parse(savedRecordings));
-      setRecordingsLoaded(true);
-    }
-  }, [savedRecordings, recordingsLoaded, setRecordings]);
-
-  useEffect(() => {
-    if (Object.keys(recordings).length > 0) {
-      setSavedRecordings(JSON.stringify(recordings));
-    }
-  }, [recordings, setSavedRecordings]);
-
   const saveOffReplayBuffer = useCallback(async (matchName: string) => {
     replayBufferTime.current = null;
     setIsRecordingReplay(false);
     console.log('Stopping replay buffer');
     const file = await saveReplayBuffer();
     console.log(`Replay buffer saved for match ${matchName}: ${file}`);
-    setRecordings((prevRecordings) => {
-      const newRecording = prevRecordings[matchName] || { };
-      newRecording.replay = file;
-      return { ...prevRecordings, [matchName]: newRecording };
-    });
-  }, [saveReplayBuffer, setRecordings]);
+    store.dispatch(updateMatchInfo({
+      name: matchName,
+      replayFile: file,
+    }));
+  }, [saveReplayBuffer]);
 
   const onFtcEvent = useCallback(async (streamData: FtcLiveSteamData) => {
     console.log('Selected Event:', streamData);
     console.log('Websocket Message: ', streamData)
     setAllStreamData(prevMessages => [...prevMessages, streamData]);
     setLatestStreamData(streamData);
+
+    // Dispatch to Redux store
+    store.dispatch(updateMatchEvent({
+      shortName: streamData.payload.shortName,
+      number: streamData.payload.number,
+      updateType: streamData.updateType,
+      updateTime: streamData.updateTime,
+    }));
     console.log('Selected Triggers:', transitionTriggersRef.current)
     if (transitionTriggersRef.current.some(trigger => trigger === streamData.updateType)) {
       console.log('Set the active field')
@@ -216,31 +199,28 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
         setTimeout(async () => {
           const fileName = `${streamData.payload.shortName}_preview.png`;
           const file = await takeScreenshot(fileName, streamData.payload.field);
-          setRecordings((prevRecordings) => {
-            const newRecording = prevRecordings[streamData.payload.shortName] || { };
-            newRecording.preview = file;
-            return { ...prevRecordings, [streamData.payload.shortName]: newRecording };
-          });
+          store.dispatch(updateMatchInfo({
+            name: streamData.payload.shortName,
+            previewScreenshot: file,
+          }));
         }, screenshotPreviewDelayRef.current);
       } else if (streamData.updateType === 'SHOW_RANDOM') {
         setTimeout(async () => {
           const fileName = `${streamData.payload.shortName}_random.png`;
           const file = await takeScreenshot(fileName, streamData.payload.field);
-          setRecordings((prevRecordings) => {
-            const newRecording = prevRecordings[streamData.payload.shortName] || { };
-            newRecording.random = file;
-            return { ...prevRecordings, [streamData.payload.shortName]: newRecording };
-          });
+          store.dispatch(updateMatchInfo({
+            name: streamData.payload.shortName,
+            randomScreenshot: file,
+          }));
         }, screenshotRandomDelayRef.current);
       } else if (streamData.updateType === 'MATCH_POST') {
         setTimeout(async () => {
           const fileName = `${streamData.payload.shortName}_score.png`;
           const file = await takeScreenshot(fileName, streamData.payload.field);
-          setRecordings((prevRecordings) => {
-            const newRecording = prevRecordings[streamData.payload.shortName] || { };
-            newRecording.score = file;
-            return { ...prevRecordings, [streamData.payload.shortName]: newRecording };
-          });
+          store.dispatch(updateMatchInfo({
+            name: streamData.payload.shortName,
+            scoreScreenshot: file,
+          }));
         }, screenshotResultDelayRef.current);
       }
     }
@@ -277,11 +257,12 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
         if (recordingMatchRef.current !== null) {
           const match = recordingMatchRef.current;
           recordingMatchRef.current = null;
-          setRecordings((prevRecordings) => {
-            const newRecording = prevRecordings[match] || {};
-            newRecording.recording = path;
-            return { ...prevRecordings, [match]: newRecording };
-          });
+          if (path) {
+            store.dispatch(updateMatchInfo({
+              name: match,
+              recordingFile: path,
+            }));
+          }
         }
         if (matchEndTimer.current) {
           clearTimeout(matchEndTimer.current);
@@ -381,7 +362,6 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
       transitionTriggers, setTransitionTriggers,
       postMatchReplayTime, setPostMatchReplayTime,
       enableReplayBuffer, setEnableReplayBuffer,
-      recordings, clearRecordings: () => setRecordings({}),
       isRecordingReplay, currentRecordingMatch: recordingMatch,
       enableMatchRecording, setEnableMatchRecording,
       recordStartCondition, setRecordStartCondition,

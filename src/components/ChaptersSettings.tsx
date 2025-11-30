@@ -2,6 +2,8 @@ import React, { useMemo, useCallback } from "react"
 import { usePersistentState } from "../helpers/persistant";
 import { UpdateType } from "../types/FtcLive";
 import { useObsStudio } from "../contexts/ObsStudioContext";
+import { useAppSelector } from "../store/hooks";
+import { MatchRow } from "../store/matchDataSlice";
 
 const ChapterEventOptions: { value: UpdateType; label: string }[] = [
   { value: 'SHOW_PREVIEW', label: 'Show Preview' },
@@ -11,27 +13,8 @@ const ChapterEventOptions: { value: UpdateType; label: string }[] = [
   { value: 'MATCH_POST', label: 'Match Post' },
 ];
 
-interface MatchRow {
-  number: number;
-  name: string;
-  blue1?: number;
-  blue2?: number;
-  blue3?: number;
-  red1?: number;
-  red2?: number;
-  red3?: number;
-  MATCH_LOAD?: number;
-  SHOW_PREVIEW?: number;
-  SHOW_RANDOM?: number;
-  SHOW_MATCH?: number;
-  MATCH_START?: number;
-  MATCH_ABORT?: number;
-  MATCH_COMMIT?: number;
-  MATCH_POST?: number;
-}
-
 const ChaptersSettings: React.FC = () => {
-  const [rows] = usePersistentState<MatchRow[]>('Match_Events', [])
+  const rows = useAppSelector(state => state.matchData.matches);
   const [chapterEvent, setChapterEvent] = usePersistentState<UpdateType>('Chapter_Event', 'SHOW_PREVIEW')
   const [offsetTime, setOffsetTime] = usePersistentState<number>('Chapter_Offset_Time', 0)
   const [includeTestMatches, setIncludeTestMatches] = usePersistentState<boolean>('Chapter_Include_Test', false)
