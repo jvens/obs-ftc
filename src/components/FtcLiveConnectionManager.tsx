@@ -59,7 +59,7 @@ const FtcLiveConnectionManager: React.FC = () => {
         </span>
       </div>
 
-      <div className="connection-helper">
+      {!isConnected && <div className="connection-helper">
         <p>You may need to enable "Insecure content" in your browser settings<br/>for this tool to access the scoring system. For example, in Chrome:</p>
         <div className="connection-helper-steps">
         <ol>
@@ -68,7 +68,7 @@ const FtcLiveConnectionManager: React.FC = () => {
           <li>Refresh this page</li>
         </ol>
         </div>
-      </div>
+      </div>}
     </div>
   );
 };
