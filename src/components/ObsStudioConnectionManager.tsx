@@ -2,11 +2,15 @@ import React from 'react';
 import { useObsStudio } from '../contexts/ObsStudioContext';
 
 const ObsStudioManager: React.FC = () => {
-  const { obsUrl, setObsUrl, obsPort, setObsPort, obsPassword, setObsPassword, status, connectToObs, disconnectFromObs, error } = useObsStudio();
-
-  // ... UI for setting URL and password
-  // ... Button to trigger connectToObs
-  // ... Display connection status
+  const {
+    obsUrl, setObsUrl,
+    obsPort, setObsPort,
+    obsPassword, setObsPassword,
+    status,
+    connectToObs, disconnectFromObs,
+    error,
+    isReconnecting, reconnectCountdown, cancelReconnect
+  } = useObsStudio();
 
   return (
     <div className="section">
@@ -31,11 +35,11 @@ const ObsStudioManager: React.FC = () => {
         onChange={(e) => setObsPassword(e.target.value)}
       />
 
-      <button onClick={(e) => status.connected ? disconnectFromObs() : connectToObs()} disabled={!obsUrl || !obsPort}>
-        {status.connected ? 'Disconnnect' : 'Connect'}
+      <button onClick={() => status.connected ? disconnectFromObs() : connectToObs()} disabled={!obsUrl || !obsPort}>
+        {status.connected ? 'Disconnect' : 'Connect'}
       </button>
 
-      <div>Connection Status: 
+      <div>Connection Status:
         <span className={`connection-status ${status.connected ? 'connected' : 'disconnected'}`}>
           {status.connected ? 'Connected' : 'Disconnected'}
         </span>
@@ -46,6 +50,13 @@ const ObsStudioManager: React.FC = () => {
           {status.recording ? 'Recording' : 'Not Recording'}
         </span>
       </div>
+
+      {isReconnecting && (
+        <div className="reconnect-status">
+          <span>Attempting to reconnect in {reconnectCountdown}s...</span>
+          <button onClick={cancelReconnect}>Cancel</button>
+        </div>
+      )}
 
       {error && (
         <div className="error-message">

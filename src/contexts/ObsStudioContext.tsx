@@ -11,6 +11,8 @@ type ObsStudioProviderProps = {
 
 const obs = new OBSWebSocket();
 
+const RECONNECT_INTERVAL = 10; // seconds
+
 // Define the context data types
 interface ObsStudioContextData {
   obsUrl: string;
@@ -45,6 +47,10 @@ interface ObsStudioContextData {
     replayBufferEnabled: boolean;
   };
   startStreamTime: number;
+  // Auto-reconnect state
+  isReconnecting: boolean;
+  reconnectCountdown: number;
+  cancelReconnect: () => void;
 }
 
 // Create the context
@@ -78,16 +84,77 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   const [startStreamTime, setStartStreamTime] = useState<number>(0);
   const [recordDirectory, setRecordDirectory] = useState<string>('');
 
-  const connectToObs = useCallback(async () => {
+  // Auto-reconnect state
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [reconnectCountdown, setReconnectCountdown] = useState(0);
+  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const userDisconnectedRef = useRef(false);
+  const wasConnectedRef = useRef(false);
+
+  const cancelReconnect = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    setIsReconnecting(false);
+    setReconnectCountdown(0);
+  }, []);
+
+  const connectToObsRef = useRef<() => void>(() => {});
+
+  const startReconnectTimer = useCallback(() => {
+    // Clear any existing timers
+    if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+
+    setIsReconnecting(true);
+    setReconnectCountdown(RECONNECT_INTERVAL);
+
+    // Start countdown
+    countdownTimerRef.current = setInterval(() => {
+      setReconnectCountdown(prev => {
+        if (prev <= 1) {
+          if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Schedule reconnect attempt
+    reconnectTimerRef.current = setTimeout(() => {
+      console.log('Attempting to reconnect to OBS...');
+      connectToObsRef.current();
+    }, RECONNECT_INTERVAL * 1000);
+  }, []);
+
+  const connectToObsInternal = useCallback(async () => {
+    // Cancel any pending reconnect when manually connecting
+    cancelReconnect();
+    userDisconnectedRef.current = false;
+
     try {
       const hello = await obs.connect(`ws://${obsUrl}:${obsPort}`, obsPassword);
       console.log('Hello message:', hello)
 
+      obs.removeAllListeners('ConnectionClosed');
       obs.on('ConnectionClosed', (err) => {
         console.warn('OBS Connection Closed:', err.message)
         setIsConnected(false);
+
+        // Only auto-reconnect if user didn't manually disconnect and we were previously connected
+        if (!userDisconnectedRef.current && wasConnectedRef.current) {
+          console.log('Connection lost unexpectedly, will attempt to reconnect...');
+          startReconnectTimer();
+        }
       })
 
+      wasConnectedRef.current = true;
       setIsConnected(true);
       trackEvent(AnalyticsEvents.OBS_CONNECTED);
       const recordDirectory = await obs.call('GetRecordDirectory');
@@ -111,7 +178,14 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
 
       const stream = await obs.call('GetStreamStatus');
       console.log('Stream status:', stream);
-      setIsRecording(stream.outputActive);
+      setIsStreaming(stream.outputActive);
+      if (stream.outputActive && stream.outputDuration) {
+        // Calculate when the stream started based on current time minus duration
+        // outputDuration is in milliseconds
+        const streamStartTime = Date.now() - stream.outputDuration;
+        console.log('Stream already active, started at:', new Date(streamStartTime).toLocaleTimeString());
+        setStartStreamTime(streamStartTime);
+      }
       obs.addListener('StreamStateChanged', (data: any) => {
         console.log('Stream state changed:', data);
         if (data.outputActive) {
@@ -165,10 +239,32 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       } else {
         setError(`Unknown Error: ${JSON.stringify(error)}`);
       }
+
+      // If we were previously connected and connection failed, try to reconnect
+      if (wasConnectedRef.current && !userDisconnectedRef.current) {
+        console.log('Reconnect attempt failed, scheduling next attempt...');
+        startReconnectTimer();
+      }
     }
-  }, [obsUrl, obsPort, obsPassword, setStartStreamTime, setRecordDirectory]);
+  }, [obsUrl, obsPort, obsPassword, cancelReconnect, startReconnectTimer]);
+
+  // Keep ref updated for use in timer callback
+  useEffect(() => {
+    connectToObsRef.current = connectToObsInternal;
+  }, [connectToObsInternal]);
+
+  // Public connect function
+  const connectToObs = useCallback(() => {
+    userDisconnectedRef.current = false;
+    connectToObsInternal();
+  }, [connectToObsInternal]);
 
   const disconnectFromObs = useCallback(async () => {
+    // Mark as user-initiated disconnect to prevent auto-reconnect
+    userDisconnectedRef.current = true;
+    wasConnectedRef.current = false;
+    cancelReconnect();
+
     try {
       await obs.disconnect();
     } catch (err: unknown) {
@@ -177,7 +273,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     } finally {
       setIsConnected(false);
     }
-  }, []);
+  }, [cancelReconnect]);
 
   const fetchScenes = useCallback(async (): Promise<string[]> => {
     try {
@@ -347,7 +443,10 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
         recording: isRecording,
         replayBufferRecording: isReplayRecording,
         replayBufferEnabled: isReplayBufferEnabled
-      }
+      },
+      isReconnecting,
+      reconnectCountdown,
+      cancelReconnect
     }}>
       {children}
     </ObsStudioContext.Provider>
