@@ -101,6 +101,34 @@ button:disabled {
   background-color: #dc3545;
 }
 
+/* Content container for responsive layout */
+.content-container {
+  max-width: 1500px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 10px;
+}
+
+/* Section row for side-by-side layout on larger screens */
+.section-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* On larger screens, show sections side by side */
+@media (min-width: 900px) {
+  .section-row {
+    flex-direction: row;
+    gap: 20px;
+  }
+
+  .section-row > .section {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
 .section {
   outline: solid;
   padding: 10px;

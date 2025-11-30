@@ -25,6 +25,7 @@ interface MatchRow {
   replayFile?: string;
   recordingFile?: string;
   previewScreenshot?: string;
+  randomScreenshot?: string;
   scoreScreenshot?: string;
 }
 
@@ -75,6 +76,7 @@ const MatchEventsTable: React.FC = () => {
           newRow.recordingFile = recordings[row.name].recording;
           newRow.replayFile = recordings[row.name].replay;
           newRow.previewScreenshot = recordings[row.name].preview;
+          newRow.randomScreenshot = recordings[row.name].random;
           newRow.scoreScreenshot = recordings[row.name].score;
         }
         newRows.push(newRow);
@@ -185,6 +187,12 @@ const MatchEventsTable: React.FC = () => {
       <table className="matches-table">
         <thead>
           <tr>
+            <th colSpan={5}>Match Info</th>
+            <th colSpan={8}>Event Timestamps</th>
+            <th colSpan={2}>Recordings</th>
+            <th colSpan={3}>Screenshots</th>
+          </tr>
+          <tr>
             <th>Number</th>
             <th>Name</th>
             <th>Scheduled</th>
@@ -192,7 +200,7 @@ const MatchEventsTable: React.FC = () => {
             <th>Red</th>
             <th>LOAD</th>
             <th>PREVIEW</th>
-            {/* <th>SHOW RANDOM</th> */}
+            <th>SHOW RANDOM</th>
             <th>SHOW</th>
             <th>START</th>
             <th>ABORT</th>
@@ -201,6 +209,7 @@ const MatchEventsTable: React.FC = () => {
             <th>Recording</th>
             <th>Replay</th>
             <th>Preview</th>
+            <th>Random</th>
             <th>Score</th>
           </tr>
         </thead>
@@ -231,6 +240,7 @@ const MatchEventsTable: React.FC = () => {
               <td>{row.recordingFile && <a href={`file:///${row.recordingFile}`} download={`${row.name}_recording.mkv`}>Link</a>}</td>
               <td>{row.replayFile && <a href={`file:///${row.replayFile}`} download={`${row.name}_replay.mkv`}>Link</a>}</td>
               <td>{row.previewScreenshot && <a href={`file:///${row.previewScreenshot}`} download={`${row.name}_preview.png`}>Link</a>}</td>
+              <td>{row.randomScreenshot && <a href={`file:///${row.randomScreenshot}`} download={`${row.name}_random.png`}>Link</a>}</td>
               <td>{row.scoreScreenshot && <a href={`file:///${row.scoreScreenshot}`} download={`${row.name}_score.png`}>Link</a>}</td>
             </tr>
           ))}

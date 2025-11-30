@@ -5,7 +5,7 @@ import { useFtcLive } from '../contexts/FtcLiveContext';
 
 const SceneMapper = () => {
   const { fetchScenes, status, field0Scene, field1Scene, field2Scene, setField0Scene, setField1Scene, setField2Scene } = useObsStudio();
-  const { transitionTriggers: selectedTriggers, setTransitionTriggers: setSelectedTriggers, startRecordingTriggers, stopRecordingTriggers, toggleRecordingStartTrigger, toggleRecordingStopTrigger, isConnected: isFtcLiveConnected, stopRecordingDelays, setStopRecordingDelays } = useFtcLive();
+  const { transitionTriggers: selectedTriggers, setTransitionTriggers: setSelectedTriggers, isConnected: isFtcLiveConnected } = useFtcLive();
   const [scenes, setScenes] = useState<string[]>([]);
 
   const handleFetchScenes = async () => {
@@ -83,9 +83,6 @@ const SceneMapper = () => {
             <tr>
               <th>Trigger</th>
               <th>Transition</th>
-              <th>Start Record</th>
-              <th>Stop Record</th>
-              <th>Stop Delay</th>
             </tr>
           </thead>
           <tbody>
@@ -98,41 +95,6 @@ const SceneMapper = () => {
                     type="checkbox"
                     checked={selectedTriggers.includes(type)}
                     onChange={() => handleTriggerChange(type)}
-                  />
-                </td>
-                <td>
-                  <input
-                    name={`${type}-record-start`}
-                    type="checkbox"
-                    checked={startRecordingTriggers.includes(type)}
-                    onChange={() => toggleRecordingStartTrigger(type)}
-                  />
-                </td>
-                <td>
-                  <input
-                    name={`${type}-record-stop`}
-                    type="checkbox"
-                    checked={stopRecordingTriggers.includes(type)}
-                    onChange={() => toggleRecordingStopTrigger(type)}
-                  />
-                </td>
-                <td>
-                  <input
-                    name={`${type}-record-stop-delay`}
-                    type="number"
-                    placeholder="Offset"
-                    disabled={!stopRecordingTriggers.includes(type)}
-                    min={0}
-                    value={stopRecordingDelays[type] || 0}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value);
-                      if (!isNaN(value)) {
-                        setStopRecordingDelays((prevDelays) => ({
-                          ...prevDelays,
-                          [type]: value,
-                        }));
-                      }
-                    }}
                   />
                 </td>
               </tr>
