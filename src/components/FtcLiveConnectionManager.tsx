@@ -8,7 +8,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 
 
 const FtcLiveConnectionManager: React.FC = () => {
-  const { isConnected, connectWebSocket } = useContext(FtcLiveContext);
+  const { isConnected, connectWebSocket, isReconnecting, reconnectCountdown, cancelReconnect } = useContext(FtcLiveContext);
   const dispatch = useAppDispatch();
   const selectedEvent = useAppSelector(selectSelectedEvent);
   const serverUrl = useAppSelector(selectFtcServerUrl);
@@ -57,8 +57,8 @@ const FtcLiveConnectionManager: React.FC = () => {
         ))}
       </select>
 
-      <button onClick={(e) => connectWebSocket(!isConnected)} disabled={!selectedEvent}>
-        {isConnected ? 'Disconnnect' : 'Connect'}
+      <button onClick={() => connectWebSocket(!isConnected)} disabled={!selectedEvent}>
+        {isConnected ? 'Disconnect' : 'Connect'}
       </button>
       <div>
         Connection Status:
@@ -67,7 +67,14 @@ const FtcLiveConnectionManager: React.FC = () => {
         </span>
       </div>
 
-      {!isConnected && <div className="connection-helper">
+      {isReconnecting && (
+        <div className="reconnect-status">
+          <span>Attempting to reconnect in {reconnectCountdown}s...</span>
+          <button onClick={cancelReconnect}>Cancel</button>
+        </div>
+      )}
+
+      {!isConnected && !isReconnecting && <div className="connection-helper">
         <p>You may need to enable "Insecure content" in your browser settings<br/>for this tool to access the scoring system. For example, in Chrome:</p>
         <div className="connection-helper-steps">
         <ol>

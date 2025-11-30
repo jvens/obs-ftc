@@ -10,6 +10,7 @@ import { useAppSelector } from '../store/hooks';
 import { selectFtcServerUrl, selectSelectedEvent } from '../store/connectionSlice';
 
 const MATCH_TIME_SECONDS = 158 as const; // 2:38 in seconds
+const RECONNECT_INTERVAL = 10; // seconds
 
 type FtcLiveProviderProps = {
   children: ReactNode;
@@ -75,6 +76,10 @@ interface FtcLiveContextData {
   setScreenshotRandomDelay: React.Dispatch<React.SetStateAction<number>>;
   screenshotResultDelay: number;
   setScreenshotResultDelay: React.Dispatch<React.SetStateAction<number>>;
+  // Auto-reconnect state
+  isReconnecting: boolean;
+  reconnectCountdown: number;
+  cancelReconnect: () => void;
 }
 
 // Create the context
@@ -96,6 +101,54 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
   const [isConnected, setConnected] = useState<boolean>(false);
   const [socket, setSocket] = useState<WebSocket | undefined>();
   const [transitionTriggers, setTransitionTriggers] = usePersistentState<UpdateType[]>('Selected_Trigers', ['SHOW_PREVIEW', 'SHOW_MATCH', 'SHOW_RANDOM', 'MATCH_START', 'MATCH_POST']);
+
+  // Auto-reconnect state
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [reconnectCountdown, setReconnectCountdown] = useState(0);
+  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const userDisconnectedRef = useRef(false);
+  const wasConnectedRef = useRef(false);
+  const connectWebSocketRef = useRef<(connect: boolean) => void>(() => {});
+
+  const cancelReconnect = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    setIsReconnecting(false);
+    setReconnectCountdown(0);
+  }, []);
+
+  const startReconnectTimer = useCallback(() => {
+    // Clear any existing timers
+    if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+
+    setIsReconnecting(true);
+    setReconnectCountdown(RECONNECT_INTERVAL);
+
+    // Start countdown
+    countdownTimerRef.current = setInterval(() => {
+      setReconnectCountdown(prev => {
+        if (prev <= 1) {
+          if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Schedule reconnect attempt
+    reconnectTimerRef.current = setTimeout(() => {
+      console.log('Attempting to reconnect to FTC Live...');
+      connectWebSocketRef.current(true);
+    }, RECONNECT_INTERVAL * 1000);
+  }, []);
 
   // Match recording settings (simplified from previous checkbox-based approach)
   const [enableMatchRecording, setEnableMatchRecording] = usePersistentState<boolean>('Enable_Match_Recording', false);
@@ -324,11 +377,16 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
   // The function to connect the WebSocket and handle messages
   const connectWebSocket = useCallback((connect: boolean) => {
     if (selectedEvent && connect) {
-      const socket = new WebSocket(`ws://${serverUrl}/api/v2/stream/?code=${selectedEvent.eventCode}`);
-      setSocket(socket)
+      // Cancel any pending reconnect when manually connecting
+      cancelReconnect();
+      userDisconnectedRef.current = false;
 
-      socket.onopen = () => {
+      const newSocket = new WebSocket(`ws://${serverUrl}/api/v2/stream/?code=${selectedEvent.eventCode}`);
+      setSocket(newSocket)
+
+      newSocket.onopen = () => {
         console.log('WebSocket connected');
+        wasConnectedRef.current = true;
         setConnected(true);
         trackEvent(AnalyticsEvents.FTC_LIVE_CONNECTED);
         // Track user configuration when connected
@@ -340,16 +398,22 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
         });
       };
 
-      socket.onclose = () => {
+      newSocket.onclose = () => {
         console.log('WebSocket disconnected');
         setConnected(false);
+
+        // Only auto-reconnect if user didn't manually disconnect and we were previously connected
+        if (!userDisconnectedRef.current && wasConnectedRef.current) {
+          console.log('FTC Live connection lost unexpectedly, will attempt to reconnect...');
+          startReconnectTimer();
+        }
       };
 
-      socket.onerror = (error) => {
+      newSocket.onerror = (error) => {
         console.error('WebSocket error:', error);
       };
 
-      socket.onmessage = (message) => {
+      newSocket.onmessage = (message) => {
         const data = message.data;
         if (data === 'pong') return; // ignore pong messages
 
@@ -357,10 +421,20 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
         onFtcEvent(streamData);
       }
     } else if (!connect) {
+      // Mark as user-initiated disconnect to prevent auto-reconnect
+      userDisconnectedRef.current = true;
+      wasConnectedRef.current = false;
+      cancelReconnect();
+
       socket?.close();
       setConnected(false);
     }
-  }, [selectedEvent, serverUrl, onFtcEvent, socket]);
+  }, [selectedEvent, serverUrl, onFtcEvent, socket, cancelReconnect, startReconnectTimer]);
+
+  // Keep ref updated for use in timer callback
+  useEffect(() => {
+    connectWebSocketRef.current = connectWebSocket;
+  }, [connectWebSocket]);
 
   // Provide the context value to children
   return (
@@ -377,7 +451,8 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
       enableScreenshots, setEnableScreenshots,
       screenshotPreviewDelay, setScreenshotPreviewDelay,
       screenshotRandomDelay, setScreenshotRandomDelay,
-      screenshotResultDelay, setScreenshotResultDelay
+      screenshotResultDelay, setScreenshotResultDelay,
+      isReconnecting, reconnectCountdown, cancelReconnect
     }}>
       {children}
     </FtcLiveContext.Provider>
