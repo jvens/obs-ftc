@@ -1,46 +1,128 @@
-# Getting Started with Create React App
+# FTC OBS WebSocket Client
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A web application that integrates OBS Studio with the FTC Live scoring system, enabling automated scene switching, match recording, and screenshot capture based on match events.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- **Automated Scene Switching**: Automatically switch OBS scenes based on FTC Live match events (match load, preview, start, etc.)
+- **Match Recording**: Control OBS recording start/stop based on configurable match events
+- **Replay Buffer**: Automatically save replay buffer clips for each match
+- **Screenshots**: Capture screenshots at key moments (match preview, randomization, final scores)
+- **Match Events Table**: Track all match events with timestamps, recordings, and screenshots
 
-### `npm start`
+## Requirements
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- [OBS Studio](https://obsproject.com/) with WebSocket server enabled (v5.0+)
+- Access to an FTC Live scoring system
+- A modern web browser (Chrome recommended)
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Setup
 
-### `npm test`
+### OBS Studio Configuration
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+1. Open OBS Studio
+2. Go to **Tools** > **WebSocket Server Settings**
+3. Enable the WebSocket server
+4. Note the port number (default: 4455)
+5. Optionally set a password
 
-### `npm run build`
+### Browser Configuration
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Since the FTC Live scoring system uses HTTP (not HTTPS), you may need to allow insecure content in your browser:
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+1. Navigate to the hosted application or `http://localhost:3000`
+2. Click the icon next to the URL and go to "Site settings"
+3. Find "Insecure content" and set it to "Allow"
+4. Refresh the page
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Usage
 
-### `npm run eject`
+1. **Connect to FTC Live**: Enter the FTC Live server IP address, fetch events, and select your event
+2. **Connect to OBS Studio**: Enter your OBS WebSocket connection details
+3. **Configure Scene Assignments**: Map your OBS scenes to each field
+4. **Set Transition Triggers**: Choose which match events trigger scene switches
+5. **Configure Recording/Screenshots**: Enable and configure automatic recording and screenshot capture
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+## Development
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Prerequisites
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+- Node.js (v16 or later)
+- npm
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+### Getting Started
 
-## Learn More
+```bash
+# Clone the repository
+git clone https://github.com/jvens/obs-ftc.git
+cd obs-ftc
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+# Install dependencies
+npm install
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+# Start the development server
+npm start
+```
+
+The app will be available at [http://localhost:3000](http://localhost:3000).
+
+### Available Scripts
+
+#### `npm start`
+
+Runs the app in development mode. The page will reload when you make edits.
+
+#### `npm test`
+
+Launches the test runner in interactive watch mode.
+
+#### `npm run build`
+
+Builds the app for production to the `build` folder. The build is minified and optimized for best performance.
+
+#### `npm run deploy`
+
+Builds the app and deploys it to Firebase Hosting.
+
+## Contributing
+
+Contributions are welcome! Here's how to get started:
+
+1. **Fork the repository** on GitHub
+2. **Clone your fork** locally:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/obs-ftc.git
+   ```
+3. **Create a feature branch**:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+4. **Make your changes** and commit them with descriptive messages
+5. **Push to your fork**:
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+6. **Open a Pull Request** against the `main` branch
+
+### Guidelines
+
+- Follow the existing code style
+- Test your changes locally before submitting
+- Keep pull requests focused on a single feature or fix
+- Update documentation if needed
+
+### Reporting Issues
+
+Found a bug or have a feature request? Please [open an issue](https://github.com/jvens/obs-ftc/issues) on GitHub.
+
+## License
+
+This project is licensed under the MIT License.
+
+## Disclaimer
+
+This is not an official project of *FIRST*. It is independently developed and volunteer maintained.
+
+## Author
+
+Jeramie Vens
