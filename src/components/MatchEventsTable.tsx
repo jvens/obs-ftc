@@ -255,7 +255,7 @@ const MatchEventsTable: React.FC = () => {
   }
 
   return (
-    <div className="section">
+    <div className="section full-width">
       <button className="matches-button" onClick={fetchMatches} disabled={!isConnected}>Get Match List</button>
       <button className="matches-button" onClick={clearRows}>Clear All Data</button>
       <button className="matches-button" onClick={exportData}>Export Data</button>

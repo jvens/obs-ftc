@@ -34,18 +34,12 @@ function App() {
       </header>
       <AboutModal isOpen={showAbout} onClose={() => setShowAbout(false)} />
       <div className="content-container">
-        <div className="section-row">
-          <FtcLiveConnectionManager />
-          <ObsStudioManager />
-        </div>
-        <div className="section-row">
-          <MatchRecordingSettings />
-          <MatchRecordSettings />
-        </div>
-        <div className="section-row">
-          <SceneMapper />
-          <ScreenshotSettings />
-        </div>
+        <FtcLiveConnectionManager />
+        <ObsStudioManager />
+        <SceneMapper />
+        <ScreenshotSettings />
+        <MatchRecordingSettings />
+        <MatchRecordSettings />
         <MatchEventsTable />
       </div>
     </div>
