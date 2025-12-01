@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useObsStudio } from "../contexts/ObsStudioContext";
 import { UpdateType } from "../types/FtcLive";
 import { useFtcLive } from "../contexts/FtcLiveContext";
+import { useAppSelector } from "../store/hooks";
+import { selectSelectedEvent } from "../store/connectionSlice";
 
 const SceneMapper = () => {
   const {
@@ -10,15 +12,19 @@ const SceneMapper = () => {
     field0Scene,
     field1Scene,
     field2Scene,
+    field3Scene,
     setField0Scene,
     setField1Scene,
     setField2Scene,
+    setField3Scene,
   } = useObsStudio();
   const {
     transitionTriggers: selectedTriggers,
     setTransitionTriggers: setSelectedTriggers,
     isConnected: isFtcLiveConnected,
   } = useFtcLive();
+  const selectedEvent = useAppSelector(selectSelectedEvent);
+  const fieldCount = selectedEvent?.fieldCount ?? 2;
   const [scenes, setScenes] = useState<string[]>([]);
 
   const handleFetchScenes = async () => {
@@ -34,65 +40,59 @@ const SceneMapper = () => {
     );
   };
 
-  const getStatus =
-    status.connected && isFtcLiveConnected && field1Scene && field2Scene;
+  // Determine if status is ready based on field count
+  const getStatus = () => {
+    if (!status.connected || !isFtcLiveConnected) return false;
+    if (fieldCount === 1) return !!field1Scene;
+    if (fieldCount === 2) return !!field1Scene && !!field2Scene && !!field0Scene;
+    if (fieldCount === 3) return !!field1Scene && !!field2Scene && !!field3Scene && !!field0Scene;
+    return false;
+  };
+
+  const renderSceneSelect = (
+    label: string,
+    value: string | undefined,
+    onChange: (scene: string | undefined) => void
+  ) => (
+    <>
+      {label}:
+      <select
+        onChange={(e) => onChange(scenes.find((s) => s === e.target.value))}
+        value={value || "Select Scene"}
+        disabled={scenes.length === 0 || !status.connected}
+      >
+        <option value="Select Scene">Select Scene</option>
+        {scenes.map((scene) => (
+          <option key={scene} value={scene}>
+            {scene}
+          </option>
+        ))}
+      </select>
+      <br />
+    </>
+  );
 
   return (
     <div className="section tall">
-      <h2>Scene Swiching Settings</h2>
+      <h2>Scene Switching Settings</h2>
       <button onClick={handleFetchScenes} disabled={!status.connected}>
         Fetch Scenes
       </button>
       <br />
       <div>
         <h3>Scene Assignments</h3>
-        Field 1 Scene:
-        <select
-          onChange={(e) =>
-            setField1Scene(scenes.find((s) => s === e.target.value))
-          }
-          value={field1Scene || "Select Scene"}
-          disabled={scenes.length === 0 || !status.connected}
-        >
-          <option value="Select Scene">Select Scene</option>
-          {scenes.map((scene) => (
-            <option key={scene} value={scene}>
-              {scene}
-            </option>
-          ))}
-        </select>
-        <br />
-        Field 2 Scene:
-        <select
-          onChange={(e) =>
-            setField2Scene(scenes.find((s) => s === e.target.value))
-          }
-          value={field2Scene || "Select Scene"}
-          disabled={scenes.length === 0 || !status.connected}
-        >
-          <option value="Select Scene">Select Scene</option>
-          {scenes.map((scene) => (
-            <option key={scene} value={scene}>
-              {scene}
-            </option>
-          ))}
-        </select>
-        <br />
-        Finals Scene:
-        <select
-          onChange={(e) =>
-            setField0Scene(scenes.find((s) => s === e.target.value))
-          }
-          value={field0Scene || "Select Scene"}
-          disabled={scenes.length === 0 || !status.connected}
-        >
-          <option value="Select Scene">Select Scene</option>
-          {scenes.map((scene) => (
-            <option key={scene} value={scene}>
-              {scene}
-            </option>
-          ))}
-        </select>
+        {fieldCount === 1 ? (
+          // Single field - just one scene assignment
+          renderSceneSelect("Scene", field1Scene, setField1Scene)
+        ) : (
+          // Multiple fields - show field 1, 2, optionally 3, and finals
+          <>
+            {renderSceneSelect("Field 1 Scene", field1Scene, setField1Scene)}
+            {renderSceneSelect("Field 2 Scene", field2Scene, setField2Scene)}
+            {fieldCount >= 3 && renderSceneSelect("Field 3 Scene", field3Scene, setField3Scene)}
+            {renderSceneSelect("Finals Scene", field0Scene, setField0Scene)}
+          </>
+        )}
       </div>
       <br />
       <div>
@@ -202,10 +202,10 @@ const SceneMapper = () => {
         Status:
         <span
           className={`connection-status ${
-            getStatus ? "connected" : "disconnected"
+            getStatus() ? "connected" : "disconnected"
           }`}
         >
-          {getStatus ? "Running" : "Not Running"}
+          {getStatus() ? "Running" : "Not Running"}
         </span>
       </div>
     </div>

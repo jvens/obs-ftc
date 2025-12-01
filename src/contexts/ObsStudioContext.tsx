@@ -34,6 +34,8 @@ interface ObsStudioContextData {
   setField1Scene: React.Dispatch<React.SetStateAction<string | undefined>>;
   field2Scene?: string;
   setField2Scene: React.Dispatch<React.SetStateAction<string | undefined>>;
+  field3Scene?: string;
+  setField3Scene: React.Dispatch<React.SetStateAction<string | undefined>>;
   setRecording: (start: boolean) => Promise<string | undefined>;
   saveReplayBuffer: () => Promise<string>;
   takeScreenshot: (fileName: string, field: number) => Promise<string>;
@@ -76,6 +78,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   const [field0Scene, setField0Scene] = usePersistentState<string | undefined>('Field0_Scene', undefined)
   const [field1Scene, setField1Scene] = usePersistentState<string | undefined>('Field1_Scene', undefined)
   const [field2Scene, setField2Scene] = usePersistentState<string | undefined>('Field2_Scene', undefined)
+  const [field3Scene, setField3Scene] = usePersistentState<string | undefined>('Field3_Scene', undefined)
   const [isRecording, setIsRecording] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isReplayRecording, setIsReplayRecording] = useState(false);
@@ -333,25 +336,30 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   const field0SceneRef = useRef(field0Scene)
   const field1SceneRef = useRef(field1Scene)
   const field2SceneRef = useRef(field2Scene)
+  const field3SceneRef = useRef(field3Scene)
   const recordDirectoryRef = useRef(recordDirectory)
   const isConnectedRef = useRef(isConnected);
   useEffect(() => {
     field0SceneRef.current = field0Scene
     field1SceneRef.current = field1Scene;
     field2SceneRef.current = field2Scene;
+    field3SceneRef.current = field3Scene;
     isConnectedRef.current = isConnected;
     recordDirectoryRef.current = recordDirectory;
-  }, [field0Scene, field1Scene, field2Scene, isConnected, recordDirectory])
+  }, [field0Scene, field1Scene, field2Scene, field3Scene, isConnected, recordDirectory])
 
   const takeScreenshot = async (fileName: string, field: number) => {
     const field0Scene = field0SceneRef.current
     const field1Scene = field1SceneRef.current
     const field2Scene = field2SceneRef.current
+    const field3Scene = field3SceneRef.current
     let sourceName: string;
     if (field === 1 && field1Scene)
       sourceName = field1Scene
     else if (field === 2 && field2Scene)
       sourceName = field2Scene
+    else if (field === 3 && field3Scene)
+      sourceName = field3Scene
     else if (field === 0 && field0Scene)
       sourceName = field0Scene
     else
@@ -384,10 +392,13 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     const field0Scene = field0SceneRef.current
     const field1Scene = field1SceneRef.current
     const field2Scene = field2SceneRef.current
+    const field3Scene = field3SceneRef.current
     if (field === 1 && field1Scene) {
       await switchScenes(field1Scene)
     } else if (field === 2 && field2Scene) {
       await switchScenes(field2Scene)
+    } else if (field === 3 && field3Scene) {
+      await switchScenes(field3Scene)
     } else if (field === 0 && field0Scene) {
       await switchScenes(field0Scene)
     } else if (field === 0) {
@@ -397,6 +408,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       console.log("Field 0:", field0Scene)
       console.log('field 1:', field1Scene)
       console.log('field 2:', field2Scene)
+      console.log('field 3:', field3Scene)
     }
   }
 
@@ -429,8 +441,8 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       obsPassword, setObsPassword,
       connectToObs, disconnectFromObs,
       fetchScenes, switchScenes,
-      field0Scene, field1Scene, field2Scene,
-      setField0Scene, setField1Scene, setField2Scene, setActiveField,
+      field0Scene, field1Scene, field2Scene, field3Scene,
+      setField0Scene, setField1Scene, setField2Scene, setField3Scene, setActiveField,
       saveReplayBuffer,
       startReplayBuffer,
       error,

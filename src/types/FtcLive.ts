@@ -8,6 +8,7 @@ export interface Event {
   end: Date;
   type: string; // make enum
   status: string; // make enum
+  fieldCount: number;
 };
 
 
