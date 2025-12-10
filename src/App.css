@@ -493,3 +493,34 @@ ol li {
   resize: vertical;
   background-color: #f9f9f9;
 }
+
+/* Replay Buffer Validation */
+.info-box {
+  background-color: #e7f3ff;
+  border: 1px solid #b8daff;
+  border-radius: 5px;
+  padding: 15px;
+  margin: 10px 0;
+}
+
+.success-indicator {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.warning-box {
+  background-color: #fff3cd;
+  border: 2px solid #ffc107;
+  border-radius: 5px;
+  padding: 15px;
+  margin: 10px 0;
+}
+
+.warning-box strong {
+  color: #856404;
+}
+
+.warning-indicator {
+  color: #856404;
+  font-weight: bold;
+}

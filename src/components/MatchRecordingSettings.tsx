@@ -5,7 +5,15 @@ import { useFtcLive } from '../contexts/FtcLiveContext';
 const MATCH_TIME_SECONDS = 158; // 2:38 in seconds
 
 const MatchRecordingSettings: React.FC = () => {
-  const { status, startReplayBuffer } = useObsStudio();
+  const {
+    status,
+    startReplayBuffer,
+    replayBufferLength,
+    outputMode,
+    replayBufferConfigError,
+    getReplayBufferLength,
+    setReplayBufferLengthValue
+  } = useObsStudio();
   const {
     enableReplayBuffer,
     setEnableReplayBuffer,
@@ -17,6 +25,8 @@ const MatchRecordingSettings: React.FC = () => {
 
   const [preMatchTime, setPreMatchTime] = useState<number>(15);
   const [starting, setStarting] = useState(false);
+  const [fixing, setFixing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleStartReplayBuffer = async () => {
     setStarting(true);
@@ -24,11 +34,26 @@ const MatchRecordingSettings: React.FC = () => {
     setStarting(false);
   };
 
+  const handleRefreshBufferLength = async () => {
+    setRefreshing(true);
+    await getReplayBufferLength();
+    setRefreshing(false);
+  };
+
+  const handleFixBufferLength = async () => {
+    setFixing(true);
+    await setReplayBufferLengthValue(recommendedBufferLength);
+    setFixing(false);
+  };
+
   // Calculate recommended buffer length: pre + match + post + 5 seconds buffer
   const recommendedBufferLength = preMatchTime + MATCH_TIME_SECONDS + postMatchReplayTime + 5;
 
-  // Ready only when connected, replay buffer enabled in OBS, feature enabled, AND buffer is actively running
-  const isReady = status.connected && status.replayBufferEnabled && enableReplayBuffer && status.replayBufferRecording;
+  // Check if buffer length is correctly configured (must be exact match)
+  const isBufferLengthOk = replayBufferLength !== null && replayBufferLength === recommendedBufferLength;
+
+  // Ready only when connected, replay buffer enabled in OBS, feature enabled, buffer is actively running, AND buffer length is correct
+  const isReady = status.connected && status.replayBufferEnabled && enableReplayBuffer && status.replayBufferRecording && isBufferLengthOk;
 
   return (
     <div className="section">
@@ -99,13 +124,78 @@ const MatchRecordingSettings: React.FC = () => {
                     />
                   </label>
                 </div>
-                <div className="info-box">
-                  <strong>Set OBS Replay Buffer Length to {recommendedBufferLength} seconds</strong>
-                  <br />
-                  <small>
-                    (Pre-match: {preMatchTime}s + Match: {MATCH_TIME_SECONDS}s + Post-match: {postMatchReplayTime}s + Buffer: 5s)
-                  </small>
-                </div>
+                {/* Replay Buffer Length Validation */}
+                {replayBufferLength !== null ? (
+                  replayBufferLength === recommendedBufferLength ? (
+                    <div className="info-box">
+                      <strong>OBS Replay Buffer: {replayBufferLength} seconds</strong>
+                      <span className="success-indicator"> (OK)</span>
+                      {outputMode && <><br /><small>Output Mode: {outputMode}</small></>}
+                      <div style={{ marginTop: '10px' }}>
+                        <button onClick={handleRefreshBufferLength} disabled={refreshing}>
+                          {refreshing ? 'Refreshing...' : 'Refresh'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="warning-box">
+                      <p>
+                        <strong>OBS Replay Buffer Mismatch!</strong>
+                        <span className="warning-indicator"> (Warning)</span>
+                      </p>
+                      <p>
+                        Current: <strong>{replayBufferLength} seconds</strong>
+                        <br />
+                        Required: <strong>{recommendedBufferLength} seconds</strong>
+                      </p>
+                      <small>
+                        (Pre-match: {preMatchTime}s + Match: {MATCH_TIME_SECONDS}s + Post-match: {postMatchReplayTime}s + Buffer: 5s)
+                      </small>
+                      {outputMode && <p><small>Output Mode: {outputMode}</small></p>}
+                      <div style={{ marginTop: '10px' }}>
+                        <button onClick={handleFixBufferLength} disabled={fixing}>
+                          {fixing ? 'Applying...' : `Set to ${recommendedBufferLength} seconds`}
+                        </button>
+                        <button onClick={handleRefreshBufferLength} disabled={refreshing} style={{ marginLeft: '10px' }}>
+                          {refreshing ? 'Refreshing...' : 'Refresh'}
+                        </button>
+                      </div>
+                      {status.replayBufferRecording && (
+                        <p><small>Note: Replay buffer will be restarted for changes to take effect.</small></p>
+                      )}
+                    </div>
+                  )
+                ) : replayBufferConfigError ? (
+                  <div className="error-message">
+                    <p><strong>Could not read OBS replay buffer setting</strong></p>
+                    <p><small>{replayBufferConfigError}</small></p>
+                    <p>
+                      Set OBS Replay Buffer Length to <strong>{recommendedBufferLength} seconds</strong> manually:
+                    </p>
+                    <small>
+                      (Pre-match: {preMatchTime}s + Match: {MATCH_TIME_SECONDS}s + Post-match: {postMatchReplayTime}s + Buffer: 5s)
+                    </small>
+                    <div style={{ marginTop: '10px' }}>
+                      <button onClick={handleRefreshBufferLength} disabled={refreshing}>
+                        {refreshing ? 'Retrying...' : 'Retry'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="info-box">
+                    <strong>Checking OBS Replay Buffer Length...</strong>
+                    <br />
+                    <small>
+                      Recommended: {recommendedBufferLength}s
+                      (Pre-match: {preMatchTime}s + Match: {MATCH_TIME_SECONDS}s + Post-match: {postMatchReplayTime}s + Buffer: 5s)
+                    </small>
+                    <div style={{ marginTop: '10px' }}>
+                      <button onClick={handleRefreshBufferLength} disabled={refreshing}>
+                        {refreshing ? 'Checking...' : 'Check Now'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               {!status.replayBufferRecording && (
                 <div className="error-message">

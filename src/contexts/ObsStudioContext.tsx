@@ -53,6 +53,12 @@ interface ObsStudioContextData {
   isReconnecting: boolean;
   reconnectCountdown: number;
   cancelReconnect: () => void;
+  // Replay buffer configuration
+  replayBufferLength: number | null;
+  outputMode: 'Simple' | 'Advanced' | null;
+  replayBufferConfigError: string | null;
+  getReplayBufferLength: () => Promise<number | null>;
+  setReplayBufferLengthValue: (seconds: number) => Promise<boolean>;
 }
 
 // Create the context
@@ -83,6 +89,9 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   const [isStreaming, setIsStreaming] = useState(false);
   const [isReplayRecording, setIsReplayRecording] = useState(false);
   const [isReplayBufferEnabled, setIsReplayBufferEnabled] = useState(false);
+  const [replayBufferLength, setReplayBufferLengthState] = useState<number | null>(null);
+  const [outputMode, setOutputMode] = useState<'Simple' | 'Advanced' | null>(null);
+  const [replayBufferConfigError, setReplayBufferConfigError] = useState<string | null>(null);
   const [error, setError] = useState<string | undefined>(undefined);
   const [startStreamTime, setStartStreamTime] = useState<number>(0);
   const [recordDirectory, setRecordDirectory] = useState<string>('');
@@ -333,6 +342,131 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     }
   }, []);
 
+  const getReplayBufferLength = useCallback(async (): Promise<number | null> => {
+    if (!isConnectedRef.current) {
+      return null;
+    }
+
+    try {
+      setReplayBufferConfigError(null);
+
+      // First, detect output mode
+      const modeResult = await obs.call('GetProfileParameter', {
+        parameterCategory: 'Output',
+        parameterName: 'Mode'
+      });
+
+      const mode = modeResult.parameterValue as 'Simple' | 'Advanced' | null;
+      setOutputMode(mode);
+
+      if (!mode) {
+        setReplayBufferConfigError('Could not detect OBS output mode');
+        return null;
+      }
+
+      // Query the appropriate parameter based on mode
+      const category = mode === 'Simple' ? 'SimpleOutput' : 'AdvOut';
+      const result = await obs.call('GetProfileParameter', {
+        parameterCategory: category,
+        parameterName: 'RecRBTime'
+      });
+
+      const value = result.parameterValue;
+      if (value !== null && value !== undefined) {
+        const seconds = parseInt(value, 10);
+        if (!isNaN(seconds)) {
+          setReplayBufferLengthState(seconds);
+          return seconds;
+        }
+      }
+
+      // Try default value
+      const defaultValue = result.defaultParameterValue;
+      if (defaultValue !== null && defaultValue !== undefined) {
+        const seconds = parseInt(defaultValue, 10);
+        if (!isNaN(seconds)) {
+          setReplayBufferLengthState(seconds);
+          return seconds;
+        }
+      }
+
+      setReplayBufferConfigError('Could not read replay buffer length from OBS profile');
+      return null;
+    } catch (error) {
+      console.error('Error getting replay buffer length:', error);
+      setReplayBufferConfigError(`Error reading replay buffer config: ${error}`);
+      return null;
+    }
+  }, []);
+
+  const setReplayBufferLengthValue = useCallback(async (seconds: number): Promise<boolean> => {
+    if (!isConnectedRef.current || !outputMode) {
+      return false;
+    }
+
+    try {
+      const category = outputMode === 'Simple' ? 'SimpleOutput' : 'AdvOut';
+
+      await obs.call('SetProfileParameter', {
+        parameterCategory: category,
+        parameterName: 'RecRBTime',
+        parameterValue: seconds.toString()
+      });
+
+      setReplayBufferLengthState(seconds);
+      setReplayBufferConfigError(null);
+
+      // If replay buffer is running, restart it for changes to take effect
+      if (isReplayRecording) {
+        try {
+          await obs.call('StopReplayBuffer');
+          // Wait for replay buffer to fully stop by listening for the state change
+          await new Promise<void>((resolve) => {
+            const checkStopped = (data: { outputActive: boolean; outputState: string }) => {
+              if (data.outputState === 'OBS_WEBSOCKET_OUTPUT_STOPPED') {
+                obs.off('ReplayBufferStateChanged', checkStopped);
+                resolve();
+              }
+            };
+            obs.on('ReplayBufferStateChanged', checkStopped);
+            // Timeout fallback in case event is missed
+            setTimeout(() => {
+              obs.off('ReplayBufferStateChanged', checkStopped);
+              resolve();
+            }, 3000);
+          });
+          await obs.call('StartReplayBuffer');
+          console.log('Replay buffer restarted after config change');
+        } catch (restartError) {
+          console.error('Error restarting replay buffer:', restartError);
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error setting replay buffer length:', error);
+      setReplayBufferConfigError(`Error setting replay buffer config: ${error}`);
+      return false;
+    }
+  }, [outputMode, isReplayRecording]);
+
+  // Query replay buffer length when connected and replay buffer is enabled
+  const getReplayBufferLengthRef = useRef(getReplayBufferLength);
+  useEffect(() => {
+    getReplayBufferLengthRef.current = getReplayBufferLength;
+  }, [getReplayBufferLength]);
+
+  useEffect(() => {
+    if (isConnected && isReplayBufferEnabled) {
+      getReplayBufferLengthRef.current();
+    } else if (!isConnected) {
+      // Reset state when disconnected
+      setReplayBufferLengthState(null);
+      setOutputMode(null);
+      setReplayBufferConfigError(null);
+    }
+  }, [isConnected, isReplayBufferEnabled]);
+
   const field0SceneRef = useRef(field0Scene)
   const field1SceneRef = useRef(field1Scene)
   const field2SceneRef = useRef(field2Scene)
@@ -458,7 +592,13 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       },
       isReconnecting,
       reconnectCountdown,
-      cancelReconnect
+      cancelReconnect,
+      // Replay buffer configuration
+      replayBufferLength,
+      outputMode,
+      replayBufferConfigError,
+      getReplayBufferLength,
+      setReplayBufferLengthValue
     }}>
       {children}
     </ObsStudioContext.Provider>
