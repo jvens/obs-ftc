@@ -25,6 +25,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "firebase": "^12.6.0",
     "firebase-tools": "^14.26.0",
-    "vite": "^6.4.1"
+    "vite": "^6.4.1",
+    "yaml": "^2.8.2"
   }
 }
