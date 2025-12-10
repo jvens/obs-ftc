@@ -163,8 +163,8 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
   const [screenshotResultDelay, setScreenshotResultDelay] = usePersistentState<number>('Screenshot_Result_Delay', 11000);
 
   const replayBufferTime = useRef<NodeJS.Timeout | null>(null);
-  const [postMatchReplayTime, setPostMatchReplayTime] = useState<number>(15);
-  const [enableReplayBuffer, setEnableReplayBuffer] = useState<boolean>(true);
+  const [postMatchReplayTime, setPostMatchReplayTime] = usePersistentState<number>('Replay_PostMatchTime', 15);
+  const [enableReplayBuffer, setEnableReplayBuffer] = usePersistentState<boolean>('Replay_Enabled', true);
   const [recordingMatch, setRecordingMatch] = useState<string | null>(null);
   const [isRecordingReplay, setIsRecordingReplay] = useState<boolean>(false);
 

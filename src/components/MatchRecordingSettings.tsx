@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useObsStudio } from '../contexts/ObsStudioContext';
 import { useFtcLive } from '../contexts/FtcLiveContext';
+import { usePersistentState } from '../helpers/persistant';
 
 const MATCH_TIME_SECONDS = 158; // 2:38 in seconds
 
@@ -23,7 +24,7 @@ const MatchRecordingSettings: React.FC = () => {
     currentRecordingMatch
   } = useFtcLive();
 
-  const [preMatchTime, setPreMatchTime] = useState<number>(15);
+  const [preMatchTime, setPreMatchTime] = usePersistentState<number>('Replay_PreMatchTime', 15);
   const [starting, setStarting] = useState(false);
   const [fixing, setFixing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
