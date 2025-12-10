@@ -256,9 +256,12 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
 
     // Screenshot logic
     if (enableScreenshotsRef.current) {
+      const eventCode = connectionState.selectedEvent?.eventCode ?? '';
+      const filePrefix = eventCode ? `${eventCode}_` : '';
+
       if (streamData.updateType === 'SHOW_PREVIEW') {
         setTimeout(async () => {
-          const fileName = `${streamData.payload.shortName}_preview.png`;
+          const fileName = `${filePrefix}${streamData.payload.shortName}_preview.png`;
           const file = await takeScreenshot(fileName, streamData.payload.field);
           store.dispatch(updateMatchInfo({
             name: streamData.payload.shortName,
@@ -267,7 +270,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
         }, screenshotPreviewDelayRef.current);
       } else if (streamData.updateType === 'SHOW_RANDOM') {
         setTimeout(async () => {
-          const fileName = `${streamData.payload.shortName}_random.png`;
+          const fileName = `${filePrefix}${streamData.payload.shortName}_random.png`;
           const file = await takeScreenshot(fileName, streamData.payload.field);
           store.dispatch(updateMatchInfo({
             name: streamData.payload.shortName,
@@ -276,7 +279,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
         }, screenshotRandomDelayRef.current);
       } else if (streamData.updateType === 'MATCH_POST') {
         setTimeout(async () => {
-          const fileName = `${streamData.payload.shortName}_score.png`;
+          const fileName = `${filePrefix}${streamData.payload.shortName}_score.png`;
           const file = await takeScreenshot(fileName, streamData.payload.field);
           store.dispatch(updateMatchInfo({
             name: streamData.payload.shortName,
