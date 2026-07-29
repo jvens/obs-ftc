@@ -18,7 +18,9 @@
     "start": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && firebase deploy"
+    "deploy": "npm run build && firebase deploy",
+    "cf:dev": "wrangler dev",
+    "cf:deploy": "npm run build && wrangler deploy"
   },
   "devDependencies": {
     "@types/node": "^20.19.25",
@@ -26,6 +28,7 @@
     "firebase": "^12.6.0",
     "firebase-tools": "^15.3.1",
     "vite": "^6.4.1",
+    "wrangler": "^4.115.0",
     "yaml": "^2.8.2"
   }
 }

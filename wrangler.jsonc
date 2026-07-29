@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "obs-ftc",
+  "compatibility_date": "2026-07-28",
+  // This is a pure static SPA (Vite build -> ./build). It is served as an
+  // "assets-only" Worker: no `main` / Worker script and no `binding` are needed.
+  // `single-page-application` mirrors the Firebase `** -> /index.html` rewrite so
+  // client-side routes and refreshes resolve to index.html.
+  "assets": {
+    "directory": "./build",
+    "not_found_handling": "single-page-application"
+  }
+}
