@@ -25,3 +25,6 @@ yarn-error.log*
 # Firebase
 .firebase
 
+# Cloudflare Wrangler
+.wrangler
+.idea

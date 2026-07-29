@@ -86,6 +86,26 @@ Locally preview the production build before deploying.
 
 Builds the app and deploys it to Firebase Hosting.
 
+#### `npm run cf:deploy`
+
+Builds the app and deploys it to Cloudflare Workers (static assets). Since the app is a
+pure static SPA, it is served as an assets-only Worker with a single-page-application
+fallback (equivalent to the Firebase `index.html` rewrite). First-time setup:
+
+```bash
+npx wrangler login   # authorize your Cloudflare account (one time)
+npm run cf:deploy    # build + deploy to https://obs-ftc.<account>.workers.dev
+```
+
+Configuration lives in `wrangler.jsonc`. Firebase Hosting and Cloudflare Workers are both
+supported; use whichever you prefer.
+
+#### `npm run cf:dev`
+
+Serves the production build locally through Wrangler (default
+[http://localhost:8787](http://localhost:8787)) for a production-like preview. Run
+`npm run build` first.
+
 ### Tech Stack
 
 - **React 18** - UI framework
