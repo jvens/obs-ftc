@@ -13,8 +13,12 @@ import SceneMapper from './components/SceneMapper';
 import ScreenshotSettings from './components/ScreenshotSettings';
 import MatchEventsTable from './components/MatchEventsTable';
 import ChaptersSettings from './components/ChaptersSettings';
+import LowerThirdsPanel from './components/LowerThirdsPanel';
 import AboutModal from './components/AboutModal';
 import { initializeAnalytics, trackPageView } from './helpers/analytics';
+
+// Lower thirds are still in preview; only shown with ?lowerthird=true in the URL.
+const showLowerThirds = new URLSearchParams(window.location.search).get('lowerthird') === 'true';
 
 function App() {
   const [showAbout, setShowAbout] = useState(false);
@@ -52,6 +56,7 @@ function App() {
         <ScreenshotSettings />
         <MatchRecordingSettings />
         <MatchRecordSettings />
+        {showLowerThirds && <LowerThirdsPanel />}
         <MatchEventsTable />
       </div>
     </div>

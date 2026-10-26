@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useRef, useEffect } from 'react';
-import OBSWebSocket from 'obs-websocket-js';
+import OBSWebSocket, { OBSRequestTypes } from 'obs-websocket-js';
+import { ResultAsync, errAsync, okAsync } from 'neverthrow';
 import { usePersistentState } from '../helpers/persistant';
 import { trackEvent, AnalyticsEvents } from '../helpers/analytics';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
@@ -59,7 +60,20 @@ interface ObsStudioContextData {
   replayBufferConfigError: string | null;
   getReplayBufferLength: () => Promise<number | null>;
   setReplayBufferLengthValue: (seconds: number) => Promise<boolean>;
+  // Browser sources
+  emitBrowserEvent: (eventName: string, eventData: BrowserEventData) => ResultAsync<void, string>;
+  addBrowserSourceToCurrentScene: (inputName: string, url: string) => ResultAsync<AddBrowserSourceResult, string>;
 }
+
+export interface AddBrowserSourceResult {
+  sceneName: string;
+  // created: new source; added: existing source added to this scene; present: already in this scene
+  outcome: 'created' | 'added' | 'present';
+}
+
+export type BrowserEventData = NonNullable<OBSRequestTypes['CallVendorRequest']['requestData']>;
+
+const toErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
 
 // Create the context
 export const ObsStudioContext = createContext<ObsStudioContextData>({} as ObsStudioContextData);
@@ -568,6 +582,48 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     }
   }, []);
 
+  // Fires a window event named `eventName` inside every OBS browser source (via the obs-browser vendor).
+  const emitBrowserEvent = useCallback((eventName: string, eventData: BrowserEventData): ResultAsync<void, string> => {
+    if (!isConnectedRef.current)
+      return errAsync('Not connected to OBS');
+    return ResultAsync.fromPromise(
+      obs.call('CallVendorRequest', {
+        vendorName: 'obs-browser',
+        requestType: 'emit_event',
+        requestData: { event_name: eventName, event_data: eventData },
+      }),
+      toErrorMessage
+    ).map(() => undefined);
+  }, []);
+
+  // Puts the browser source `inputName` in the current program scene. The source is created once and
+  // shared by every scene it is added to; if it already exists its URL is updated instead.
+  const addBrowserSourceToCurrentScene = useCallback((inputName: string, url: string): ResultAsync<AddBrowserSourceResult, string> => {
+    if (!isConnectedRef.current)
+      return errAsync('Not connected to OBS');
+    const call = <Type extends keyof OBSRequestTypes>(requestType: Type, requestData?: OBSRequestTypes[Type]) =>
+      ResultAsync.fromPromise(obs.call(requestType, requestData), toErrorMessage);
+
+    return ResultAsync.combine([call('GetCurrentProgramScene'), call('GetInputList')])
+      .andThen(([{ currentProgramSceneName: sceneName }, { inputs }]) => {
+        const exists = inputs.some(input => input.inputName === inputName);
+        if (!exists)
+          return call('CreateInput', {
+            sceneName,
+            inputName,
+            inputKind: 'browser_source',
+            inputSettings: { url, width: 1920, height: 1080 },
+          }).map((): AddBrowserSourceResult => ({ sceneName, outcome: 'created' }));
+
+        return call('SetInputSettings', { inputName, inputSettings: { url } })
+          .andThen(() => call('GetSceneItemList', { sceneName }))
+          .andThen(({ sceneItems }) => sceneItems.some(item => item.sourceName === inputName)
+            ? okAsync<AddBrowserSourceResult, string>({ sceneName, outcome: 'present' })
+            : call('CreateSceneItem', { sceneName, sourceName: inputName })
+                .map((): AddBrowserSourceResult => ({ sceneName, outcome: 'added' })));
+      });
+  }, []);
+
   return (
     <ObsStudioContext.Provider value={{
       obsUrl, setObsUrl,
@@ -598,7 +654,10 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       outputMode,
       replayBufferConfigError,
       getReplayBufferLength,
-      setReplayBufferLengthValue
+      setReplayBufferLengthValue,
+      // Browser sources
+      emitBrowserEvent,
+      addBrowserSourceToCurrentScene
     }}>
       {children}
     </ObsStudioContext.Provider>
