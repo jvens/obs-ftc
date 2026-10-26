@@ -145,8 +145,9 @@
     <!-- Paint order matters for the animation: the bottom bar hides behind the top bar,
          the top hex rolls out from behind the right hex, the right hex slides out from
          behind the left hex. -->
+    <!-- Bottom edge (y=236) meets the right hex's vertical side, clear of its lower corner. -->
     <g class="anim" id="botBarGroup">
-      <rect id="botBarRect" x="280" y="150" width="1230" height="110" rx="18" ry="18"
+      <rect id="botBarRect" x="280" y="150" width="1230" height="86" rx="18" ry="18"
             style="fill: var(--brand-gold)"/>
     </g>
     <rect id="topBarRect" x="200" y="40" width="1290" height="125" rx="18" ry="18"
@@ -167,7 +168,7 @@
     </g>
 
     <text id="name" x="450" y="130" font-size="86" stroke="none"></text>
-    <text id="title" x="450" y="238" font-size="60" stroke="none"></text>
+    <text id="title" x="450" y="222" font-size="60" stroke="none"></text>
   </g>
 </svg>
 
@@ -303,8 +304,8 @@
       ], 1000, 400),
       // Hidden until it starts moving, otherwise it shows before the top bar covers it.
       step(botBarGroup, [
-        { transform: 'translateY(-110px)', opacity: 0 },
-        { transform: 'translateY(-110px)', opacity: 1, offset: 0.01 },
+        { transform: 'translateY(-86px)', opacity: 0 },
+        { transform: 'translateY(-86px)', opacity: 1, offset: 0.01 },
         { transform: 'translateY(0)', opacity: 1 },
       ], 1200, 350),
       step(titleEl, [
