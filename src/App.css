@@ -531,3 +531,103 @@ ol li {
   color: #856404;
   font-weight: bold;
 }
+/* Lower thirds */
+.lower-third-url {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.lower-third-url code {
+  background: #f1f1f1;
+  padding: 4px 8px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+
+.lower-third-live {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin: 15px 0;
+}
+
+/* 1920x1080 graphic scaled to 480x270 over a checkerboard so transparency is visible */
+.lower-third-preview {
+  position: relative;
+  width: 480px;
+  height: 270px;
+  overflow: hidden;
+  outline: 1px solid #999;
+  background: repeating-conic-gradient(#ccc 0% 25%, #eee 0% 50%) 50% / 20px 20px;
+}
+
+.lower-third-preview iframe {
+  width: 1920px;
+  height: 1080px;
+  border: 0;
+  transform: scale(0.25);
+  transform-origin: 0 0;
+}
+
+.lower-third-table {
+  max-width: none;
+}
+
+.lower-third-table input[type='text'] {
+  width: 100%;
+  padding: 4px;
+}
+
+.lower-third-table td:last-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.lower-third-table tr.on-air td {
+  background-color: #d4edda;
+}
+
+.lower-third-preview-label {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 0.8rem;
+}
+
+.lower-third-table button {
+  margin: 0 2px;
+}
+
+/* Show and Hide swap places, so give them the same width */
+.lower-third-table button.lower-third-show {
+  min-width: 70px;
+}
+
+/* Let hover reach the wrapper span when Show is disabled */
+.lower-third-table button.lower-third-show:disabled {
+  pointer-events: none;
+}
+
+.lower-third-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.lower-third-import {
+  width: 100%;
+  max-width: 600px;
+  font-family: monospace;
+}
