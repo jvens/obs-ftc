@@ -75,6 +75,8 @@ export const {
 // Selectors
 export const selectFtcServerUrl = (state: RootState) => state.connection.ftcServerUrl;
 export const selectSelectedEvent = (state: RootState) => state.connection.selectedEvent;
+// Fields at the selected event; 2 (the common case) until an event is picked.
+export const selectFieldCount = (state: RootState) => state.connection.selectedEvent?.fieldCount ?? 2;
 export const selectObsUrl = (state: RootState) => state.connection.obsUrl;
 export const selectObsPort = (state: RootState) => state.connection.obsPort;
 export const selectObsPassword = (state: RootState) => state.connection.obsPassword;

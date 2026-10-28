@@ -27,7 +27,8 @@ interface ObsStudioContextData {
   error: string | undefined;
   connectToObs: () => void;
   disconnectFromObs: () => void;
-  fetchScenes: () => Promise<string[]>;
+  // Scene names as listed in OBS (top first), kept up to date while connected.
+  scenes: string[];
   switchScenes: (scene: string) => void;
   setActiveField: (field: number) => void;
   field0Scene?: string;
@@ -80,6 +81,9 @@ export type BrowserEventData = NonNullable<OBSRequestTypes['CallVendorRequest'][
 
 const toErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
 
+// OBS reports scenes bottom first.
+const sceneNames = (scenes: { sceneName?: unknown }[]) => scenes.map(scene => String(scene.sceneName)).reverse();
+
 // Create the context
 export const ObsStudioContext = createContext<ObsStudioContextData>({} as ObsStudioContextData);
 
@@ -100,6 +104,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   const setObsPort = useCallback((port: number) => dispatch(setObsPortAction(port)), [dispatch]);
   const setObsPassword = useCallback((password: string) => dispatch(setObsPasswordAction(password)), [dispatch]);
   const [isConnected, setIsConnected] = useState(false);
+  const [scenes, setScenes] = useState<string[]>([]);
   const [field0Scene, setField0Scene] = usePersistentState<string | undefined>('Field0_Scene', undefined)
   const [field1Scene, setField1Scene] = usePersistentState<string | undefined>('Field1_Scene', undefined)
   const [field2Scene, setField2Scene] = usePersistentState<string | undefined>('Field2_Scene', undefined)
@@ -191,6 +196,27 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     }
   }, []);
 
+  const refreshScenes = useCallback(() =>
+    ResultAsync.fromPromise(obs.call('GetSceneList'), toErrorMessage)
+      .match(({ scenes }) => setScenes(sceneNames(scenes)), error => console.error('Error fetching scenes:', error)), []);
+
+  // Follow scenes being added, removed or renamed, and scene collection switches. Field assignments
+  // follow a renamed scene.
+  useEffect(() => {
+    const onSceneListChanged = ({ scenes }: { scenes: { sceneName?: unknown }[] }) => setScenes(sceneNames(scenes));
+    const onSceneNameChanged = ({ oldSceneName, sceneName }: { oldSceneName: string; sceneName: string }) =>
+      [setField0Scene, setField1Scene, setField2Scene, setField3Scene]
+        .forEach(setScene => setScene(current => current === oldSceneName ? sceneName : current));
+    obs.on('SceneListChanged', onSceneListChanged);
+    obs.on('SceneNameChanged', onSceneNameChanged);
+    obs.on('CurrentSceneCollectionChanged', refreshScenes);
+    return () => {
+      obs.off('SceneListChanged', onSceneListChanged);
+      obs.off('SceneNameChanged', onSceneNameChanged);
+      obs.off('CurrentSceneCollectionChanged', refreshScenes);
+    };
+  }, [refreshScenes, setField0Scene, setField1Scene, setField2Scene, setField3Scene]);
+
   const connectToObsInternal = useCallback(async () => {
     // Cancel any pending reconnect when manually connecting
     cancelReconnect();
@@ -204,6 +230,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       obs.on('ConnectionClosed', (err) => {
         console.warn('OBS Connection Closed:', err.message)
         setIsConnected(false);
+        setScenes([]);
 
         // Only auto-reconnect if user didn't manually disconnect and we were previously connected
         if (!userDisconnectedRef.current && wasConnectedRef.current) {
@@ -214,6 +241,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
 
       wasConnectedRef.current = true;
       setIsConnected(true);
+      refreshScenes();
       trackEvent(AnalyticsEvents.OBS_CONNECTED);
       const recordDirectory = await obs.call('GetRecordDirectory');
       console.log('Record directory:', recordDirectory.recordDirectory);
@@ -282,7 +310,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
         startReconnectTimer();
       }
     }
-  }, [obsUrl, obsPort, obsPassword, cancelReconnect, startReconnectTimer, refreshReplayBufferStatus]);
+  }, [obsUrl, obsPort, obsPassword, cancelReconnect, startReconnectTimer, refreshReplayBufferStatus, refreshScenes]);
 
   // Keep ref updated for use in timer callback
   useEffect(() => {
@@ -308,20 +336,9 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       setError('Error disconnecting')
     } finally {
       setIsConnected(false);
+      setScenes([]);
     }
   }, [cancelReconnect]);
-
-  const fetchScenes = useCallback(async (): Promise<string[]> => {
-    try {
-      const { scenes } = await obs.call('GetSceneList');
-      const sceneList = scenes.map((s: any): string => s.sceneName).reverse()
-      console.log("scenes:", sceneList)
-      return sceneList;
-    } catch (error) {
-      console.error('Error fetching scenes:', error);
-      return [];
-    }
-  }, []);
 
   const saveReplayBuffer = useCallback(async () => {
     try {
@@ -641,7 +658,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       obsPort, setObsPort,
       obsPassword, setObsPassword,
       connectToObs, disconnectFromObs,
-      fetchScenes, switchScenes,
+      scenes, switchScenes,
       field0Scene, field1Scene, field2Scene, field3Scene,
       setField0Scene, setField1Scene, setField2Scene, setField3Scene, setActiveField,
       saveReplayBuffer,
