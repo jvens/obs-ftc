@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useObsStudio } from '../contexts/ObsStudioContext';
 import { usePersistentState } from '../helpers/persistant';
+import { LOWER_THIRD_SOURCE_NAME as SOURCE_NAME, lowerThirdUrl as graphicUrl } from '../helpers/lowerThird';
 
 const EVENT_NAME = 'ftc-lower-third';
-const SOURCE_NAME = 'FTC Lower Third';
 // Time the graphic spends animating in and out, added to the auto-hide time so the
 // Show/Hide button flips back roughly when the graphic actually leaves the screen.
 const ANIMATION_MS = 2800;
@@ -28,11 +28,6 @@ const parseRoster = (text: string): LowerThird[] =>
       const clean = (value: string) => value.trim().replace(/^"(.*)"$/, '$1');
       return { id: newId(), name: clean(name), title: clean(title) };
     });
-
-const graphicUrl = (params: Record<string, string>) => {
-  const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== '')).toString();
-  return `${window.location.origin}/lower-third.html${query ? `?${query}` : ''}`;
-};
 
 const LowerThirdsPanel: React.FC = () => {
   const { status, emitBrowserEvent, addBrowserSourceToCurrentScene } = useObsStudio();

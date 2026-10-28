@@ -4,6 +4,7 @@ A web application that integrates OBS Studio with the FTC Live scoring system, e
 
 ## Features
 
+- **OBS Setup**: Build the scenes and sources for an event in OBS with one click (field scenes, ceremony, alliance selection, pit and sponsor displays, and a Camera Map), then pick each camera and the audio input from the dashboard
 - **Automated Scene Switching**: Automatically switch OBS scenes based on FTC Live match events (match load, preview, start, etc.)
 - **Match Recording**: Control OBS recording start/stop based on configurable match events
 - **Replay Buffer**: Automatically save replay buffer clips for each match
@@ -41,9 +42,10 @@ Since the FTC Live scoring system uses HTTP (not HTTPS), you may need to allow i
 
 1. **Connect to FTC Live**: Enter the FTC Live server IP address, fetch events, and select your event
 2. **Connect to OBS Studio**: Enter your OBS WebSocket connection details
-3. **Configure Scene Assignments**: Map your OBS scenes to each field
-4. **Set Transition Triggers**: Choose which match events trigger scene switches
-5. **Configure Recording/Screenshots**: Enable and configure automatic recording and screenshot capture
+3. **Configure OBS Studio**: Click **Set up in a new scene collection** to build everything, then choose each camera and the audio device. For the next event, select it and click **Update for this event**
+4. **Check Scene Assignments**: Setup assigns its field scenes automatically; adjust them if you use your own scenes
+5. **Set Transition Triggers**: Choose which match events trigger scene switches
+6. **Configure Recording/Screenshots**: Enable and configure automatic recording and screenshot capture
 
 ## Development
 
