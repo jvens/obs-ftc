@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useObsStudio } from '../contexts/ObsStudioContext';
 import { useAppSelector } from '../store/hooks';
-import { selectFtcServerUrl, selectObsUrl, selectSelectedEvent } from '../store/connectionSlice';
+import { selectFieldCount, selectFtcServerUrl, selectObsUrl, selectSelectedEvent } from '../store/connectionSlice';
 import { usePersistentState } from '../helpers/persistant';
 import { lowerThirdUrl } from '../helpers/lowerThird';
 import { AudioMode, DEFAULT_SAFE_BACKGROUND_URL, SCENE_NAMES, SetupOptions, plannedCameras } from '../obsSetup/layout';
@@ -38,9 +38,7 @@ const OutcomeView: React.FC<{ outcome: Outcome; errorHint?: string }> = ({ outco
 );
 
 const ObsSetupPanel: React.FC = () => {
-  const {
-    status, callObs, refreshReplayBufferStatus, setField0Scene, setField1Scene, setField2Scene, setField3Scene,
-  } = useObsStudio();
+  const { status, callObs, refreshReplayBufferStatus } = useObsStudio();
   const selectedEvent = useAppSelector(selectSelectedEvent);
   const ftcHost = useAppSelector(selectFtcServerUrl);
   const obsHost = useAppSelector(selectObsUrl);
@@ -49,13 +47,11 @@ const ObsSetupPanel: React.FC = () => {
   const [safeBackgroundUrl, setSafeBackgroundUrl] = usePersistentState<string>('obsSetupSafeBackgroundUrl', DEFAULT_SAFE_BACKGROUND_URL);
   // Shared with the Lower Thirds panel.
   const [lowerThirdChannel] = usePersistentState<string>('lowerThirdsChannel', '');
-  const [fieldCount, setFieldCount] = useState(selectedEvent?.fieldCount ?? 1);
+  const fieldCount = useAppSelector(selectFieldCount);
   const [running, setRunning] = useState(false);
   const [setup, setSetup] = useState<Outcome>(emptyOutcome);
   const [settings, setSettings] = useState<Outcome>(emptyOutcome);
   const [refreshKey, setRefreshKey] = useState(0);
-
-  useEffect(() => setFieldCount(selectedEvent?.fieldCount ?? 1), [selectedEvent?.fieldCount]);
 
   const cameras = useMemo(() => plannedCameras(fieldCount), [fieldCount]);
   const live = status.streaming || status.recording;
@@ -64,15 +60,6 @@ const ObsSetupPanel: React.FC = () => {
   // OBS loads FTC Live and the lower third with the addresses this dashboard uses, which only works
   // when both run on the same computer.
   const remoteObs = !isLocalHost(obsHost);
-
-  // Point the automatic scene switching at the scenes that were just built.
-  const assignFieldScenes = () => {
-    setField1Scene(SCENE_NAMES.field(1));
-    if (fieldCount >= 2) setField2Scene(SCENE_NAMES.field(2));
-    if (fieldCount >= 3) setField3Scene(SCENE_NAMES.field(3));
-    // Finals are played on one field; field 1 is the usual choice and can be changed above.
-    if (fieldCount >= 2) setField0Scene(previous => previous ?? SCENE_NAMES.field(1));
-  };
 
   const run = (mode: SetupMode) => {
     if (!selectedEvent) return;
@@ -95,7 +82,6 @@ const ObsSetupPanel: React.FC = () => {
         report => {
           setSetup(outcome => ({ ...outcome, warnings: report.warnings }));
           log(`Scene collection: ${report.sceneCollection}`);
-          assignFieldScenes();
         },
         error => setSetup(outcome => ({ ...outcome, error: `Setup stopped: ${error}` }))
       )
@@ -143,18 +129,9 @@ const ObsSetupPanel: React.FC = () => {
       <div className="obs-setup-options">
         <div>
           Event: <strong>{selectedEvent ? `${selectedEvent.eventCode} (${selectedEvent.name})` : 'select an event in FTC Live Connection'}</strong>
+          {selectedEvent && `, ${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'},`}
           {' '}on <code>{ftcHost}</code>
         </div>
-        <label>
-          Fields:
-          <input
-            type="number"
-            min={1}
-            max={4}
-            value={fieldCount}
-            onChange={(e) => setFieldCount(Math.min(4, Math.max(1, parseInt(e.target.value, 10) || 1)))}
-          />
-        </label>
         <label>
           Stream audio:
           <select value={audioMode} onChange={(e) => setAudioMode(e.target.value as AudioMode)}>
