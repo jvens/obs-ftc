@@ -14,6 +14,7 @@ import ScreenshotSettings from './components/ScreenshotSettings';
 import MatchEventsTable from './components/MatchEventsTable';
 import ChaptersSettings from './components/ChaptersSettings';
 import LowerThirdsPanel from './components/LowerThirdsPanel';
+import ObsSetupPanel from './components/ObsSetupPanel';
 import AboutModal from './components/AboutModal';
 import { initializeAnalytics, trackPageView } from './helpers/analytics';
 
@@ -51,6 +52,7 @@ function App() {
       <div className="content-container">
         <FtcLiveConnectionManager />
         <ObsStudioManager />
+        <ObsSetupPanel />
         <SceneMapper />
         <ChaptersSettings />
         <ScreenshotSettings />
