@@ -631,3 +631,102 @@ ol li {
   max-width: 600px;
   font-family: monospace;
 }
+
+/* Configure OBS Studio */
+.obs-setup-options {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.obs-setup-options details {
+  margin-top: 5px;
+}
+
+.obs-setup-url {
+  width: min(600px, 80vw);
+}
+
+.obs-setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+button.danger {
+  background-color: #a32020;
+}
+
+button.danger:hover,
+button.danger:focus {
+  background-color: #c43030;
+}
+
+button.danger:disabled {
+  background-color: #ccc;
+}
+
+.obs-setup-warnings {
+  text-align: left;
+  max-width: 900px;
+  margin: 10px auto;
+  padding-left: 20px;
+  color: #8a5a00;
+}
+
+.obs-setup-log {
+  text-align: left;
+  max-width: 900px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 10px auto;
+  padding: 8px;
+  background: #f1f1f1;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.obs-camera-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 15px;
+  margin: 10px 0;
+}
+
+.obs-camera-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.obs-camera-card select,
+.obs-camera-card input[type='text'] {
+  max-width: 240px;
+}
+
+.obs-camera-preview {
+  width: 240px;
+  height: 135px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #222;
+  color: #999;
+  overflow: hidden;
+}
+
+.obs-camera-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}

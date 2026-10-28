@@ -4,6 +4,7 @@ import { ResultAsync, errAsync, okAsync } from 'neverthrow';
 import { usePersistentState } from '../helpers/persistant';
 import { trackEvent, AnalyticsEvents } from '../helpers/analytics';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
+import { ObsCall } from '../obsSetup/obsCall';
 import { setObsUrl as setObsUrlAction, setObsPort as setObsPortAction, setObsPassword as setObsPasswordAction, selectObsUrl, selectObsPort, selectObsPassword } from '../store/connectionSlice';
 
 type ObsStudioProviderProps = {
@@ -63,6 +64,8 @@ interface ObsStudioContextData {
   // Browser sources
   emitBrowserEvent: (eventName: string, eventData: BrowserEventData) => ResultAsync<void, string>;
   addBrowserSourceToCurrentScene: (inputName: string, url: string) => ResultAsync<AddBrowserSourceResult, string>;
+  // Any obs-websocket request; fails with a message when not connected.
+  callObs: ObsCall;
 }
 
 export interface AddBrowserSourceResult {
@@ -598,12 +601,13 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
 
   // Puts the browser source `inputName` in the current program scene. The source is created once and
   // shared by every scene it is added to; if it already exists its URL is updated instead.
-  const addBrowserSourceToCurrentScene = useCallback((inputName: string, url: string): ResultAsync<AddBrowserSourceResult, string> => {
-    if (!isConnectedRef.current)
-      return errAsync('Not connected to OBS');
-    const call = <Type extends keyof OBSRequestTypes>(requestType: Type, requestData?: OBSRequestTypes[Type]) =>
-      ResultAsync.fromPromise(obs.call(requestType, requestData), toErrorMessage);
+  // Checks the socket itself: components react to `status.connected` before isConnectedRef catches up.
+  const callObs: ObsCall = useCallback((requestType, requestData) => obs.identified
+    ? ResultAsync.fromPromise(obs.call(requestType, requestData), toErrorMessage)
+    : errAsync('Not connected to OBS'), []);
 
+  const addBrowserSourceToCurrentScene = useCallback((inputName: string, url: string): ResultAsync<AddBrowserSourceResult, string> => {
+    const call = callObs;
     return ResultAsync.combine([call('GetCurrentProgramScene'), call('GetInputList')])
       .andThen(([{ currentProgramSceneName: sceneName }, { inputs }]) => {
         const exists = inputs.some(input => input.inputName === inputName);
@@ -622,7 +626,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
             : call('CreateSceneItem', { sceneName, sourceName: inputName })
                 .map((): AddBrowserSourceResult => ({ sceneName, outcome: 'added' })));
       });
-  }, []);
+  }, [callObs]);
 
   return (
     <ObsStudioContext.Provider value={{
@@ -657,7 +661,8 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       setReplayBufferLengthValue,
       // Browser sources
       emitBrowserEvent,
-      addBrowserSourceToCurrentScene
+      addBrowserSourceToCurrentScene,
+      callObs
     }}>
       {children}
     </ObsStudioContext.Provider>
