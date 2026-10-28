@@ -19,7 +19,7 @@ import AboutModal from './components/AboutModal';
 import { initializeAnalytics, trackPageView } from './helpers/analytics';
 
 // Lower thirds are still in preview; only shown with ?lowerthird=true in the URL.
-const showLowerThirds = new URLSearchParams(window.location.search).get('lowerthird') === 'true';
+// const showLowerThirds = new URLSearchParams(window.location.search).get('lowerthird') === 'true';
 
 function App() {
   const [showAbout, setShowAbout] = useState(false);
@@ -53,12 +53,12 @@ function App() {
         <FtcLiveConnectionManager />
         <ObsStudioManager />
         <ObsSetupPanel />
+        <LowerThirdsPanel />
         <SceneMapper />
         <ChaptersSettings />
         <ScreenshotSettings />
         <MatchRecordingSettings />
         <MatchRecordSettings />
-        {showLowerThirds && <LowerThirdsPanel />}
         <MatchEventsTable />
       </div>
     </div>
