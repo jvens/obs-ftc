@@ -1,13 +1,16 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import { useObsStudio } from "../contexts/ObsStudioContext";
 import { UpdateType } from "../types/FtcLive";
 import { useFtcLive } from "../contexts/FtcLiveContext";
 import { useAppSelector } from "../store/hooks";
-import { selectSelectedEvent } from "../store/connectionSlice";
+import { selectFieldCount } from "../store/connectionSlice";
+import { SCENE_NAMES } from "../obsSetup/layout";
+
+type SceneSetter = React.Dispatch<React.SetStateAction<string | undefined>>;
 
 const SceneMapper = () => {
   const {
-    fetchScenes,
+    scenes,
     status,
     field0Scene,
     field1Scene,
@@ -23,14 +26,21 @@ const SceneMapper = () => {
     setTransitionTriggers: setSelectedTriggers,
     isConnected: isFtcLiveConnected,
   } = useFtcLive();
-  const selectedEvent = useAppSelector(selectSelectedEvent);
-  const fieldCount = selectedEvent?.fieldCount ?? 2;
-  const [scenes, setScenes] = useState<string[]>([]);
+  const fieldCount = useAppSelector(selectFieldCount);
 
-  const handleFetchScenes = async () => {
-    const fetchedScenes = await fetchScenes();
-    setScenes(fetchedScenes);
-  };
+  // Use the scenes Configure OBS Studio builds, unless a field already has a scene that still exists
+  // in OBS, so custom choices are kept.
+  useEffect(() => {
+    const applyDefault = (setScene: SceneSetter, sceneName: string) =>
+      setScene(current => current !== undefined && scenes.includes(current)
+        ? current
+        : scenes.includes(sceneName) ? sceneName : current);
+    applyDefault(setField1Scene, SCENE_NAMES.field(1));
+    if (fieldCount >= 2) applyDefault(setField2Scene, SCENE_NAMES.field(2));
+    if (fieldCount >= 3) applyDefault(setField3Scene, SCENE_NAMES.field(3));
+    // Finals are played on one field; field 1 is the usual choice.
+    if (fieldCount >= 2) applyDefault(setField0Scene, SCENE_NAMES.field(1));
+  }, [scenes, fieldCount, setField0Scene, setField1Scene, setField2Scene, setField3Scene]);
 
   const handleTriggerChange = (updateType: UpdateType) => {
     setSelectedTriggers((prevSelectedTriggers) =>
@@ -75,10 +85,6 @@ const SceneMapper = () => {
   return (
     <div className="section tall">
       <h2>Scene Switching Settings</h2>
-      <button onClick={handleFetchScenes} disabled={!status.connected}>
-        Fetch Scenes
-      </button>
-      <br />
       <div>
         <h3>Scene Assignments</h3>
         {fieldCount === 1 ? (
