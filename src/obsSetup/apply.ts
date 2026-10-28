@@ -1,7 +1,9 @@
 import { ResultAsync, okAsync } from 'neverthrow';
-import { Plan, PlannedCamera, PlannedItem, PlannedScene, SCENE_NAMES, SOURCE_NAMES, SetupOptions, buildPlan, cameraInputName } from './layout';
+import {
+  DEFAULT_CAMERA_TYPE, Plan, PlannedCamera, PlannedItem, PlannedScene, SOURCE_NAMES, SetupOptions, buildPlan, cameraInputName,
+} from './layout';
 import { addCameraInput, cameraMuted, setCameraAudioMuted } from './cameras';
-import { Canvas, ObsCall, getCanvas, sequence, transformFor, waitForInputsRemoved } from './obsCall';
+import { Canvas, ObsCall, getCanvas, ignoreError, sequence, transformFor, waitForInputsRemoved } from './obsCall';
 
 // update:        add whatever is missing and point the browser sources at the current event; keeps
 //                camera choices, audio devices, item positions and anything the user added.
@@ -32,16 +34,6 @@ const loadState = (call: ObsCall): ResultAsync<ObsState, string> =>
       canvas,
     }));
 
-// OBS has a text source per platform: GDI+ on Windows, FreeType elsewhere.
-const textInputKind = (call: ObsCall) =>
-  call('GetInputKindList', { unversioned: false })
-    .map(({ inputKinds }) => inputKinds.find(kind => kind.startsWith('text_gdiplus'))
-      ?? inputKinds.find(kind => kind.startsWith('text_ft2_source'))
-      ?? 'text_ft2_source_v2');
-
-export const planFor = (call: ObsCall, options: SetupOptions) =>
-  textInputKind(call).map(kind => buildPlan(options, kind));
-
 const ensureScene = (call: ObsCall, state: ObsState, name: string, log: Log) => {
   if (state.scenes.has(name))
     return okAsync<void, string>(undefined);
@@ -54,8 +46,8 @@ const ensureCamera = (call: ObsCall, state: ObsState, camera: PlannedCamera, opt
   if (state.scenes.has(camera.scene))
     return setCameraAudioMuted(call, camera, muted);
   return ensureScene(call, state, camera.scene, log)
-    .andThen(() => addCameraInput(call, camera, options.cameraType, muted,
-      state.inputs.has(cameraInputName(camera.label, options.cameraType))))
+    .andThen(() => addCameraInput(call, camera, DEFAULT_CAMERA_TYPE, muted,
+      state.inputs.has(cameraInputName(camera.label, DEFAULT_CAMERA_TYPE))))
     .map(inputName => { state.inputs.set(inputName, 'camera'); });
 };
 
@@ -116,15 +108,7 @@ const fillScene = (call: ObsCall, state: ObsState, plan: Plan, scene: PlannedSce
         : call('CreateSceneItem', { sceneName: scene.name, sourceName: item.source });
       return create.andThen(({ sceneItemId }) => setTransform(call, state, scene, item, sceneItemId));
     });
-    // Positions the user chose are kept, except in scenes whose layout is generated.
-    const relayout = scene.generatedLayout
-      ? sequence(scene.items, item => {
-          const existing = sceneItems.find(sceneItem => sceneItem.sourceName === item.source);
-          return existing ? setTransform(call, state, scene, item, Number(existing.sceneItemId)) : okAsync(undefined);
-        })
-      : okAsync<void, string>(undefined);
-    return add.andThen(() => relayout)
-      .andThen(() => missing.length > 0 && sceneItems.length > 0 ? restack(call, scene) : okAsync(undefined));
+    return add.andThen(() => missing.length > 0 && sceneItems.length > 0 ? restack(call, scene) : okAsync(undefined));
   });
 
 // Brings the current scene collection in line with the plan without removing anything.
@@ -133,9 +117,10 @@ const sync = (call: ObsCall, plan: Plan, options: SetupOptions, warnings: string
     if (state.canvas.width * 9 !== state.canvas.height * 16)
       warnings.push(`The OBS canvas is ${state.canvas.width}x${state.canvas.height}. FTC Live graphics are 16:9, so expect borders; 1920x1080 is recommended (Settings > Video).`);
     return updateInputs(call, state, plan, warnings, log)
-      // Program scenes first so they sit above the camera scenes in the OBS scene list.
-      .andThen(() => sequence(plan.scenes, scene => ensureScene(call, state, scene.name, log)))
-      .andThen(() => sequence(plan.cameras, camera => ensureCamera(call, state, camera, options, log)))
+      // OBS puts each new scene at the top of its list (and has no request to reorder them), so
+      // create from the bottom up: cameras last in the list, program scenes above them.
+      .andThen(() => sequence([...plan.cameras].reverse(), camera => ensureCamera(call, state, camera, options, log)))
+      .andThen(() => sequence([...plan.scenes].reverse(), scene => ensureScene(call, state, scene.name, log)))
       .andThen(() => sequence(plan.scenes, scene => fillScene(call, state, plan, scene, log)))
       .andThen(() => state.inputs.has(SOURCE_NAMES.audio)
         ? call('SetInputMute', { inputName: SOURCE_NAMES.audio, inputMuted: options.audioMode !== 'device' })
@@ -160,9 +145,6 @@ const uniqueCollectionName = (call: ObsCall, base: string) =>
     return name;
   });
 
-const removeQuietly = (removal: ResultAsync<unknown, string>) =>
-  removal.map(() => undefined).orElse(() => okAsync<void, string>(undefined));
-
 // Moves program (and preview, in studio mode) to `scene` so the others can be removed.
 const showScene = (call: ObsCall, scene: string) =>
   call('SetCurrentProgramScene', { sceneName: scene })
@@ -183,8 +165,11 @@ const wipe = (call: ObsCall, log: Log) =>
       return setupScene
         .andThen(() => showScene(call, SETUP_SCENE))
         .andThen(() => sequence(others, sceneName => call('RemoveScene', { sceneName })))
-        .andThen(() => sequence(removed, inputName => removeQuietly(call('RemoveInput', { inputName }))))
-        .andThen(() => waitForInputsRemoved(call, removed));
+        .andThen(() => sequence(removed, inputName => ignoreError(call('RemoveInput', { inputName }))))
+        .andThen(() => {
+          log('Waiting for OBS to finish removing sources (capture devices can take a while)');
+          return waitForInputsRemoved(call, removed);
+        });
     });
 
 // Scenes OBS put in a new collection by itself ("Scene"), removed once ours exist.
@@ -204,14 +189,14 @@ export const applySetup = (call: ObsCall, options: SetupOptions, mode: SetupMode
     : mode === 'wipe' ? wipe(call, log) : okAsync(undefined);
 
   return prepare
-    .andThen(() => planFor(call, options))
+    .andThen(() => okAsync(buildPlan(options)))
     .andThen(plan => sync(call, plan, options, warnings, log).map(() => plan))
     .andThen(plan => {
       if (mode === 'update')
         return okAsync<void, string>(undefined);
       const ours = new Set([...plan.scenes.map(scene => scene.name), ...plan.cameras.map(camera => camera.scene)]);
       return muteGlobalAudio(call, warnings)
-        .andThen(() => showScene(call, SCENE_NAMES.cameraMap))
+        .andThen(() => showScene(call, plan.scenes[0].name))
         .andThen(() => removeEmptyScenes(call, ours));
     })
     .andThen(() => call('GetSceneCollectionList'))

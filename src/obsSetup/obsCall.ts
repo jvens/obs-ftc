@@ -16,17 +16,21 @@ export interface Canvas {
 export const sequence = <T>(items: readonly T[], step: (item: T) => ResultAsync<unknown, string>): ResultAsync<void, string> =>
   items.reduce<ResultAsync<void, string>>((chain, item) => chain.andThen(() => step(item).map(() => undefined)), okAsync(undefined));
 
-const delay = (ms: number) => ResultAsync.fromSafePromise<void, string>(new Promise(resolve => setTimeout(resolve, ms)));
+// For removals where "already gone" is as good as success.
+export const ignoreError = (result: ResultAsync<unknown, string>): ResultAsync<void, string> =>
+  result.map(() => undefined).orElse(() => okAsync(undefined));
 
-// OBS finishes removing an input in the background (a capture device can take a moment to close),
-// so wait until it is really gone before reusing its name or building on top of the removal.
-export const waitForInputsRemoved = (call: ObsCall, names: string[], attempts = 40): ResultAsync<void, string> =>
+export const delay = (ms: number) => ResultAsync.fromSafePromise<void, string>(new Promise(resolve => setTimeout(resolve, ms)));
+
+// OBS finishes removing an input in the background, and closing a capture device can take tens of
+// seconds, so wait until it is really gone before reusing its name.
+export const waitForInputsRemoved = (call: ObsCall, names: string[], attempts = 240): ResultAsync<void, string> =>
   names.length === 0 ? okAsync(undefined) : call('GetInputList').andThen(({ inputs }) => {
     const remaining = names.filter(name => inputs.some(input => input.inputName === name));
     if (remaining.length === 0)
       return okAsync(undefined);
     if (attempts <= 0)
-      return errAsync(`OBS has not finished removing ${remaining.map(name => `"${name}"`).join(', ')}. Close any open OBS dialogs and try again.`);
+      return errAsync(`OBS has not finished removing ${remaining.map(name => `"${name}"`).join(', ')} after a minute. Try again shortly, or restart OBS.`);
     return delay(250).andThen(() => waitForInputsRemoved(call, remaining, attempts - 1));
   });
 
