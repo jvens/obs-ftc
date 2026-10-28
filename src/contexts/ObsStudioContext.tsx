@@ -66,6 +66,8 @@ interface ObsStudioContextData {
   addBrowserSourceToCurrentScene: (inputName: string, url: string) => ResultAsync<AddBrowserSourceResult, string>;
   // Any obs-websocket request; fails with a message when not connected.
   callObs: ObsCall;
+  // Re-reads the replay buffer state after OBS output settings change.
+  refreshReplayBufferStatus: () => Promise<void>;
 }
 
 export interface AddBrowserSourceResult {
@@ -162,6 +164,33 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     }, RECONNECT_INTERVAL * 1000);
   }, []);
 
+  // Whether the replay buffer is turned on in the OBS profile, and whether it is running.
+  const refreshReplayBufferStatus = useCallback(async () => {
+    // The replay buffer only appears in the output list when it is turned on in the profile
+    const list = await obs.call('GetOutputList');
+    console.log('Output list:', list);
+    const replayOutput = list.outputs.find((o) => o.outputKind === 'replay_buffer');
+
+    if (replayOutput) {
+      console.log('Replay buffer output found:', replayOutput.outputName);
+      setIsReplayBufferEnabled(true);
+
+      // Check if replay buffer is currently active
+      try {
+        const outputStatus = await obs.call('GetOutputStatus', { outputName: replayOutput.outputName as string });
+        console.log('Replay buffer status:', outputStatus);
+        setIsReplayRecording(outputStatus.outputActive);
+      } catch (err) {
+        console.log('Error getting replay buffer status:', err);
+        setIsReplayRecording(false);
+      }
+    } else {
+      console.log('Replay buffer output not enabled in OBS settings');
+      setIsReplayBufferEnabled(false);
+      setIsReplayRecording(false);
+    }
+  }, []);
+
   const connectToObsInternal = useCallback(async () => {
     // Cancel any pending reconnect when manually connecting
     cancelReconnect();
@@ -226,29 +255,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
         }
       });
 
-      // Check if replay buffer is enabled by looking for it in the output list
-      const list = await obs.call('GetOutputList');
-      console.log('Output list:', list);
-      const replayOutput = list.outputs.find((o) => o.outputKind === 'replay_buffer');
-
-      if (replayOutput) {
-        console.log('Replay buffer output found:', replayOutput.outputName);
-        setIsReplayBufferEnabled(true);
-
-        // Check if replay buffer is currently active
-        try {
-          const outputStatus = await obs.call('GetOutputStatus', { outputName: replayOutput.outputName as string });
-          console.log('Replay buffer status:', outputStatus);
-          setIsReplayRecording(outputStatus.outputActive);
-        } catch (err) {
-          console.log('Error getting replay buffer status:', err);
-          setIsReplayRecording(false);
-        }
-      } else {
-        console.log('Replay buffer output not enabled in OBS settings');
-        setIsReplayBufferEnabled(false);
-        setIsReplayRecording(false);
-      }
+      await refreshReplayBufferStatus();
 
       obs.addListener('ReplayBufferStateChanged', (data: any) => {
         console.log('Replay buffer state changed:', data);
@@ -275,7 +282,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
         startReconnectTimer();
       }
     }
-  }, [obsUrl, obsPort, obsPassword, cancelReconnect, startReconnectTimer]);
+  }, [obsUrl, obsPort, obsPassword, cancelReconnect, startReconnectTimer, refreshReplayBufferStatus]);
 
   // Keep ref updated for use in timer callback
   useEffect(() => {
@@ -662,7 +669,8 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       // Browser sources
       emitBrowserEvent,
       addBrowserSourceToCurrentScene,
-      callObs
+      callObs,
+      refreshReplayBufferStatus
     }}>
       {children}
     </ObsStudioContext.Provider>
