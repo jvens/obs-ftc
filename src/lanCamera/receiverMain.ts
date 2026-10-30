@@ -1,5 +1,6 @@
-// Loaded by an OBS browser source: camera-receiver.html?camera=<label>&port=<port>#password=<password>
-// Connects to the OBS WebSocket on this computer and shows the camera sent from another computer.
+// Loaded by an OBS browser source: camera-receiver.html?slot=<label>&camera=<name>&port=<port>#password=<password>
+// Connects to the OBS WebSocket on this computer and shows camera <name>, sent from another computer,
+// in camera slot <label>.
 import OBSWebSocket from 'obs-websocket-js';
 import { ResultAsync } from 'neverthrow';
 import { connectObs, obsSignaling } from './obsSignaling';
@@ -8,6 +9,7 @@ import { CameraReceiver, startCameraReceiver } from './receiver';
 const RETRY_MS = 3000;
 
 const params = new URLSearchParams(window.location.search);
+const slot = params.get('slot') ?? '';
 const camera = params.get('camera') ?? '';
 const port = Number(params.get('port') ?? 4455);
 const password = new URLSearchParams(window.location.hash.slice(1)).get('password') ?? '';
@@ -44,20 +46,21 @@ const channel = obsSignaling(obs);
 let receiver: CameraReceiver | undefined;
 
 const connect = () => {
-  showStatus(`${camera} camera: connecting to OBS`);
+  showStatus(`${slot}: connecting to OBS`);
   connectObs(obs, 'localhost', port, password).match(
     () => {
       receiver = startCameraReceiver(channel, {
         camera,
+        slot,
         onStream: play,
-        onState: (state, senderName) => showStatus(
+        onState: state => showStatus(
           state === 'live' ? undefined
-            : state === 'connecting' ? `${camera} camera: connecting to ${senderName || 'the camera computer'}`
-            : `${camera} camera: waiting for a camera computer`),
+            : state === 'connecting' ? `${slot}: connecting to ${camera}`
+            : `${slot}: waiting for ${camera}`),
       });
     },
     error => {
-      showStatus(`${camera} camera: ${error}`);
+      showStatus(`${slot}: ${error}`);
       setTimeout(connect, RETRY_MS);
     }
   );
@@ -71,4 +74,4 @@ obs.on('ConnectionClosed', () => {
 });
 
 if (camera) connect();
-else showStatus('No camera given. Set up LAN cameras from the FTC OBS dashboard.');
+else showStatus(`${slot}: no camera computer picked. Pick one in the FTC OBS dashboard.`);

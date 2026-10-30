@@ -5,13 +5,14 @@ import { SignalingChannel } from './signaling';
 
 export interface SenderPeer {
   receiverId: string;
+  // The camera slot (scene) the receiver shows this camera in.
+  slot: string;
   state: RTCPeerConnectionState;
 }
 
 export interface CameraSenderOptions {
+  // The name this camera computer sends as; the dashboard picks it for a camera slot.
   camera: string;
-  // Shown in the dashboard so the operator knows which computer feeds the camera.
-  name: string;
   stream: MediaStream;
   maxBitrateKbps: number;
   onPeers: (peers: SenderPeer[]) => void;
@@ -24,15 +25,18 @@ export interface CameraSender {
 
 // A receiver repeats its request until it gets a stream; an offer still on its way answers those too.
 const OFFER_PENDING_MS = 5000;
+const PRESENCE_INTERVAL_MS = 5000;
 
 // Sends `stream` to every receiver (OBS browser source) that asks for `options.camera`. Each receiver
 // gets its own connection, so the same camera can also be previewed elsewhere.
 export const startCameraSender = (channel: SignalingChannel, options: CameraSenderOptions): CameraSender => {
-  const { camera, name, stream } = options;
+  const { camera, stream } = options;
   const peers = new Map<string, RTCPeerConnection>();
   const offeredAt = new Map<RTCPeerConnection, number>();
+  const slots = new Map<string, string>();
 
-  const report = () => options.onPeers([...peers].map(([receiverId, pc]) => ({ receiverId, state: pc.connectionState })));
+  const report = () => options.onPeers([...peers].map(([receiverId, pc]) =>
+    ({ receiverId, slot: slots.get(receiverId) ?? '', state: pc.connectionState })));
 
   const drop = (receiverId: string) => {
     peers.get(receiverId)?.close();
@@ -44,7 +48,8 @@ export const startCameraSender = (channel: SignalingChannel, options: CameraSend
     return pc !== undefined && pc.connectionState === 'new' && Date.now() - (offeredAt.get(pc) ?? 0) < OFFER_PENDING_MS;
   };
 
-  const offer = (receiverId: string) => {
+  const offer = (receiverId: string, slot: string) => {
+    slots.set(receiverId, slot);
     if (offering(receiverId)) return;
     drop(receiverId);
     const pc = new RTCPeerConnection(RTC_CONFIG);
@@ -71,7 +76,7 @@ export const startCameraSender = (channel: SignalingChannel, options: CameraSend
     rtc(pc.createOffer(), 'Unable to create an offer')
       .andThen(description => setLocalAndGather(pc, description, 'Unable to set up the connection'))
       // A newer offer may have replaced this one while candidates were gathered.
-      .andThen(sdp => peers.get(receiverId) === pc ? channel.send({ type: 'offer', camera, to: receiverId, sdp, name }) : okAsync(undefined))
+      .andThen(sdp => peers.get(receiverId) === pc ? channel.send({ type: 'offer', camera, to: receiverId, sdp }) : okAsync(undefined))
       .mapErr(error => { if (peers.get(receiverId) === pc) drop(receiverId); options.onNotice(error); });
   };
 
@@ -82,9 +87,12 @@ export const startCameraSender = (channel: SignalingChannel, options: CameraSend
       .mapErr(error => { drop(receiverId); options.onNotice(error); });
   };
 
+  const presence = () => channel.send({ type: 'presence', camera });
+
   const onMessage = (message: LanCameraMessage) => {
+    if (message.type === 'discover') presence();
     if (message.camera !== camera) return;
-    if (message.type === 'want') offer(message.from);
+    if (message.type === 'want') offer(message.from, message.slot);
     else if (message.type === 'answer') onAnswer(message.from, message.sdp);
     else if (message.type === 'bye' && peers.has(message.from)) {
       drop(message.from);
@@ -96,10 +104,12 @@ export const startCameraSender = (channel: SignalingChannel, options: CameraSend
   };
 
   const unsubscribe = channel.subscribe(onMessage);
-  channel.send({ type: 'hello', camera, name }).mapErr(options.onNotice);
+  channel.send({ type: 'hello', camera }).andThen(presence).mapErr(options.onNotice);
+  const timer = setInterval(presence, PRESENCE_INTERVAL_MS);
 
   return {
     stop: () => {
+      clearInterval(timer);
       unsubscribe();
       channel.send({ type: 'bye', camera, reason: 'stopped' });
       [...peers.keys()].forEach(drop);

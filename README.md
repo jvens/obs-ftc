@@ -55,19 +55,21 @@ to install on that computer. The video goes straight from that computer's browse
 and stays on the local network; the OBS WebSocket server carries the few messages that set up the
 connection.
 
-1. In **Configure OBS Studio > Cameras**, set the camera (for example Field 1) to **LAN Camera**. This
-   adds a browser source to the camera scene that waits for a camera computer.
-2. On the OBS computer, let OBS accept connections from the network: allow OBS through the firewall
+1. On the OBS computer, let OBS accept connections from the network: allow OBS through the firewall
    (Windows asks the first time the WebSocket server is reached from another computer) and note the
    computer's IP address (the WebSocket Server Settings window shows it under **Show Connect Info**).
-3. On the camera computer, open the camera page (the **Copy link** button next to the camera gives
-   the link, or open `/camera.html` on this site). Allow **Insecure content** for the site (see
-   Browser Configuration above), and allow camera access and local network access when Chrome asks.
-4. Enter the OBS computer's address, port and password, click **Connect**, pick the camera it should
-   be sent as and the webcam, then click **Start sending**.
+2. On the camera computer, open this site and click **Create LAN Camera** at the top (or open
+   `/camera.html`). Allow **Insecure content** for the site (see Browser Configuration above), and
+   allow camera access and local network access when Chrome asks.
+3. Enter the OBS computer's address, port and password and click **Connect**. Name the camera (for
+   example "Field 1 tripod" or "Pit Cam"), pick the webcam, then click **Start sending**.
+4. In **Configure OBS Studio > Cameras** on the dashboard, set the camera (for example Field 1) to
+   **LAN Camera**, then pick the camera's name from the list of camera computers that are sending.
 
 The camera page remembers its settings and reconnects by itself if OBS or the network drops. If a
-second computer starts sending the same camera it takes over, and the first stands by until it stops.
+second computer starts sending under the same name it takes over, and the first stands by until it
+stops, so a spare computer can be swapped in without touching the dashboard. One camera computer can
+feed more than one camera at once.
 Keep the camera page open and the computer awake while it is needed.
 
 Notes:

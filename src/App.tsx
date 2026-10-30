@@ -46,6 +46,8 @@ function Dashboard() {
     <FtcLiveProvider>
     <div className="App">
       <header className="App-header">
+        {/* Camera computers open this site too, to get to the camera page. */}
+        <a href="/camera.html" className="camera-page-link" title="Send a webcam on this computer to OBS">Create LAN Camera</a>
         <h1>FTC OBS WebSocket Client</h1>
         <div className="header-links">
           <button className="about-button" onClick={() => setShowAbout(true)} title="About">
