@@ -9,9 +9,12 @@ const STATUS_INTERVAL_MS = 5000;
 const STALL_MS = 10000;
 
 export interface CameraReceiverOptions {
+  // The camera to show, as named on its camera page.
   camera: string;
+  // The camera slot (scene) this receiver is in, for the camera page and the dashboard.
+  slot: string;
   onStream: (stream: MediaStream | undefined) => void;
-  onState: (state: ReceiverState, senderName: string) => void;
+  onState: (state: ReceiverState) => void;
 }
 
 export interface CameraReceiver {
@@ -20,7 +23,6 @@ export interface CameraReceiver {
 
 interface Current {
   senderId: string;
-  senderName: string;
   pc: RTCPeerConnection;
   // When the connection last stopped making progress; undefined while live.
   stalledSince: number | undefined;
@@ -30,24 +32,23 @@ interface Current {
 // away. One sender at a time: a sender that starts later takes over (it says hello), but when two
 // answer the same request the first one stays and the other stands by.
 export const startCameraReceiver = (channel: SignalingChannel, options: CameraReceiverOptions): CameraReceiver => {
-  const { camera } = options;
+  const { camera, slot } = options;
   let current: Current | undefined;
   // The sender that most recently started for this camera; its offer replaces the current one.
   let preferred: string | undefined;
 
   const state = (): ReceiverState => !current ? 'waiting' : current.stalledSince === undefined ? 'live' : 'connecting';
-  const senderName = () => current?.senderName ?? '';
 
   let lastState: ReceiverState | undefined;
-  const sendStatus = () => channel.send({ type: 'status', camera, state: state(), senderName: senderName() });
+  const sendStatus = () => channel.send({ type: 'status', camera, slot, state: state() });
   const report = () => {
     if (state() === lastState) return;
     lastState = state();
-    options.onState(state(), senderName());
+    options.onState(state());
     sendStatus();
   };
 
-  const want = (to?: string) => channel.send({ type: 'want', camera, to });
+  const want = (to?: string) => channel.send({ type: 'want', camera, slot, to });
 
   const close = () => {
     if (!current) return;
@@ -57,12 +58,12 @@ export const startCameraReceiver = (channel: SignalingChannel, options: CameraRe
     report();
   };
 
-  const accept = (senderId: string, senderName: string, sdp: string) => {
+  const accept = (senderId: string, sdp: string) => {
     if (current && current.senderId !== senderId)
       channel.send({ type: 'bye', camera, to: current.senderId, reason: 'replaced' });
     close();
     const pc = new RTCPeerConnection(RTC_CONFIG);
-    const mine: Current = { senderId, senderName, pc, stalledSince: Date.now() };
+    const mine: Current = { senderId, pc, stalledSince: Date.now() };
     current = mine;
     pc.addEventListener('track', event => {
       if (current === mine) options.onStream(event.streams[0] ?? new MediaStream([event.track]));
@@ -98,7 +99,7 @@ export const startCameraReceiver = (channel: SignalingChannel, options: CameraRe
       if (current && current.senderId !== message.from && message.from !== preferred)
         channel.send({ type: 'bye', camera, to: message.from, reason: 'busy' });
       else
-        accept(message.from, message.name, message.sdp);
+        accept(message.from, message.sdp);
     } else if (message.type === 'bye' && message.from === current?.senderId) {
       if (preferred === message.from) preferred = undefined;
       close();

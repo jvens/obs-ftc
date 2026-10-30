@@ -4,29 +4,37 @@ import { useObsStudio } from '../contexts/ObsStudioContext';
 import { AudioMode, CAMERA_TYPE_LABELS, CameraType, PlannedCamera, SOURCE_NAMES } from '../obsSetup/layout';
 import {
   CameraSource, CameraStatus, cameraMuted, cameraThumbnail, getCameraStatus, listCameraDevices, setCameraDevice, setCameraSource,
+  setLanCameraSender,
 } from '../obsSetup/cameras';
 import { ListItem, listPropertyItems } from '../obsSetup/obsCall';
-import { ReceiverState, parseLanCameraMessage } from '../lanCamera/protocol';
-import { lanCameraPageUrl, lanReceiverUrl } from '../lanCamera/urls';
+import { ReceiverState, parseLanCameraMessage, stampLanCameraMessage } from '../lanCamera/protocol';
+import { lanCameraPageUrl, lanReceiverCamera, lanReceiverUrl } from '../lanCamera/urls';
 
 const PREVIEW_INTERVAL_MS = 2000;
-// LAN camera receivers report every few seconds; one that has gone quiet is not running.
-const LAN_STATUS_STALE_MS = 12000;
+// LAN camera receivers and senders report every few seconds; one that has gone quiet is not running.
+const LAN_STALE_MS = 12000;
 
 interface LanStatus {
+  camera: string;
   state: ReceiverState;
-  senderName: string;
   at: number;
 }
 
-const lanStatusText = (status: LanStatus | undefined, now: number) => {
-  if (!status || now - status.at > LAN_STATUS_STALE_MS)
+const DASHBOARD_ID = crypto.randomUUID();
+
+const CameraPageLink: React.FC = () =>
+  <a href={lanCameraPageUrl()} target="_blank" rel="noopener noreferrer">camera page</a>;
+
+const lanStatusText = (camera: string, status: LanStatus | undefined, sending: boolean, now: number): React.ReactNode => {
+  if (!camera)
+    return <>Pick the camera computer to show. To add one, open the <CameraPageLink /> on that computer (the "Create LAN Camera" button at the top of this site), name the camera and click Start sending; it appears in this list.</>;
+  if (!status || status.camera !== camera || now - status.at > LAN_STALE_MS)
     return 'OBS is not running the receiver for this camera.';
   if (status.state === 'live')
-    return `Live from ${status.senderName}.`;
+    return 'Live.';
   if (status.state === 'connecting')
-    return `Connecting to ${status.senderName}...`;
-  return 'Waiting for a camera computer.';
+    return `Connecting to ${camera}...`;
+  return sending ? `Waiting for ${camera}.` : <>{camera} is not sending. Click Start sending on its <CameraPageLink />.</>;
 };
 
 interface CameraRow {
@@ -53,7 +61,10 @@ const typeOf = (status: CameraStatus): CameraType | '' =>
 const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) => {
   const { status, callObs, obsPort, obsPassword, onCustomEvent } = useObsStudio();
   const lan = useMemo(() => ({ port: obsPort, password: obsPassword }), [obsPort, obsPassword]);
+  // By camera slot (label).
   const [lanStatus, setLanStatus] = useState<Record<string, LanStatus>>({});
+  // Camera computers sending now, by name, with when they were last heard from.
+  const [lanSenders, setLanSenders] = useState<Record<string, number>>({});
   const [now, setNow] = useState(Date.now());
   const [rows, setRows] = useState<CameraRow[]>([]);
   const [audio, setAudio] = useState<AudioRow>();
@@ -61,6 +72,10 @@ const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) =>
   const [livePreviews, setLivePreviews] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
+
+  const sendingLanCameras = useMemo(() => Object.keys(lanSenders)
+    .filter(name => now - lanSenders[name] <= LAN_STALE_MS)
+    .sort((a, b) => a.localeCompare(b)), [lanSenders, now]);
 
   const loadRow = useCallback((camera: PlannedCamera): ResultAsync<CameraRow, string> =>
     getCameraStatus(callObs, camera).andThen(cameraStatus => cameraStatus.state === 'input'
@@ -80,10 +95,16 @@ const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) =>
     ResultAsync.combine([ResultAsync.combine(cameras.map(loadRow)), loadAudio()])
       .map(([cameraRows, audioRow]) => { setRows(cameraRows); setAudio(audioRow); }), [cameras, loadRow, loadAudio]);
 
+  // Senders also announce themselves every few seconds; asking saves waiting for that.
+  const discoverLanSenders = useCallback(() => callObs('BroadcastCustomEvent', {
+    eventData: { ...stampLanCameraMessage({ type: 'discover', camera: '' }, DASHBOARD_ID) },
+  }), [callObs]);
+
   const reload = useCallback(() => {
     if (!status.connected) return;
+    discoverLanSenders();
     load().match(() => setMessage(undefined), error => setMessage(`Unable to read cameras from OBS: ${error}`));
-  }, [status.connected, load]);
+  }, [status.connected, load, discoverLanSenders]);
 
   useEffect(reload, [reload, refreshKey]);
 
@@ -100,12 +121,19 @@ const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) =>
   useEffect(() => onCustomEvent(data => {
     const message = parseLanCameraMessage(data);
     if (message?.type === 'status')
-      setLanStatus(previous => ({ ...previous, [message.camera]: { state: message.state, senderName: message.senderName, at: Date.now() } }));
+      setLanStatus(previous => ({ ...previous, [message.slot]: { camera: message.camera, state: message.state, at: Date.now() } }));
+    else if (message?.type === 'presence' || message?.type === 'hello')
+      setLanSenders(previous => ({ ...previous, [message.camera]: Date.now() }));
+    else if (message?.type === 'bye' && message.reason === 'stopped' && message.to === undefined)
+      setLanSenders(previous => {
+        const { [message.camera]: _gone, ...rest } = previous;
+        return rest;
+      });
   }), [onCustomEvent]);
 
   useEffect(() => {
     if (!status.connected) return;
-    const timer = setInterval(() => setNow(Date.now()), LAN_STATUS_STALE_MS / 2);
+    const timer = setInterval(() => setNow(Date.now()), LAN_STALE_MS / 4);
     return () => clearInterval(timer);
   }, [status.connected]);
 
@@ -154,17 +182,23 @@ const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) =>
         </select>
       );
     if (cameraStatus.type === 'lan') {
-      const pageUrl = lanCameraPageUrl(row.camera.label);
+      const sender = lanReceiverCamera(cameraStatus.device);
+      const sending = sendingLanCameras.includes(sender);
       return (
         <div className="obs-lan-camera">
-          <div>{lanStatusText(lanStatus[row.camera.label], now)}</div>
-          {cameraStatus.device !== lanReceiverUrl(row.camera.label, lan) && (
+          <select
+            value={sender}
+            disabled={busy}
+            onChange={(e) => change(row.camera, setLanCameraSender(callObs, row.camera, cameraStatus.inputName, e.target.value, lan))}
+          >
+            <option value="">{sendingLanCameras.length === 0 ? 'No camera computers sending' : 'Select camera computer'}</option>
+            {sender !== '' && !sending && <option value={sender}>{sender} (not sending)</option>}
+            {sendingLanCameras.map(name => <option key={name} value={name}>{name}</option>)}
+          </select>
+          <div>{lanStatusText(sender, lanStatus[row.camera.label], sending, now)}</div>
+          {cameraStatus.device !== lanReceiverUrl(row.camera.label, sender, lan) && (
             <div><em>The OBS port, password or dashboard address changed. Run "Update for this event" to update the receiver.</em></div>
           )}
-          <div>
-            On the camera computer open <a href={pageUrl} target="_blank" rel="noopener noreferrer">the camera page</a>
-            {' '}<button onClick={() => navigator.clipboard.writeText(pageUrl)} title={pageUrl}>Copy link</button>
-          </div>
         </div>
       );
     }
@@ -187,12 +221,17 @@ const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) =>
   return (
     <div>
       <h3>Cameras</h3>
-      <p>
-        Pick the source for each camera. Every scene that shows a camera follows this choice. When one camera covers
-        two roles, set the second to "{CAMERA_TYPE_LABELS.shared}". For a webcam plugged into another computer on the
-        event network, pick "{CAMERA_TYPE_LABELS.lan}" and open the camera page on that computer. To use something else (a switcher, a second capture
-        card, a media file), put it in the camera's scene in OBS.
-      </p>
+      <p>Pick the source for each camera. Every scene that shows a camera follows this choice.</p>
+      <details className="obs-camera-help">
+        <summary>More about cameras</summary>
+        <p>When one camera covers two roles, set the second to "{CAMERA_TYPE_LABELS.shared}".</p>
+        <p>
+          For a webcam plugged into another computer on the event network, open the <CameraPageLink /> on that
+          computer (the "Create LAN Camera" button at the top of this site), name the camera and click Start sending. Then set the
+          camera here to "{CAMERA_TYPE_LABELS.lan}" and pick that name.
+        </p>
+        <p>To use something else (a switcher, a second capture card, a media file), put it in the camera's scene in OBS.</p>
+      </details>
       <div className="obs-setup-actions">
         <button onClick={reload} disabled={!status.connected || busy} title="Reads the cameras from OBS again and looks for new devices and NDI sources.">
           Refresh
