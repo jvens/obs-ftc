@@ -1,6 +1,6 @@
 // A minimal obs-websocket v5 server for testing the LAN camera pages without OBS: no authentication,
-// BroadcastCustomEvent relayed to every client (nested as OBS does), a fixed GetSceneList, and every
-// other request answered with success.
+// BroadcastCustomEvent relayed to every client (with its data as the event data, as OBS does), a
+// fixed GetSceneList, and every other request answered with success.
 import { WebSocketServer } from 'ws';
 
 const SCENES = ['Camera - Ceremony', 'Camera - Field 1', 'Field 1'];
@@ -28,7 +28,7 @@ export const startMockObs = (port, log = () => {}) => new Promise(resolve => {
         const { eventData } = d.requestData;
         log(`broadcast ${eventData.type} ${eventData.camera}`);
         for (const client of clients)
-          client.send(JSON.stringify({ op: 5, d: { eventType: 'CustomEvent', eventIntent: 1, eventData: { eventData } } }));
+          client.send(JSON.stringify({ op: 5, d: { eventType: 'CustomEvent', eventIntent: 1, eventData } }));
       }
       socket.send(JSON.stringify({
         op: 7,

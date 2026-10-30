@@ -633,9 +633,9 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     : errAsync('Not connected to OBS'), []);
 
   const onCustomEvent = useCallback((handler: (eventData: unknown) => void) => {
-    const listener = ({ eventData }: { eventData: unknown }) => handler(eventData);
-    obs.on('CustomEvent', listener);
-    return () => { obs.off('CustomEvent', listener); };
+    // OBS delivers the broadcast data itself as the event, not inside `eventData` as the types say.
+    obs.on('CustomEvent', handler);
+    return () => { obs.off('CustomEvent', handler); };
   }, []);
 
   const addBrowserSourceToCurrentScene = useCallback((inputName: string, url: string): ResultAsync<AddBrowserSourceResult, string> => {
