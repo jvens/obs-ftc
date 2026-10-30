@@ -786,3 +786,30 @@ button.danger:disabled {
   opacity: 0.9;
   max-width: 50em;
 }
+
+/* LAN camera page */
+.lan-camera .section {
+  text-align: left;
+}
+
+.lan-camera-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.lan-camera-preview {
+  display: block;
+  width: 100%;
+  max-width: 640px;
+  aspect-ratio: 16 / 9;
+  margin-top: 0.5rem;
+  background: #000;
+}
+
+.lan-camera-live {
+  color: #1b7f3b;
+  font-weight: bold;
+}

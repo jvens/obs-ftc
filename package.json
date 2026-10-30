@@ -21,13 +21,15 @@
     "preview": "vite preview",
     "deploy": "npm run build && firebase deploy",
     "cf:dev": "wrangler dev",
-    "cf:deploy": "npm run build && wrangler deploy"
+    "cf:deploy": "npm run build && wrangler deploy",
+    "test:lan-camera": "node test/lanCamera/e2e.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.19.25",
     "@vitejs/plugin-react": "^4.7.0",
     "firebase": "^12.6.0",
     "firebase-tools": "^15.3.1",
+    "playwright-core": "^1.63.0",
     "vite": "^6.4.1",
     "wrangler": "^4.115.0",
     "yaml": "^2.8.2"

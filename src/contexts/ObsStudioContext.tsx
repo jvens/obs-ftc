@@ -67,6 +67,8 @@ interface ObsStudioContextData {
   addBrowserSourceToCurrentScene: (inputName: string, url: string) => ResultAsync<AddBrowserSourceResult, string>;
   // Any obs-websocket request; fails with a message when not connected.
   callObs: ObsCall;
+  // Custom events other obs-websocket clients broadcast (e.g. LAN camera status); returns an unsubscribe.
+  onCustomEvent: (handler: (eventData: unknown) => void) => () => void;
   // Re-reads the replay buffer state after OBS output settings change.
   refreshReplayBufferStatus: () => Promise<void>;
 }
@@ -630,6 +632,12 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     ? ResultAsync.fromPromise(obs.call(requestType, requestData), toErrorMessage)
     : errAsync('Not connected to OBS'), []);
 
+  const onCustomEvent = useCallback((handler: (eventData: unknown) => void) => {
+    const listener = ({ eventData }: { eventData: unknown }) => handler(eventData);
+    obs.on('CustomEvent', listener);
+    return () => { obs.off('CustomEvent', listener); };
+  }, []);
+
   const addBrowserSourceToCurrentScene = useCallback((inputName: string, url: string): ResultAsync<AddBrowserSourceResult, string> => {
     const call = callObs;
     return ResultAsync.combine([call('GetCurrentProgramScene'), call('GetInputList')])
@@ -687,6 +695,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       emitBrowserEvent,
       addBrowserSourceToCurrentScene,
       callObs,
+      onCustomEvent,
       refreshReplayBufferStatus
     }}>
       {children}

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ResultAsync, okAsync } from 'neverthrow';
 import { useObsStudio } from '../contexts/ObsStudioContext';
 import { AudioMode, CAMERA_TYPE_LABELS, CameraType, PlannedCamera, SOURCE_NAMES } from '../obsSetup/layout';
@@ -6,8 +6,28 @@ import {
   CameraSource, CameraStatus, cameraMuted, cameraThumbnail, getCameraStatus, listCameraDevices, setCameraDevice, setCameraSource,
 } from '../obsSetup/cameras';
 import { ListItem, listPropertyItems } from '../obsSetup/obsCall';
+import { ReceiverState, parseLanCameraMessage } from '../lanCamera/protocol';
+import { lanCameraPageUrl, lanReceiverUrl } from '../lanCamera/urls';
 
 const PREVIEW_INTERVAL_MS = 2000;
+// LAN camera receivers report every few seconds; one that has gone quiet is not running.
+const LAN_STATUS_STALE_MS = 12000;
+
+interface LanStatus {
+  state: ReceiverState;
+  senderName: string;
+  at: number;
+}
+
+const lanStatusText = (status: LanStatus | undefined, now: number) => {
+  if (!status || now - status.at > LAN_STATUS_STALE_MS)
+    return 'OBS is not running the receiver for this camera.';
+  if (status.state === 'live')
+    return `Live from ${status.senderName}.`;
+  if (status.state === 'connecting')
+    return `Connecting to ${status.senderName}...`;
+  return 'Waiting for a camera computer.';
+};
 
 interface CameraRow {
   camera: PlannedCamera;
@@ -31,7 +51,10 @@ const typeOf = (status: CameraStatus): CameraType | '' =>
   status.state === 'input' ? status.type : status.state === 'shared' ? 'shared' : '';
 
 const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) => {
-  const { status, callObs } = useObsStudio();
+  const { status, callObs, obsPort, obsPassword, onCustomEvent } = useObsStudio();
+  const lan = useMemo(() => ({ port: obsPort, password: obsPassword }), [obsPort, obsPassword]);
+  const [lanStatus, setLanStatus] = useState<Record<string, LanStatus>>({});
+  const [now, setNow] = useState(Date.now());
   const [rows, setRows] = useState<CameraRow[]>([]);
   const [audio, setAudio] = useState<AudioRow>();
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
@@ -74,6 +97,18 @@ const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) =>
     return () => clearInterval(timer);
   }, [status.connected, livePreviews, rows, callObs]);
 
+  useEffect(() => onCustomEvent(data => {
+    const message = parseLanCameraMessage(data);
+    if (message?.type === 'status')
+      setLanStatus(previous => ({ ...previous, [message.camera]: { state: message.state, senderName: message.senderName, at: Date.now() } }));
+  }), [onCustomEvent]);
+
+  useEffect(() => {
+    if (!status.connected) return;
+    const timer = setInterval(() => setNow(Date.now()), LAN_STATUS_STALE_MS / 2);
+    return () => clearInterval(timer);
+  }, [status.connected]);
+
   // Runs a change, then re-reads every camera, since a shared camera depends on the one it shows.
   const change = (camera: PlannedCamera, action: ResultAsync<unknown, string>) => {
     setBusy(true);
@@ -91,7 +126,7 @@ const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) =>
     const source: CameraSource | undefined = type === 'shared'
       ? (target => target && { type, scene: target.camera.scene })(shareableFrom(row)[0])
       : { type };
-    if (source) change(row.camera, setCameraSource(callObs, row.camera, source, cameraMuted(audioMode)));
+    if (source) change(row.camera, setCameraSource(callObs, row.camera, source, cameraMuted(audioMode), lan));
   };
 
   const changeAudioDevice = (device: string) =>
@@ -110,7 +145,7 @@ const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) =>
         <select
           value={cameraStatus.scene}
           disabled={busy}
-          onChange={(e) => change(row.camera, setCameraSource(callObs, row.camera, { type: 'shared', scene: e.target.value }, cameraMuted(audioMode)))}
+          onChange={(e) => change(row.camera, setCameraSource(callObs, row.camera, { type: 'shared', scene: e.target.value }, cameraMuted(audioMode), lan))}
         >
           {!shareableFrom(row).some(other => other.camera.scene === cameraStatus.scene) && (
             <option value={cameraStatus.scene}>{cameraStatus.scene}</option>
@@ -118,6 +153,21 @@ const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) =>
           {shareableFrom(row).map(other => <option key={other.camera.scene} value={other.camera.scene}>{other.camera.label}</option>)}
         </select>
       );
+    if (cameraStatus.type === 'lan') {
+      const pageUrl = lanCameraPageUrl(row.camera.label);
+      return (
+        <div className="obs-lan-camera">
+          <div>{lanStatusText(lanStatus[row.camera.label], now)}</div>
+          {cameraStatus.device !== lanReceiverUrl(row.camera.label, lan) && (
+            <div><em>The OBS port, password or dashboard address changed. Run "Update for this event" to update the receiver.</em></div>
+          )}
+          <div>
+            On the camera computer open <a href={pageUrl} target="_blank" rel="noopener noreferrer">the camera page</a>
+            {' '}<button onClick={() => navigator.clipboard.writeText(pageUrl)} title={pageUrl}>Copy link</button>
+          </div>
+        </div>
+      );
+    }
     const known = row.devices.some(device => device.value === cameraStatus.device);
     return (
       <select
@@ -139,7 +189,8 @@ const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) =>
       <h3>Cameras</h3>
       <p>
         Pick the source for each camera. Every scene that shows a camera follows this choice. When one camera covers
-        two roles, set the second to "{CAMERA_TYPE_LABELS.shared}". To use something else (a switcher, a second capture
+        two roles, set the second to "{CAMERA_TYPE_LABELS.shared}". For a webcam plugged into another computer on the
+        event network, pick "{CAMERA_TYPE_LABELS.lan}" and open the camera page on that computer. To use something else (a switcher, a second capture
         card, a media file), put it in the camera's scene in OBS.
       </p>
       <div className="obs-setup-actions">
