@@ -19,13 +19,19 @@ const step = name => console.log(`ok - ${name}`);
 
 const receiverVideo = page => page.evaluate(() => {
   const video = document.getElementById('video');
-  return { width: video.videoWidth, height: video.videoHeight, statusHidden: document.getElementById('status').hidden };
+  return {
+    width: video.videoWidth,
+    height: video.videoHeight,
+    muted: video.muted,
+    audioTracks: video.srcObject?.getAudioTracks().length ?? 0,
+    statusHidden: document.getElementById('status').hidden,
+  };
 });
 
 const waitForReceiverVideo = page =>
   page.waitForFunction(() => document.getElementById('video').videoWidth > 0, null, { timeout: 15000 });
 
-const openCameraPage = async (context, computerName, host) => {
+const openCameraPage = async (context, computerName, host, audio = false) => {
   const page = await context.newPage();
   await page.goto(`${BASE}/camera.html?camera=${encodeURIComponent(CAMERA)}`);
   if (host) {
@@ -33,9 +39,12 @@ const openCameraPage = async (context, computerName, host) => {
     await page.fill('input[type=number]', String(OBS_PORT));
   }
   await page.fill('input[placeholder^="e.g."]', computerName);
+  await page.setChecked('text=Send audio', audio);
   await page.click('button:text-is("Connect")');
   await page.waitForSelector('text=Connected to OBS.');
-  await page.waitForFunction(() => document.querySelector('video').videoWidth > 0);
+  await page.waitForFunction(
+    audio => document.querySelector('video').videoWidth > 0 && document.querySelector('video').srcObject.getAudioTracks().length === (audio ? 1 : 0),
+    audio);
   await page.click('button:text-is("Start sending")');
   return page;
 };
@@ -60,12 +69,15 @@ const run = async () => {
     await receiver.waitForSelector('text=waiting for a camera computer');
     step('receiver waits for a camera computer');
 
-    const first = await openCameraPage(context, 'First laptop', '127.0.0.1');
+    const first = await openCameraPage(context, 'First laptop', '127.0.0.1', true);
     await waitForReceiverVideo(receiver);
     await first.waitForSelector(LIVE);
     const video = await receiverVideo(receiver);
     if (!video.statusHidden) throw new Error('receiver still shows its status over the video');
     step(`receiver shows the camera (${video.width}x${video.height})`);
+    // OBS takes the audio from the page, so the video element must play it.
+    if (video.audioTracks !== 1 || video.muted) throw new Error(`receiver audio: ${video.audioTracks} tracks, muted ${video.muted}`);
+    step('receiver plays the camera audio');
 
     await receiver.reload();
     await waitForReceiverVideo(receiver);

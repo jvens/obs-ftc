@@ -36,7 +36,9 @@ export const obsSignaling = (obs: OBSWebSocket): SignalingChannel => {
       error => `Unable to send to OBS: ${error instanceof Error ? error.message : String(error)}`
     ).map(() => undefined),
     subscribe: handler => {
-      const onCustomEvent = ({ eventData }: { eventData: unknown }) => {
+      // OBS delivers the broadcast data itself as the event, not inside `eventData` as the
+      // obs-websocket-js types say.
+      const onCustomEvent = (eventData: unknown) => {
         const message: LanCameraMessage | undefined = parseLanCameraMessage(eventData);
         if (message && message.from !== peerId && (!('to' in message) || message.to === undefined || message.to === peerId))
           handler(message);
