@@ -23,12 +23,19 @@ const showStatus = (text: string | undefined) => {
 // Audio goes to OBS (the source controls audio via OBS), which mutes it unless the stream takes its
 // audio from the cameras. Should autoplay with sound be refused, show the picture without it.
 const play = (stream: MediaStream | undefined) => {
+  // Each track (audio, video) announces the same stream; setting it again would interrupt the
+  // first play() and look like a refusal.
+  if (video.srcObject === (stream ?? null)) return;
   video.srcObject = stream ?? null;
   if (!stream) return;
   video.muted = false;
-  const start = () => ResultAsync.fromPromise(video.play(), error => String(error));
+  const start = () => ResultAsync.fromPromise(video.play(), error => error as DOMException);
   start()
-    .orElse(() => { video.muted = true; return start(); })
+    .orElse(error => {
+      if (error.name !== 'NotAllowedError') return start();
+      video.muted = true;
+      return start();
+    })
     .mapErr(error => console.error('Unable to play the camera', error));
 };
 
