@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FTC Lower Third</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  FTC lower-third graphic. Add as a 1920x1080 browser source with a transparent background.
+
+  Ways to drive it (all can be combined):
+
+  1. URL parameters (works in OBS, XSplit, vMix, ...):
+       lower-third.html?name=Emma%20Onstad&title=Head%20Referee
+     Animates in on load, and again whenever OBS makes the source active.
+       hold=8         hide automatically after 8 seconds (default: stay up)
+       chroma=00ff00  solid background colour for chroma keying instead of transparency
+     Move the mouse over the page to show a gear button that opens a settings dialog for these.
+
+  2. obs-ftc / obs-websocket (OBS only), no reload needed:
+       CallVendorRequest { vendorName: "obs-browser", requestType: "emit_event",
+         requestData: { event_name: "ftc-lower-third",
+                        event_data: { action: "show", name, title, hold, channel } } }
+     action is "show" or "hide". hold is seconds (0 or missing = stay up).
+     channel=<id> in the URL makes this source only react to events with the same channel,
+     so you can run more than one lower third at once.
+
+  3. preview=1 draws the finished graphic with no animation (used for previews).
+-->
+<style>
+  /* BioBuzz brand palette */
+  :root {
+    --brand-cream: #EEE9A5;
+    --brand-olive: #BBA13E;
+    --brand-gold: #F7C326;
+    --brand-black: #000000;
+  }
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+  }
+  svg.graphic {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .anim {
+    transform-box: view-box;
+    transform-origin: 0 0;
+  }
+  text {
+    font-family: Arial, Helvetica, sans-serif;
+    fill: var(--brand-black);
+  }
+  #name { font-weight: 900; letter-spacing: 1px; }
+  #title { font-weight: 700; }
+
+  /* Settings: gear appears only while the mouse is moving over the page */
+  .config-button {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    padding: 10px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 1s;
+  }
+  body.mouse-active .config-button { opacity: 1; }
+  .config-button svg { width: 100%; height: 100%; display: block; }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 40px;
+    background: rgba(0, 0, 0, 0.5);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 16px;
+    color: #212529;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    width: min(640px, calc(100% - 32px));
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+  .modal header, .modal footer {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+  }
+  .modal header { justify-content: space-between; border-bottom: 1px solid #dee2e6; }
+  .modal header h2 { margin: 0; font-size: 22px; font-weight: 500; }
+  .modal footer { gap: 8px; border-top: 1px solid #dee2e6; }
+  .modal footer .spacer { flex: 1; }
+  .modal .close { border: 0; background: none; font-size: 28px; line-height: 1; cursor: pointer; color: #555; }
+  .modal form {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 10px 16px;
+    align-items: center;
+    padding: 16px;
+  }
+  .modal input[type='text'], .modal input[type='number'] {
+    font: inherit;
+    padding: 6px 10px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+  }
+  .modal .row { display: flex; align-items: center; gap: 10px; }
+  .modal .hint { grid-column: 1 / -1; margin: 0; font-size: 14px; color: #6c757d; }
+  .modal button.btn {
+    font: inherit;
+    padding: 6px 14px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .btn-primary { background: #0d6efd; color: #fff; }
+  .btn-secondary { background: #6c757d; color: #fff; }
+  .btn-outline { background: #fff; border-color: #6c757d !important; color: #6c757d; }
+</style>
+</head>
+<body>
+<svg class="graphic" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <!-- Hexes sit on an exact honeycomb: neighbours share an edge, so their strokes overlap
+         into a single line. Left at (0, 95), right at (182, 95), top at (91, -62.5). -->
+    <polygon id="hex" points="91,0 182,52.5 182,157.5 91,210 0,157.5 0,52.5"/>
+  </defs>
+
+  <g id="graphic" transform="translate(80, 755)" visibility="hidden"
+     style="stroke: var(--brand-black)" stroke-width="12" stroke-linejoin="round">
+    <!-- Paint order matters for the animation: the bottom bar hides behind the top bar,
+         the top hex rolls out from behind the right hex, the right hex slides out from
+         behind the left hex. -->
+    <!-- Bottom edge (y=236) meets the right hex's vertical side, clear of its lower corner. -->
+    <g class="anim" id="botBarGroup">
+      <rect id="botBarRect" x="280" y="150" width="1230" height="86" rx="18" ry="18"
+            style="fill: var(--brand-gold)"/>
+    </g>
+    <rect id="topBarRect" x="200" y="40" width="1290" height="125" rx="18" ry="18"
+          style="fill: var(--brand-cream)"/>
+
+    <g class="anim" id="hexTopGroup">
+      <use href="#hex" style="fill: var(--brand-gold)" transform="translate(91, -62.5)"/>
+    </g>
+    <g class="anim" id="hexRightGroup">
+      <g transform="translate(182, 95)">
+        <use href="#hex" style="fill: var(--brand-olive)"/>
+        <!-- Glint tucked into the upper-right corner, as on the BioBuzz logo hexes -->
+        <polyline points="121.9,51.5 152.9,69.3 152.9,105" fill="none" stroke-width="11"/>
+      </g>
+    </g>
+    <g class="anim" id="hexLeftGroup">
+      <use href="#hex" style="fill: var(--brand-cream)" transform="translate(0, 95)"/>
+    </g>
+
+    <text id="name" x="450" y="130" font-size="86" stroke="none"></text>
+    <text id="title" x="450" y="222" font-size="60" stroke="none"></text>
+  </g>
+</svg>
+
+<button class="config-button" id="configButton" title="Configure lower third" aria-label="Configure lower third">
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+  </svg>
+</button>
+
+<div class="modal-backdrop" id="settings" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="modal">
+    <header>
+      <h2 id="settingsTitle">Lower Third Options</h2>
+      <button class="close" type="button" data-close aria-label="Close">&times;</button>
+    </header>
+    <form id="settingsForm">
+      <label for="setName">Name</label>
+      <input type="text" id="setName" name="name">
+      <label for="setTitle">Title</label>
+      <input type="text" id="setTitle" name="title">
+      <label for="setHold">Auto-hide after</label>
+      <div class="row"><input type="number" id="setHold" name="hold" min="0" step="1" style="width: 90px"> seconds (0 = stay up)</div>
+      <label for="setChannel">Channel</label>
+      <input type="text" id="setChannel" name="channel" title="Only needed when running more than one lower-third source from obs-ftc">
+      <label for="setChromaOn">Chroma key</label>
+      <div class="row">
+        <input type="checkbox" id="setChromaOn">
+        <input type="color" id="setChroma" value="#00ff00" aria-label="Chroma key colour">
+        <span>solid background instead of transparent</span>
+      </div>
+      <p class="hint">Saving reloads this page with the new settings in its URL. Copy that URL into your
+        streaming software's browser source to keep them.</p>
+    </form>
+    <footer>
+      <button class="btn btn-outline" type="button" id="copyUrl">Copy URL</button>
+      <span class="spacer"></span>
+      <button class="btn btn-secondary" type="button" data-close>Cancel</button>
+      <button class="btn btn-primary" type="submit" form="settingsForm">Save</button>
+    </footer>
+  </div>
+</div>
+
+<script>
+(() => {
+  const EVENT_NAME = 'ftc-lower-third';
+
+  // Layout, in the graphic's local coordinates
+  const TEXT_X = 450;
+  const TEXT_PAD = 60;          // space between the end of the text and the end of its bar
+  const TOP_BAR_X = 200;
+  const BOT_BAR_X = 280;       // starts behind the right hex so it can't peek out between hexes
+  const BOT_BAR_INSET = 80;     // bottom bar ends this far left of the top bar
+  const MIN_TOP_RIGHT = 1000;
+  const MAX_TOP_RIGHT = 1760;   // keeps an 80px margin on a 1920 canvas
+  const NAME_SIZE = 86;
+  const TITLE_SIZE = 60;
+  // The three hexes meet at this point; the top hex rolls around it.
+  const PIVOT_X = 182;
+  const PIVOT_Y = 147.5;
+  const HEX_SPACING = 182;
+  const HEX_LEFT_CENTER = 'translate(91px, 200px)';
+
+  const params = new URLSearchParams(location.search);
+  const channel = params.get('channel') ?? '';
+  const $ = (id) => document.getElementById(id);
+  const graphic = $('graphic');
+  const nameEl = $('name');
+  const titleEl = $('title');
+  const topBarRect = $('topBarRect');
+  const botBarGroup = $('botBarGroup');
+  const botBarRect = $('botBarRect');
+
+  let animations = [];
+  let visible = false;
+  let holdTimer;
+  let queue = Promise.resolve();
+
+  // Shrinks a text element until it fits in maxWidth; returns its final width.
+  function fitText(el, text, size, maxWidth) {
+    el.textContent = text;
+    el.setAttribute('font-size', size);
+    const width = text ? el.getComputedTextLength() : 0;
+    if (width <= maxWidth) return width;
+    el.setAttribute('font-size', Math.floor(size * maxWidth / width));
+    return el.getComputedTextLength();
+  }
+
+  function layout(name, title) {
+    const nameMax = MAX_TOP_RIGHT - TEXT_PAD - TEXT_X;
+    const titleMax = MAX_TOP_RIGHT - BOT_BAR_INSET - TEXT_PAD - TEXT_X;
+    const nameWidth = fitText(nameEl, name, NAME_SIZE, nameMax);
+    const titleWidth = fitText(titleEl, title, TITLE_SIZE, titleMax);
+    const topRight = Math.min(MAX_TOP_RIGHT, Math.max(
+      MIN_TOP_RIGHT,
+      TEXT_X + nameWidth + TEXT_PAD,
+      TEXT_X + titleWidth + TEXT_PAD + BOT_BAR_INSET,
+    ));
+    const topWidth = topRight - TOP_BAR_X;
+    const botWidth = topRight - BOT_BAR_INSET - BOT_BAR_X;
+    topBarRect.setAttribute('width', topWidth);
+    botBarRect.setAttribute('width', botWidth);
+    botBarGroup.style.display = title ? '' : 'none';
+    return { topWidth };
+  }
+
+  // Timeline based on the volunteer's "Comp 1" animation (~1.7s).
+  function buildAnimations(topWidth) {
+    const rollFrom = `translate(${PIVOT_X}px, ${PIVOT_Y}px) rotate(120deg) translate(${-PIVOT_X}px, ${-PIVOT_Y}px)`;
+    const rollTo = `translate(${PIVOT_X}px, ${PIVOT_Y}px) rotate(0deg) translate(${-PIVOT_X}px, ${-PIVOT_Y}px)`;
+    const popFrom = `${HEX_LEFT_CENTER} scale(0) translate(-91px, -200px)`;
+    const popTo = `${HEX_LEFT_CENTER} scale(1) translate(-91px, -200px)`;
+    const step = (el, keyframes, delay, duration, easing = 'cubic-bezier(.2,.8,.2,1)') =>
+      el.animate(keyframes, { delay, duration, easing, fill: 'both' });
+
+    const steps = [
+      step($('hexLeftGroup'), [{ transform: popFrom }, { transform: popTo }], 0, 220,
+        'cubic-bezier(.3,1.5,.6,1)'),
+      // Invisible while stacked under the left hex, so it can't be left behind on the way out.
+      step($('hexRightGroup'), [
+        { transform: `translateX(${-HEX_SPACING}px)`, opacity: 0 },
+        { transform: `translateX(${-HEX_SPACING}px)`, opacity: 1, offset: 0.01 },
+        { transform: 'translateX(0)', opacity: 1 },
+      ], 180, 300),
+      step($('hexTopGroup'), [
+        { transform: rollFrom, opacity: 0 },
+        { transform: rollFrom, opacity: 1, offset: 0.01 },
+        { transform: rollTo, opacity: 1 },
+      ], 480, 400),
+      step(topBarRect, [{ width: '0px' }, { width: `${topWidth}px` }], 800, 550),
+      step(nameEl, [
+        { opacity: 0, transform: 'translateX(-30px)' },
+        { opacity: 1, transform: 'translateX(0)' },
+      ], 1000, 400),
+      // Hidden until it starts moving, otherwise it shows before the top bar covers it.
+      step(botBarGroup, [
+        { transform: 'translateY(-86px)', opacity: 0 },
+        { transform: 'translateY(-86px)', opacity: 1, offset: 0.01 },
+        { transform: 'translateY(0)', opacity: 1 },
+      ], 1200, 350),
+      step(titleEl, [
+        { opacity: 0, transform: 'translateX(-30px)' },
+        { opacity: 1, transform: 'translateX(0)' },
+      ], 1350, 350),
+    ];
+    // Give every step the same end time so reversing them plays the whole sequence backwards.
+    const total = Math.max(...steps.map((a) => a.effect.getComputedTiming().endTime));
+    steps.forEach((a) => {
+      a.effect.updateTiming({ endDelay: total - a.effect.getComputedTiming().endTime });
+    });
+    return steps;
+  }
+
+  function cancelAll() {
+    animations.forEach((a) => a.cancel());
+    animations = [];
+  }
+
+  async function playIn(name, title) {
+    cancelAll();
+    const { topWidth } = layout(name, title);
+    animations = buildAnimations(topWidth);
+    graphic.setAttribute('visibility', 'visible');
+    visible = true;
+    await Promise.allSettled(animations.map((a) => a.finished));
+  }
+
+  async function playOut() {
+    if (!visible) return;
+    const rate = 1.6;
+    let longest = 0;
+    animations.forEach((a) => {
+      longest = Math.max(longest, a.effect.getComputedTiming().endTime);
+      a.playbackRate = -rate;
+      a.play();
+    });
+    // Always end hidden: don't wait forever if the browser stops advancing animations
+    // (e.g. OBS throttling the source), and don't bail out if one gets cancelled.
+    const fallback = new Promise((resolve) => setTimeout(resolve, longest / rate + 250));
+    await Promise.race([Promise.allSettled(animations.map((a) => a.finished)), fallback]);
+    hideNow();
+  }
+
+  function hideNow() {
+    clearTimeout(holdTimer);
+    cancelAll();
+    graphic.setAttribute('visibility', 'hidden');
+    visible = false;
+  }
+
+  // Serialises show/hide requests so a new name waits for the old one to animate out.
+  function enqueue(fn) {
+    queue = queue.then(fn, fn);
+    return queue;
+  }
+
+  function show({ name = '', title = '', hold = 0 }) {
+    clearTimeout(holdTimer);
+    return enqueue(async () => {
+      await playOut();
+      await playIn(String(name), String(title));
+      clearTimeout(holdTimer);
+      if (Number(hold) > 0) {
+        holdTimer = setTimeout(hide, Number(hold) * 1000);
+      }
+    });
+  }
+
+  function hide() {
+    clearTimeout(holdTimer);
+    return enqueue(playOut);
+  }
+
+  // obs-browser delivers CallVendorRequest emit_event payloads as window events.
+  window.addEventListener(EVENT_NAME, (event) => {
+    const data = event.detail ?? {};
+    if ((data.channel ?? '') !== channel) return;
+    if (data.action === 'hide') hide();
+    else if (data.action === 'show') show(data);
+  });
+
+  const urlCue = {
+    name: params.get('name') ?? '',
+    title: params.get('title') ?? '',
+    hold: params.get('hold') ?? 0,
+  };
+  const hasUrlCue = urlCue.name !== '' || urlCue.title !== '';
+
+  if (params.get('preview') === '1') {
+    layout(urlCue.name, urlCue.title);
+    graphic.setAttribute('visibility', 'visible');
+  } else if (hasUrlCue) {
+    show(urlCue);
+    // Replay each time OBS puts the source back on air.
+    window.addEventListener('obsSourceActiveChanged', (event) => {
+      if (event.detail?.active) show(urlCue);
+      else hideNow();
+    });
+  }
+
+  // Chroma key: chroma=00ff00 (or #00ff00) paints a solid background instead of transparency.
+  const chroma = normaliseColour(params.get('chroma'));
+  if (chroma) document.body.style.background = chroma;
+
+  function normaliseColour(value) {
+    const hex = (value ?? '').trim().replace(/^#/, '');
+    if (/^[0-9a-f]{6}$/i.test(hex)) return `#${hex}`;
+    if (/^[0-9a-f]{3}$/i.test(hex)) return `#${[...hex].map((c) => c + c).join('')}`;
+    return undefined;
+  }
+
+  // Settings dialog: edits the URL parameters and reloads the page with them.
+  const settings = $('settings');
+  const form = $('settingsForm');
+  const fields = {
+    name: $('setName'),
+    title: $('setTitle'),
+    hold: $('setHold'),
+    channel: $('setChannel'),
+    chromaOn: $('setChromaOn'),
+    chroma: $('setChroma'),
+  };
+
+  function openSettings() {
+    fields.name.value = params.get('name') ?? '';
+    fields.title.value = params.get('title') ?? '';
+    fields.hold.value = params.get('hold') ?? 0;
+    fields.channel.value = channel;
+    fields.chromaOn.checked = Boolean(chroma);
+    fields.chroma.value = chroma ?? '#00ff00';
+    settings.classList.add('open');
+    fields.name.focus();
+  }
+
+  function closeSettings() {
+    settings.classList.remove('open');
+  }
+
+  function settingsUrl() {
+    const next = new URLSearchParams(location.search);
+    const set = (key, value) => (value ? next.set(key, value) : next.delete(key));
+    set('name', fields.name.value.trim());
+    set('title', fields.title.value.trim());
+    set('hold', Number(fields.hold.value) > 0 ? String(Number(fields.hold.value)) : '');
+    set('channel', fields.channel.value.trim());
+    set('chroma', fields.chromaOn.checked ? fields.chroma.value.replace(/^#/, '') : '');
+    const query = next.toString();
+    return `${location.origin}${location.pathname}${query ? `?${query}` : ''}`;
+  }
+
+  $('configButton').addEventListener('click', openSettings);
+  settings.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', closeSettings));
+  settings.addEventListener('click', (event) => {
+    if (event.target === settings) closeSettings();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeSettings();
+  });
+  fields.chroma.addEventListener('input', () => {
+    fields.chromaOn.checked = true;
+  });
+  $('copyUrl').addEventListener('click', () => {
+    navigator.clipboard?.writeText(settingsUrl());
+    $('copyUrl').textContent = 'Copied';
+    setTimeout(() => ($('copyUrl').textContent = 'Copy URL'), 1500);
+  });
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    location.href = settingsUrl();
+  });
+
+  // Show the gear while the mouse moves over the page; fade it out after a few idle seconds.
+  if (params.get('preview') === '1') {
+    $('configButton').remove();
+  } else {
+    let idleTimer;
+    document.addEventListener('mousemove', () => {
+      document.body.classList.add('mouse-active');
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => document.body.classList.remove('mouse-active'), 3000);
+    });
+    document.addEventListener('mouseleave', () => document.body.classList.remove('mouse-active'));
+  }
+
+  // Handy for testing from the browser console.
+  window.lowerThird = { show, hide };
+})();
+</script>
+</body>
+</html>
