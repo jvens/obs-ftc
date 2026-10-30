@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- A robot whose face is a screen playing a stream; the antenna light is the "live" light. -->
+  <line x1="32" y1="6" x2="32" y2="15" stroke="#F57E25" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="32" cy="6" r="5" fill="#e53935"/>
+  <rect x="5" y="14" width="54" height="44" rx="10" fill="#F57E25"/>
+  <rect x="12" y="21" width="40" height="30" rx="5" fill="#282c34"/>
+  <polygon points="27,28 27,44 40,36" fill="#fff"/>
+</svg>
