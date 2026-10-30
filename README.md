@@ -5,6 +5,7 @@ A web application that integrates OBS Studio with the FTC Live scoring system, e
 ## Features
 
 - **OBS Setup**: Build the scenes and sources for an event in OBS with one click (field scenes, ceremony, alliance selection, pit and sponsor displays, and a scene per camera), pick each camera and the audio input from the dashboard with live previews, and apply recommended stream and recording settings
+- **LAN Cameras**: Send a webcam from any computer on the event network to OBS from a browser page, over WebRTC on the local network, with no extra software
 - **Automated Scene Switching**: Automatically switch OBS scenes based on FTC Live match events (match load, preview, start, etc.)
 - **Match Recording**: Control OBS recording start/stop based on configurable match events
 - **Replay Buffer**: Automatically save replay buffer clips for each match
@@ -46,6 +47,35 @@ Since the FTC Live scoring system uses HTTP (not HTTPS), you may need to allow i
 4. **Check Scene Assignments**: Setup assigns its field scenes automatically; adjust them if you use your own scenes
 5. **Set Transition Triggers**: Choose which match events trigger scene switches
 6. **Configure Recording/Screenshots**: Enable and configure automatic recording and screenshot capture
+
+## LAN Cameras
+
+A webcam plugged into any computer on the event network can feed an OBS camera scene, with no software
+to install on that computer. The video goes straight from that computer's browser to OBS over WebRTC
+and stays on the local network; the OBS WebSocket server carries the few messages that set up the
+connection.
+
+1. In **Configure OBS Studio > Cameras**, set the camera (for example Field 1) to **LAN Camera**. This
+   adds a browser source to the camera scene that waits for a camera computer.
+2. On the OBS computer, let OBS accept connections from the network: allow OBS through the firewall
+   (Windows asks the first time the WebSocket server is reached from another computer) and note the
+   computer's IP address (the WebSocket Server Settings window shows it under **Show Connect Info**).
+3. On the camera computer, open the camera page (the **Copy link** button next to the camera gives
+   the link, or open `/camera.html` on this site). Allow **Insecure content** for the site (see
+   Browser Configuration above), and allow camera access and local network access when Chrome asks.
+4. Enter the OBS computer's address, port and password, click **Connect**, pick the camera it should
+   be sent as and the webcam, then click **Start sending**.
+
+The camera page remembers its settings and reconnects by itself if OBS or the network drops. If a
+second computer starts sending the same camera it takes over, and the first stands by until it stops.
+Keep the camera page open and the computer awake while it is needed.
+
+Notes:
+
+- Every camera computer gets the OBS WebSocket password, which allows full control of OBS.
+- The browser source carries the OBS password in its URL (after `#`, so it is never sent to the web
+  server). If the OBS port or password changes, run **Update for this event** to update it.
+- The pages are loaded from the internet, but once loaded, everything runs on the local network.
 
 ## Development
 
