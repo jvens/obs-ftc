@@ -47,6 +47,49 @@ body {
   gap: 15px;
 }
 
+.camera-page-link {
+  position: absolute;
+  left: 20px;
+  padding: 7px 16px;
+  border-radius: 18px;
+  background: #ff9800;
+  color: #1a1a1a;
+  font-size: 1rem;
+  font-weight: bold;
+  text-decoration: none;
+  box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.35);
+  transition: background 0.2s;
+}
+
+.camera-page-link:hover {
+  background: #ffb74d;
+}
+
+/* Keep the title clear of the links on either side; narrow screens put the links below it. */
+@media (min-width: 800px) {
+  .App-header h1 {
+    padding: 0 170px;
+  }
+}
+
+@media (max-width: 799px) {
+  .App-header {
+    flex-wrap: wrap;
+    gap: 0 20px;
+  }
+
+  .App-header h1 {
+    flex-basis: 100%;
+    margin: 0.3em 0;
+  }
+
+  .camera-page-link,
+  .header-links {
+    position: static;
+    margin-bottom: 8px;
+  }
+}
+
 .github-link {
   opacity: 0.8;
   transition: opacity 0.2s;
@@ -714,6 +757,15 @@ button.danger:disabled {
   max-width: 240px;
 }
 
+.obs-camera-help {
+  margin-bottom: 10px;
+}
+
+.obs-camera-help p {
+  max-width: 800px;
+  margin: 6px auto;
+}
+
 .obs-camera-preview {
   width: 240px;
   height: 135px;
@@ -807,6 +859,11 @@ button.danger:disabled {
   aspect-ratio: 16 / 9;
   margin-top: 0.5rem;
   background: #000;
+}
+
+.lan-camera-hint {
+  font-size: 0.9em;
+  color: #555;
 }
 
 .lan-camera-live {

@@ -1,6 +1,6 @@
 import OBSWebSocket, { EventSubscription } from 'obs-websocket-js';
 import { ResultAsync } from 'neverthrow';
-import { LAN_CAMERA_APP, LAN_CAMERA_VERSION, LanCameraMessage, parseLanCameraMessage } from './protocol';
+import { LanCameraMessage, parseLanCameraMessage, stampLanCameraMessage } from './protocol';
 import { SignalingChannel } from './signaling';
 
 const isLocalHost = (host: string) => /^(localhost|127\.|\[?::1\]?$)/i.test(host.trim());
@@ -32,7 +32,7 @@ export const obsSignaling = (obs: OBSWebSocket): SignalingChannel => {
   return {
     peerId,
     send: payload => ResultAsync.fromPromise(
-      obs.call('BroadcastCustomEvent', { eventData: { ...payload, app: LAN_CAMERA_APP, v: LAN_CAMERA_VERSION, from: peerId } }),
+      obs.call('BroadcastCustomEvent', { eventData: { ...stampLanCameraMessage(payload, peerId) } }),
       error => `Unable to send to OBS: ${error instanceof Error ? error.message : String(error)}`
     ).map(() => undefined),
     subscribe: handler => {

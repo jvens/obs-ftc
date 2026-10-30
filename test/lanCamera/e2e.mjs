@@ -7,13 +7,16 @@
 // CHROME if set.
 import { chromium } from 'playwright-core';
 import { preview } from 'vite';
+import WebSocket from 'ws';
 import { startMockObs } from './mockObs.mjs';
 
 const OBS_PORT = 14455;
 const WEB_PORT = 4174;
 const BASE = `http://localhost:${WEB_PORT}`;
-const CAMERA = 'Field 1';
-const LIVE = `text=Live: OBS is showing this camera as ${CAMERA}.`;
+// The camera computer's name, and the camera slot the dashboard shows it in.
+const CAMERA = 'Tripod by Field 1';
+const SLOT = 'Field 1';
+const LIVE = `text=Live: OBS is showing this camera as ${SLOT}.`;
 
 const step = name => console.log(`ok - ${name}`);
 
@@ -31,14 +34,35 @@ const receiverVideo = page => page.evaluate(() => {
 const waitForReceiverVideo = page =>
   page.waitForFunction(() => document.getElementById('video').videoWidth > 0, null, { timeout: 15000 });
 
-const openCameraPage = async (context, computerName, host, audio = false) => {
+// Plays the dashboard: asks every camera computer to announce itself and collects the names.
+const discoverCameras = () => new Promise((resolve, reject) => {
+  const socket = new WebSocket(`ws://127.0.0.1:${OBS_PORT}`);
+  const names = new Set();
+  socket.on('error', reject);
+  socket.on('message', raw => {
+    const { op, d } = JSON.parse(String(raw));
+    if (op === 0) socket.send(JSON.stringify({ op: 1, d: { rpcVersion: 1 } }));
+    else if (op === 2) socket.send(JSON.stringify({
+      op: 6,
+      d: {
+        requestType: 'BroadcastCustomEvent',
+        requestId: 'discover',
+        requestData: { eventData: { app: 'ftc-lan-camera', v: 2, from: 'e2e-dashboard', type: 'discover', camera: '' } },
+      },
+    }));
+    else if (op === 5 && d.eventData.type === 'presence') names.add(d.eventData.camera);
+  });
+  setTimeout(() => { socket.close(); resolve([...names]); }, 1000);
+});
+
+const openCameraPage = async (context, host, audio = false) => {
   const page = await context.newPage();
-  await page.goto(`${BASE}/camera.html?camera=${encodeURIComponent(CAMERA)}`);
+  await page.goto(`${BASE}/camera.html`);
   if (host) {
     await page.fill('input[placeholder="192.168.1.10"]', host);
     await page.fill('input[type=number]', String(OBS_PORT));
   }
-  await page.fill('input[placeholder^="e.g."]', computerName);
+  await page.fill('input[placeholder^="e.g."]', CAMERA);
   await page.setChecked('text=Send audio', audio);
   await page.click('button:text-is("Connect")');
   await page.waitForSelector('text=Connected to OBS.');
@@ -65,11 +89,14 @@ const run = async () => {
   try {
     const context = await browser.newContext();
     const receiver = await context.newPage();
-    await receiver.goto(`${BASE}/camera-receiver.html?camera=${encodeURIComponent(CAMERA)}&port=${OBS_PORT}`);
-    await receiver.waitForSelector('text=waiting for a camera computer');
-    step('receiver waits for a camera computer');
+    await receiver.goto(`${BASE}/camera-receiver.html?${new URLSearchParams({ slot: SLOT, camera: CAMERA, port: OBS_PORT })}`);
+    await receiver.waitForSelector(`text=waiting for ${CAMERA}`);
+    step('receiver waits for the camera computer');
 
-    const first = await openCameraPage(context, 'First laptop', '127.0.0.1', true);
+    const first = await openCameraPage(context, '127.0.0.1', true);
+    const discovered = await discoverCameras();
+    if (discovered.join() !== CAMERA) throw new Error(`dashboard found cameras ${JSON.stringify(discovered)}`);
+    step('the dashboard finds the camera computer');
     await waitForReceiverVideo(receiver);
     await first.waitForSelector(LIVE);
     const video = await receiverVideo(receiver);
@@ -83,7 +110,7 @@ const run = async () => {
     await waitForReceiverVideo(receiver);
     step('receiver reconnects after reloading');
 
-    const second = await openCameraPage(context, 'Second laptop');
+    const second = await openCameraPage(context);
     await second.waitForSelector(LIVE, { timeout: 15000 });
     await first.waitForSelector('text=Another computer took over', { timeout: 10000 });
     step('a second camera computer takes over');
@@ -100,7 +127,7 @@ const run = async () => {
     step(`receiver still shows the camera at ${after.width}x${after.height}`);
 
     await first.click('button:text-is("Stop sending")');
-    await receiver.waitForSelector('text=waiting for a camera computer', { timeout: 10000 });
+    await receiver.waitForSelector(`text=waiting for ${CAMERA}`, { timeout: 10000 });
     step('receiver waits again when the camera computer stops');
   } finally {
     await close();

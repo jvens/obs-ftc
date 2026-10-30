@@ -3,7 +3,7 @@ import {
   AudioMode, CANVAS, CAMERA_DEVICE_PROPERTY, CAMERA_INPUT_KINDS, InputCameraType, JsonObject, PlannedCamera, cameraInputName,
 } from './layout';
 import { ListItem, ObsCall, getCanvas, ignoreError, listPropertyItems, sequence, transformFor, waitForInputsRemoved } from './obsCall';
-import { LanReceiverConfig, isLanReceiverUrl, lanReceiverUrl } from '../lanCamera/urls';
+import { LanReceiverConfig, isLanReceiverUrl, lanReceiverCamera, lanReceiverUrl } from '../lanCamera/urls';
 
 export type CameraStatus =
   | { state: 'missing' }
@@ -72,15 +72,17 @@ export const getCameraStatus = (call: ObsCall, camera: PlannedCamera): ResultAsy
     });
   });
 
-// A LAN camera has no device to pick: whichever camera computer sends to it is shown.
+// The camera computers a LAN camera can show are the ones sending now, which the dashboard hears
+// about itself rather than from OBS.
 export const listCameraDevices = (call: ObsCall, inputName: string, type: InputCameraType): ResultAsync<ListItem[], string> =>
   type === 'lan' ? okAsync([]) : listPropertyItems(call, inputName, CAMERA_DEVICE_PROPERTY[type]);
 
 export const setCameraDevice = (call: ObsCall, inputName: string, type: InputCameraType, value: string) =>
   call('SetInputSettings', { inputName, inputSettings: { [CAMERA_DEVICE_PROPERTY[type]]: value } });
 
-const lanReceiverSettings = (camera: PlannedCamera, lan: LanReceiverConfig): JsonObject => ({
-  url: lanReceiverUrl(camera.label, lan),
+// `sender` is the camera computer to show, empty for none yet.
+const lanReceiverSettings = (camera: PlannedCamera, sender: string, lan: LanReceiverConfig): JsonObject => ({
+  url: lanReceiverUrl(camera.label, sender, lan),
   width: CANVAS.width,
   height: CANVAS.height,
   // Camera audio goes through the OBS mixer, like any other camera.
@@ -91,7 +93,7 @@ const lanReceiverSettings = (camera: PlannedCamera, lan: LanReceiverConfig): Jso
 const cameraSettings = (type: InputCameraType, camera: PlannedCamera, lan: LanReceiverConfig): JsonObject => {
   switch (type) {
     case 'ndi': return { ndi_behavior: 0 };
-    case 'lan': return { ...lanReceiverSettings(camera, lan), shutdown: false, restart_when_active: false };
+    case 'lan': return { ...lanReceiverSettings(camera, '', lan), shutdown: false, restart_when_active: false };
     case 'capture': return { deactivate_when_not_showing: false };
   }
 };
@@ -155,13 +157,20 @@ export const setCameraAudioMuted = (call: ObsCall, camera: PlannedCamera, muted:
     .andThen(({ sceneItems }) => cameraInputsOf(call, sceneItems))
     .andThen(items => sequence(items, item => call('SetInputMute', { inputName: String(item.sourceName), inputMuted: muted })));
 
+// Shows camera computer `sender` in a LAN camera.
+export const setLanCameraSender = (call: ObsCall, camera: PlannedCamera, inputName: string, sender: string, lan: LanReceiverConfig) =>
+  call('SetInputSettings', { inputName, inputSettings: lanReceiverSettings(camera, sender, lan) });
+
 // Points a LAN camera's browser source at this dashboard's receiver page with the current OBS port and
-// password; other cameras are left alone.
+// password, keeping the camera computer it shows; other cameras are left alone.
 export const updateLanReceiver = (call: ObsCall, camera: PlannedCamera, lan: LanReceiverConfig) =>
   getCameraStatus(call, camera).andThen(status => {
-    if (status.state !== 'input' || status.type !== 'lan' || status.device === lanReceiverUrl(camera.label, lan))
+    if (status.state !== 'input' || status.type !== 'lan')
       return okAsync<boolean, string>(false);
-    return call('SetInputSettings', { inputName: status.inputName, inputSettings: lanReceiverSettings(camera, lan) }).map(() => true);
+    const sender = lanReceiverCamera(status.device);
+    if (status.device === lanReceiverUrl(camera.label, sender, lan))
+      return okAsync<boolean, string>(false);
+    return setLanCameraSender(call, camera, status.inputName, sender, lan).map(() => true);
   });
 
 export const cameraThumbnail = (call: ObsCall, scene: string, width = 320) =>
