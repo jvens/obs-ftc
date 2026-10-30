@@ -265,6 +265,13 @@ button:disabled {
 }
 
 
+/* Browser extensions insert their own elements into the page (LastPass adds a 0x0
+   data-lastpass-icon-root div with inline !important styles). In the grid, even an empty one takes a
+   cell and pushes the sections after it out of line, so anything that is not a section goes last. */
+.content-container > :not(.section) {
+  order: 1;
+}
+
 /* Default: sections span all 12 columns (full width) */
 .section {
   grid-column: span 12;
