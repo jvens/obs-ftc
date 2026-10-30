@@ -2,7 +2,7 @@ import { ResultAsync, okAsync } from 'neverthrow';
 import {
   DEFAULT_CAMERA_TYPE, Plan, PlannedCamera, PlannedItem, PlannedScene, SOURCE_NAMES, SetupOptions, buildPlan, cameraInputName,
 } from './layout';
-import { addCameraInput, cameraMuted, setCameraAudioMuted } from './cameras';
+import { addCameraInput, cameraMuted, setCameraAudioMuted, updateLanReceiver } from './cameras';
 import { Canvas, ObsCall, getCanvas, ignoreError, sequence, transformFor, waitForInputsRemoved } from './obsCall';
 
 // update:        add whatever is missing and point the browser sources at the current event; keeps
@@ -44,10 +44,12 @@ const ensureScene = (call: ObsCall, state: ObsState, name: string, log: Log) => 
 const ensureCamera = (call: ObsCall, state: ObsState, camera: PlannedCamera, options: SetupOptions, log: Log) => {
   const muted = cameraMuted(options.audioMode);
   if (state.scenes.has(camera.scene))
-    return setCameraAudioMuted(call, camera, muted);
+    return setCameraAudioMuted(call, camera, muted)
+      .andThen(() => updateLanReceiver(call, camera, options.lanReceiver))
+      .map(updated => { if (updated) log(`Updating the LAN camera receiver of "${camera.scene}"`); });
   return ensureScene(call, state, camera.scene, log)
     .andThen(() => addCameraInput(call, camera, DEFAULT_CAMERA_TYPE, muted,
-      state.inputs.has(cameraInputName(camera.label, DEFAULT_CAMERA_TYPE))))
+      state.inputs.has(cameraInputName(camera.label, DEFAULT_CAMERA_TYPE)), options.lanReceiver))
     .map(inputName => { state.inputs.set(inputName, 'camera'); });
 };
 

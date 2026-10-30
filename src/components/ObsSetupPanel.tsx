@@ -38,7 +38,7 @@ const OutcomeView: React.FC<{ outcome: Outcome; errorHint?: string }> = ({ outco
 );
 
 const ObsSetupPanel: React.FC = () => {
-  const { status, callObs, refreshReplayBufferStatus } = useObsStudio();
+  const { status, callObs, refreshReplayBufferStatus, obsPort, obsPassword } = useObsStudio();
   const selectedEvent = useAppSelector(selectSelectedEvent);
   const ftcHost = useAppSelector(selectFtcServerUrl);
   const obsHost = useAppSelector(selectObsUrl);
@@ -73,6 +73,7 @@ const ObsSetupPanel: React.FC = () => {
       overlaySounds,
       safeBackgroundUrl,
       lowerThirdUrl: lowerThirdUrl({ channel: lowerThirdChannel }),
+      lanReceiver: { port: obsPort, password: obsPassword },
     };
     setRunning(true);
     setSetup(emptyOutcome);

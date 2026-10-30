@@ -1,5 +1,6 @@
 import type { OBSRequestTypes } from 'obs-websocket-js';
 import { LOWER_THIRD_SOURCE_NAME } from '../helpers/lowerThird';
+import { LanReceiverConfig } from '../lanCamera/urls';
 
 export type JsonObject = NonNullable<OBSRequestTypes['CreateInput']['inputSettings']>;
 
@@ -9,7 +10,8 @@ export type JsonObject = NonNullable<OBSRequestTypes['CreateInput']['inputSettin
 export const CANVAS = { width: 1920, height: 1080 };
 
 // Cameras that are an OBS input, as opposed to 'shared', which shows another camera's scene.
-export type InputCameraType = 'capture' | 'ndi';
+// lan: a browser source receiving a webcam sent from another computer's browser (see src/lanCamera).
+export type InputCameraType = 'capture' | 'ndi' | 'lan';
 export type CameraType = InputCameraType | 'shared';
 export type AudioMode = 'device' | 'camera' | 'none';
 
@@ -18,17 +20,20 @@ export const DEFAULT_CAMERA_TYPE: InputCameraType = 'capture';
 export const CAMERA_INPUT_KINDS: Record<InputCameraType, string> = {
   capture: 'dshow_input',
   ndi: 'ndi_source',
+  lan: 'browser_source',
 };
 
 // The setting on each camera input kind that picks which device or stream it shows.
 export const CAMERA_DEVICE_PROPERTY: Record<InputCameraType, string> = {
   capture: 'video_device_id',
   ndi: 'ndi_source_name',
+  lan: 'url',
 };
 
 export const CAMERA_TYPE_LABELS: Record<CameraType, string> = {
   capture: 'Video Capture Device',
   ndi: 'NDI Source',
+  lan: 'LAN Camera (browser on another computer)',
   shared: 'Same as another camera',
 };
 
@@ -53,8 +58,9 @@ export const SCENE_NAMES = {
 // covers two roles, the other camera's scene). Program scenes show the camera scene, so remapping a
 // camera, or replacing it with anything else such as a switcher, happens in one place.
 export const cameraSceneName = (label: string) => `Camera - ${label}`;
+const CAMERA_INPUT_SUFFIX: Record<InputCameraType, string> = { capture: 'Capture', ndi: 'NDI', lan: 'LAN' };
 export const cameraInputName = (label: string, type: InputCameraType) =>
-  `${cameraSceneName(label)} (${type === 'ndi' ? 'NDI' : 'Capture'})`;
+  `${cameraSceneName(label)} (${CAMERA_INPUT_SUFFIX[type]})`;
 
 export const DEFAULT_SAFE_BACKGROUND_URL =
   'https://www.firstinspires.org/hubfs/web/brand/season/2027/downloads/first-canopy-wallpaper-v1.png';
@@ -78,6 +84,7 @@ export interface SetupOptions {
   overlaySounds: boolean;
   safeBackgroundUrl: string;
   lowerThirdUrl: string;
+  lanReceiver: LanReceiverConfig;
 }
 
 export interface PlannedInput {

@@ -2,7 +2,8 @@ import { ResultAsync, okAsync } from 'neverthrow';
 import {
   AudioMode, CANVAS, CAMERA_DEVICE_PROPERTY, CAMERA_INPUT_KINDS, InputCameraType, JsonObject, PlannedCamera, cameraInputName,
 } from './layout';
-import { ObsCall, getCanvas, ignoreError, listPropertyItems, sequence, transformFor, waitForInputsRemoved } from './obsCall';
+import { ListItem, ObsCall, getCanvas, ignoreError, listPropertyItems, sequence, transformFor, waitForInputsRemoved } from './obsCall';
+import { LanReceiverConfig, isLanReceiverUrl, lanReceiverUrl } from '../lanCamera/urls';
 
 export type CameraStatus =
   | { state: 'missing' }
@@ -22,6 +23,27 @@ const SCENE_SOURCE_TYPE = 'OBS_SOURCE_TYPE_SCENE';
 const typeOfKind = (kind: unknown): InputCameraType | undefined =>
   (Object.keys(CAMERA_INPUT_KINDS) as InputCameraType[]).find(type => CAMERA_INPUT_KINDS[type] === kind);
 
+interface SceneItem {
+  sceneItemId?: unknown;
+  sourceName?: unknown;
+  inputKind?: unknown;
+  sourceType?: unknown;
+}
+
+// The camera type of a scene item, if it is one of our camera inputs. A browser source only counts
+// when it is a LAN camera receiver, so any other browser source in a camera scene stays the user's.
+const cameraTypeOf = (call: ObsCall, item: SceneItem): ResultAsync<InputCameraType | undefined, string> => {
+  const type = typeOfKind(item.inputKind);
+  if (type !== 'lan')
+    return okAsync(type);
+  return call('GetInputSettings', { inputName: String(item.sourceName) })
+    .map(({ inputSettings }) => isLanReceiverUrl(String(inputSettings.url ?? '')) ? type : undefined);
+};
+
+const cameraInputsOf = (call: ObsCall, sceneItems: SceneItem[]) =>
+  ResultAsync.combine(sceneItems.map(item => cameraTypeOf(call, item)))
+    .map(types => sceneItems.filter((_, index) => types[index] !== undefined));
+
 // Camera audio is only wanted when the stream takes its audio from the cameras.
 export const cameraMuted = (audioMode: AudioMode) => audioMode !== 'camera';
 
@@ -31,31 +53,48 @@ export const getCameraStatus = (call: ObsCall, camera: PlannedCamera): ResultAsy
       return okAsync<CameraStatus, string>({ state: 'missing' });
     return call('GetSceneItemList', { sceneName: camera.scene }).andThen(({ sceneItems }) => {
       const only = sceneItems.length === 1 ? sceneItems[0] : undefined;
-      const type = typeOfKind(only?.inputKind);
       if (only && only.sourceType === SCENE_SOURCE_TYPE)
         return okAsync<CameraStatus, string>({ state: 'shared', scene: String(only.sourceName) });
-      if (!only || type === undefined)
-        return okAsync<CameraStatus, string>({ state: 'custom', sources: sceneItems.map(item => String(item.sourceName)) });
-      const inputName = String(only.sourceName);
-      return call('GetInputSettings', { inputName }).map(({ inputSettings }): CameraStatus => ({
-        state: 'input',
-        type,
-        inputName,
-        device: String(inputSettings[CAMERA_DEVICE_PROPERTY[type]] ?? ''),
-      }));
+      const custom: CameraStatus = { state: 'custom', sources: sceneItems.map(item => String(item.sourceName)) };
+      if (!only)
+        return okAsync<CameraStatus, string>(custom);
+      return cameraTypeOf(call, only).andThen(type => {
+        if (type === undefined)
+          return okAsync<CameraStatus, string>(custom);
+        const inputName = String(only.sourceName);
+        return call('GetInputSettings', { inputName }).map(({ inputSettings }): CameraStatus => ({
+          state: 'input',
+          type,
+          inputName,
+          device: String(inputSettings[CAMERA_DEVICE_PROPERTY[type]] ?? ''),
+        }));
+      });
     });
   });
 
-export const listCameraDevices = (call: ObsCall, inputName: string, type: InputCameraType) =>
-  listPropertyItems(call, inputName, CAMERA_DEVICE_PROPERTY[type]);
+// A LAN camera has no device to pick: whichever camera computer sends to it is shown.
+export const listCameraDevices = (call: ObsCall, inputName: string, type: InputCameraType): ResultAsync<ListItem[], string> =>
+  type === 'lan' ? okAsync([]) : listPropertyItems(call, inputName, CAMERA_DEVICE_PROPERTY[type]);
 
 export const setCameraDevice = (call: ObsCall, inputName: string, type: InputCameraType, value: string) =>
   call('SetInputSettings', { inputName, inputSettings: { [CAMERA_DEVICE_PROPERTY[type]]: value } });
 
+const lanReceiverSettings = (camera: PlannedCamera, lan: LanReceiverConfig): JsonObject => ({
+  url: lanReceiverUrl(camera.label, lan),
+  width: CANVAS.width,
+  height: CANVAS.height,
+  // Camera audio goes through the OBS mixer, like any other camera.
+  reroute_audio: true,
+});
+
 // Keep sources running when they are not on screen so switching scenes never waits on a reconnect.
-const cameraSettings = (type: InputCameraType): JsonObject => type === 'ndi'
-  ? { ndi_behavior: 0 }
-  : { deactivate_when_not_showing: false };
+const cameraSettings = (type: InputCameraType, camera: PlannedCamera, lan: LanReceiverConfig): JsonObject => {
+  switch (type) {
+    case 'ndi': return { ndi_behavior: 0 };
+    case 'lan': return { ...lanReceiverSettings(camera, lan), shutdown: false, restart_when_active: false };
+    case 'capture': return { deactivate_when_not_showing: false };
+  }
+};
 
 const fillCanvas = (call: ObsCall, sceneName: string, sceneItemId: number) =>
   getCanvas(call).andThen(canvas => call('SetSceneItemTransform', {
@@ -65,7 +104,9 @@ const fillCanvas = (call: ObsCall, sceneName: string, sceneItemId: number) =>
   }));
 
 // Adds the camera input of `type` to the camera scene, filling the canvas.
-export const addCameraInput = (call: ObsCall, camera: PlannedCamera, type: InputCameraType, muted: boolean, inputExists: boolean) => {
+export const addCameraInput = (
+  call: ObsCall, camera: PlannedCamera, type: InputCameraType, muted: boolean, inputExists: boolean, lan: LanReceiverConfig,
+) => {
   const inputName = cameraInputName(camera.label, type);
   const create = inputExists
     ? call('CreateSceneItem', { sceneName: camera.scene, sourceName: inputName })
@@ -73,7 +114,7 @@ export const addCameraInput = (call: ObsCall, camera: PlannedCamera, type: Input
         sceneName: camera.scene,
         inputName,
         inputKind: CAMERA_INPUT_KINDS[type],
-        inputSettings: cameraSettings(type),
+        inputSettings: cameraSettings(type, camera, lan),
       });
   return create
     .andThen(({ sceneItemId }) => fillCanvas(call, camera.scene, sceneItemId))
@@ -87,14 +128,16 @@ export const addCameraInput = (call: ObsCall, camera: PlannedCamera, type: Input
 // capture devices.
 const clearCamera = (call: ObsCall, camera: PlannedCamera) =>
   call('GetSceneItemList', { sceneName: camera.scene }).andThen(({ sceneItems }) => {
-    const managed = sceneItems.filter(item => item.sourceType === SCENE_SOURCE_TYPE || typeOfKind(item.inputKind) !== undefined);
-    const inputs = managed.filter(item => item.sourceType !== SCENE_SOURCE_TYPE).map(item => String(item.sourceName));
-    return sequence(managed, item => call('RemoveSceneItem', { sceneName: camera.scene, sceneItemId: Number(item.sceneItemId) }))
-      .andThen(() => sequence(inputs, inputName => ignoreError(call('RemoveInput', { inputName }))))
-      .map(() => inputs);
+    const scenes = sceneItems.filter(item => item.sourceType === SCENE_SOURCE_TYPE);
+    return cameraInputsOf(call, sceneItems).andThen(cameraInputs => {
+      const inputs = cameraInputs.map(item => String(item.sourceName));
+      return sequence([...scenes, ...cameraInputs], item => call('RemoveSceneItem', { sceneName: camera.scene, sceneItemId: Number(item.sceneItemId) }))
+        .andThen(() => sequence(inputs, inputName => ignoreError(call('RemoveInput', { inputName }))))
+        .map(() => inputs);
+    });
   });
 
-export const setCameraSource = (call: ObsCall, camera: PlannedCamera, source: CameraSource, muted: boolean) =>
+export const setCameraSource = (call: ObsCall, camera: PlannedCamera, source: CameraSource, muted: boolean, lan: LanReceiverConfig) =>
   clearCamera(call, camera).andThen(removed => {
     if (source.type === 'shared')
       return call('CreateSceneItem', { sceneName: camera.scene, sourceName: source.scene })
@@ -104,13 +147,22 @@ export const setCameraSource = (call: ObsCall, camera: PlannedCamera, source: Ca
     const ready = removed.includes(inputName) ? waitForInputsRemoved(call, [inputName]) : okAsync<void, string>(undefined);
     return ready
       .andThen(() => call('GetInputList'))
-      .andThen(({ inputs }) => addCameraInput(call, camera, source.type, muted, inputs.some(input => input.inputName === inputName)));
+      .andThen(({ inputs }) => addCameraInput(call, camera, source.type, muted, inputs.some(input => input.inputName === inputName), lan));
   });
 
 export const setCameraAudioMuted = (call: ObsCall, camera: PlannedCamera, muted: boolean) =>
   call('GetSceneItemList', { sceneName: camera.scene })
-    .map(({ sceneItems }) => sceneItems.filter(item => typeOfKind(item.inputKind) !== undefined).map(item => String(item.sourceName)))
-    .andThen(names => sequence(names, inputName => call('SetInputMute', { inputName, inputMuted: muted })));
+    .andThen(({ sceneItems }) => cameraInputsOf(call, sceneItems))
+    .andThen(items => sequence(items, item => call('SetInputMute', { inputName: String(item.sourceName), inputMuted: muted })));
+
+// Points a LAN camera's browser source at this dashboard's receiver page with the current OBS port and
+// password; other cameras are left alone.
+export const updateLanReceiver = (call: ObsCall, camera: PlannedCamera, lan: LanReceiverConfig) =>
+  getCameraStatus(call, camera).andThen(status => {
+    if (status.state !== 'input' || status.type !== 'lan' || status.device === lanReceiverUrl(camera.label, lan))
+      return okAsync<boolean, string>(false);
+    return call('SetInputSettings', { inputName: status.inputName, inputSettings: lanReceiverSettings(camera, lan) }).map(() => true);
+  });
 
 export const cameraThumbnail = (call: ObsCall, scene: string, width = 320) =>
   call('GetSourceScreenshot', { sourceName: scene, imageFormat: 'jpg', imageWidth: width, imageCompressionQuality: 70 })
