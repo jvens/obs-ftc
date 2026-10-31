@@ -119,8 +119,8 @@ const sync = (call: ObsCall, plan: Plan, options: SetupOptions, warnings: string
     if (state.canvas.width * 9 !== state.canvas.height * 16)
       warnings.push(`The OBS canvas is ${state.canvas.width}x${state.canvas.height}. FTC Live graphics are 16:9, so expect borders; 1920x1080 is recommended (Settings > Video).`);
     return updateInputs(call, state, plan, warnings, log)
-      // OBS puts each new scene at the top of its list (and has no request to reorder them), so
-      // create from the bottom up: cameras last in the list, program scenes above them.
+      // OBS puts each new scene just below the current scene (and has no request to reorder them),
+      // so create from the bottom up: cameras last in the list, program scenes above them.
       .andThen(() => sequence([...plan.cameras].reverse(), camera => ensureCamera(call, state, camera, options, log)))
       .andThen(() => sequence([...plan.scenes].reverse(), scene => ensureScene(call, state, scene.name, log)))
       .andThen(() => sequence(plan.scenes, scene => fillScene(call, state, plan, scene, log)))

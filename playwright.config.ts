@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// End-to-end tests in real browsers against the production build (`npm run build` first; `npm run
-// test:e2e` does both). One project per browser: pick with --project, e.g. --project=firefox.
+// End-to-end tests in real browsers against the production build, with a mock OBS (`npm run build`
+// first; `npm run test:e2e` does both). One project per browser: pick with --project, e.g. --project=firefox.
 // chromium, firefox and webkit are Playwright's own builds (npx playwright install <name>); the
 // others are the installed Chrome and Edge releases (npx playwright install chrome).
 
@@ -14,6 +14,8 @@ const chromiumMedia = {
 
 export default defineConfig({
   testDir: 'e2e',
+  // The tests against a real OBS Studio run on their own: playwright.obs.config.ts.
+  testIgnore: 'obs/**',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

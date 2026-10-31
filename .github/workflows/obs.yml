@@ -1,0 +1,48 @@
+# Tests against real OBS Studio releases on Windows: the setup code (npm run test:obs) and the
+# dashboard (npm run test:e2e:obs). Started by hand: Actions > OBS Studio > Run workflow, with the
+# OBS releases to test.
+name: OBS Studio
+
+on:
+  workflow_dispatch:
+    inputs:
+      obs_versions:
+        description: 'OBS Studio releases to test, as a JSON list of tags from github.com/obsproject/obs-studio/releases'
+        default: '["33.0.1"]'
+
+jobs:
+  obs:
+    name: OBS ${{ matrix.obs }}
+    strategy:
+      fail-fast: false
+      matrix:
+        obs: ${{ fromJSON(inputs.obs_versions) }}
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      OBS_VERSION: ${{ matrix.obs }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The tests download each OBS release once; keep it between runs.
+      - uses: actions/cache@v4
+        with:
+          path: ~/AppData/Local/obs-ftc-tests/obs-${{ matrix.obs }}
+          key: obs-studio-${{ matrix.obs }}-windows-x64
+      - run: npx playwright install chromium
+      - run: npm run test:obs
+      - run: npm run test:e2e:obs
+        if: ${{ !cancelled() }}
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: obs-${{ matrix.obs }}-results
+          path: |
+            playwright-report/obs/
+            ~/AppData/Local/obs-ftc-tests/obs-${{ matrix.obs }}/config/obs-studio/logs/
+            ~/AppData/Local/obs-ftc-tests/obs-${{ matrix.obs }}/config/obs-studio/crashes/
+          retention-days: 14
