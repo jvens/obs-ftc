@@ -83,7 +83,7 @@ Notes:
 
 ### Prerequisites
 
-- Node.js (v18 or later recommended)
+- Node.js 22 or later
 - npm
 
 ### Getting Started
@@ -139,6 +139,26 @@ supported; use whichever you prefer.
 Serves the production build locally through Wrangler (default
 [http://localhost:8787](http://localhost:8787)) for a production-like preview. Run
 `npm run build` first.
+
+### Testing
+
+#### `npm test`
+
+Runs the unit tests with Jest (`src/**/*.test.ts(x)`). `npm run test:watch` reruns them as files
+change, and `npm run test:coverage` writes a coverage report to `coverage/`. The OBS setup code is
+tested against an in-memory OBS (`src/test/fakeObs.ts`), so no OBS is needed.
+
+#### `npm run test:e2e`
+
+Builds the site, then runs the LAN camera pages in headless Chromium against a mock OBS
+(`test/lanCamera`). Install the browser once with `npx playwright-core install chromium`, or point
+`CHROME` at an installed Chrome.
+
+### Continuous Integration
+
+GitHub Actions builds the site and runs the unit tests on every pull request and push to `main`
+(`.github/workflows/ci.yml`). The end-to-end tests take longer, so they only run when started by
+hand: **Actions > E2E > Run workflow** (`.github/workflows/e2e.yml`).
 
 ### Tech Stack
 
