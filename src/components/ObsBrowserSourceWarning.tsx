@@ -28,8 +28,8 @@ const ObsBrowserSourceWarning: React.FC = () => {
         </li>
       </ol>
       <p className="obs-source-warning-note">
-        The only page meant to be a browser source is the lower-third overlay. The Lower Thirds
-        panel in the dashboard gives you its URL.
+        The pages meant to be browser sources are the lower-third overlay and the LAN camera
+        receivers, and the dashboard can add both for you.
       </p>
     </div>
   );
