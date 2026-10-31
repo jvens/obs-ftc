@@ -1,0 +1,20 @@
+# End-to-end tests in real browsers. They take longer than the unit tests, so they only run when
+# started by hand: Actions > E2E > Run workflow.
+name: E2E
+
+on:
+  workflow_dispatch:
+
+jobs:
+  lan-camera:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright-core install --with-deps chromium
+      - run: npm run test:e2e
