@@ -150,15 +150,36 @@ tested against an in-memory OBS (`src/test/fakeObs.ts`), so no OBS is needed.
 
 #### `npm run test:e2e`
 
-Builds the site, then runs the LAN camera pages in headless Chromium against a mock OBS
-(`test/lanCamera`). Install the browser once with `npx playwright-core install chromium`, or point
-`CHROME` at an installed Chrome.
+Builds the site, then runs the end-to-end tests (`e2e/`) in Chromium with
+[Playwright Test](https://playwright.dev/docs/intro). Every test gets its own mock OBS
+(`e2e/support/mockObs.ts`), and pages are kept offline. The LAN camera tests send the browser's
+fake webcam from a camera page to a receiver page, which always runs in Chromium as it does in OBS.
+
+Install the browsers once with `npx playwright install chromium firefox webkit`. Each browser is a
+Playwright project; after `npm run build`, pick them with `--project`:
+
+```bash
+npx playwright test --project=firefox          # chromium, chrome, chrome-beta, msedge, firefox, webkit
+npx playwright test --project=chromium --ui    # step through tests and their traces
+npx playwright show-report                     # the HTML report of the last run
+```
+
+`npm run test:e2e:ui` builds and opens the UI mode in one step. `chrome`, `chrome-beta` and `msedge`
+use the installed Chrome and Edge (`npx playwright install chrome chrome-beta msedge`). Running
+`npx playwright test` with no `--project` tests every browser, so all of them need to be installed.
+
+On Linux (x86-64), `e2e/run-in-docker.sh` runs the tests in Docker with every browser and the system
+libraries WebKit needs, which some distributions lack. It takes the same arguments as
+`npx playwright test` (with none, it tests every browser). The first run builds the image
+(`e2e/Dockerfile`: Playwright's image plus Chrome, Chrome Beta and Edge, about 4 GB), which takes a
+few minutes.
 
 ### Continuous Integration
 
 GitHub Actions builds the site and runs the unit tests on every pull request and push to `main`
 (`.github/workflows/ci.yml`). The end-to-end tests take longer, so they only run when started by
-hand: **Actions > E2E > Run workflow** (`.github/workflows/e2e.yml`).
+hand: **Actions > E2E > Run workflow** (`.github/workflows/e2e.yml`), with the browsers and
+operating systems to test on. Each combination uploads its Playwright report.
 
 ### Tech Stack
 
