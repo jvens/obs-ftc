@@ -730,3 +730,59 @@ button.danger:disabled {
   height: 100%;
   object-fit: contain;
 }
+
+/* Shown when the dashboard is loaded as an OBS browser source. Sized against the viewport so it
+   stays readable in the small OBS preview. */
+.obs-source-warning {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2vh;
+  padding: 4vw;
+  background: #b71c1c;
+  color: white;
+  text-align: center;
+  font-size: max(16px, 2.4vw);
+  line-height: 1.4;
+}
+
+.obs-source-warning h1 {
+  font-size: 2em;
+  line-height: 1.15;
+}
+
+.obs-source-warning-icon {
+  width: 2.4em;
+  height: 2.4em;
+  flex-shrink: 0;
+  border: 0.15em solid white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6em;
+  font-weight: bold;
+}
+
+.obs-source-warning ol {
+  text-align: left;
+  max-width: 40em;
+  padding-left: 1.4em;
+}
+
+.obs-source-warning li {
+  margin-bottom: 0.4em;
+}
+
+.obs-source-warning strong {
+  word-break: break-all;
+}
+
+.obs-source-warning-note {
+  font-size: 0.75em;
+  opacity: 0.9;
+  max-width: 50em;
+}

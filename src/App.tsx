@@ -16,12 +16,22 @@ import ChaptersSettings from './components/ChaptersSettings';
 import LowerThirdsPanel from './components/LowerThirdsPanel';
 import ObsSetupPanel from './components/ObsSetupPanel';
 import AboutModal from './components/AboutModal';
+import ObsBrowserSourceWarning, { isRunningInObs } from './components/ObsBrowserSourceWarning';
 import { initializeAnalytics, trackPageView } from './helpers/analytics';
 
 // Lower thirds are still in preview; only shown with ?lowerthird=true in the URL.
 // const showLowerThirds = new URLSearchParams(window.location.search).get('lowerthird') === 'true';
 
+// Checked once at load: when OBS has the dashboard open as a browser source, show only the
+// warning so the hidden copy never connects to FTC Live or OBS.
+const inObsBrowserSource = isRunningInObs();
+
 function App() {
+  if (inObsBrowserSource) return <ObsBrowserSourceWarning />;
+  return <Dashboard />;
+}
+
+function Dashboard() {
   const [showAbout, setShowAbout] = useState(false);
 
   // Initialize analytics on app load
