@@ -1,5 +1,6 @@
 // src/contexts/FtcLiveContext.tsx
 import React, { createContext, useContext, useState, useCallback, ReactNode, useRef, useEffect } from 'react';
+import { ResultAsync } from 'neverthrow';
 import { FtcLiveSteamData, UpdateType } from '../types/FtcLive';
 import { useObsStudio } from './ObsStudioContext';
 import { usePersistentState } from '../helpers/persistant';
@@ -7,7 +8,8 @@ import { trackEvent, trackFeatureEnabled, trackUserConfig, AnalyticsEvents } fro
 import { store } from '../store';
 import { updateMatchEvent, updateMatchInfo, fetchMatchIfUnknown } from '../store/matchDataSlice';
 import { useAppSelector } from '../store/hooks';
-import { selectFtcServerUrl, selectSelectedEvent } from '../store/connectionSlice';
+import { selectFtcServerUrl, selectSelectedEvent, setSelectedEvent } from '../store/connectionSlice';
+import { fetchEvent } from '../services/ftcLiveApi';
 
 const MATCH_TIME_SECONDS = 158 as const; // 2:38 in seconds
 const RECONNECT_INTERVAL = 10; // seconds
@@ -383,6 +385,18 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
       // Cancel any pending reconnect when manually connecting
       cancelReconnect();
       userDisconnectedRef.current = false;
+
+      // The saved event is a snapshot from when it was picked; refresh it so changes made
+      // in FTC Live since then (such as the field count) are picked up on every connect.
+      const eventCode = selectedEvent.eventCode;
+      ResultAsync.fromPromise(fetchEvent(eventCode, serverUrl), error => error).match(
+        event => {
+          if (store.getState().connection.selectedEvent?.eventCode === eventCode) {
+            store.dispatch(setSelectedEvent(event));
+          }
+        },
+        error => console.error(`Refreshing event ${eventCode} failed:`, error),
+      );
 
       const newSocket = new WebSocket(`ws://${serverUrl}/api/v2/stream/?code=${selectedEvent.eventCode}`);
       setSocket(newSocket)
