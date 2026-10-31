@@ -1,14 +1,27 @@
 # End-to-end tests in real browsers. They take longer than the unit tests, so they only run when
-# started by hand: Actions > E2E > Run workflow.
+# started by hand: Actions > E2E > Run workflow, then pick the browsers and operating systems.
 name: E2E
 
 on:
   workflow_dispatch:
+    inputs:
+      browsers:
+        description: 'Browsers, as a JSON list of Playwright projects: chromium, chrome, chrome-beta, msedge, firefox, webkit'
+        default: '["chromium", "firefox", "webkit"]'
+      os:
+        description: 'Operating systems, as a JSON list of runner labels: ubuntu-latest, windows-latest, macos-latest'
+        default: '["ubuntu-latest"]'
 
 jobs:
-  lan-camera:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  e2e:
+    name: ${{ matrix.browser }} on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: ${{ fromJSON(inputs.browsers) }}
+        os: ${{ fromJSON(inputs.os) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,5 +29,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright-core install --with-deps chromium
-      - run: npm run test:e2e
+      # The LAN camera receiver always runs in Chromium, as it does in OBS.
+      - run: npx playwright install --with-deps chromium ${{ matrix.browser }}
+      - run: npm run build
+      - run: npx playwright test --project=${{ matrix.browser }}
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-${{ matrix.browser }}-${{ matrix.os }}
+          path: playwright-report/
+          retention-days: 14
