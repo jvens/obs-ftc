@@ -2,8 +2,9 @@ import { ResultAsync, errAsync, okAsync } from 'neverthrow';
 import type { ObsCall } from '../obsSetup/obsCall';
 
 // An in-memory OBS for unit tests: enough of obs-websocket v5 for the setup, camera and settings
-// code, with the quirks that code relies on (new scenes go to the top of the list, scene items are
-// listed bottom first, removed inputs linger for a while, outputs change only when a profile loads).
+// code, with the quirks that code relies on (new scenes go just below the current scene, scene
+// items are listed bottom first, removed inputs linger for a while, outputs change only when a
+// profile loads). The *.obs.test.ts tests run against both this and the real OBS to keep it honest.
 
 type Settings = Record<string, unknown>;
 
@@ -69,6 +70,7 @@ export class FakeObs {
   currentProfile = 'Untitled';
   streaming = false;
   recording = false;
+  recordDirectory = 'C:\\Users\\Test\\Videos';
   // Whether the loaded profile has a replay buffer, decided when the profile loads, as in OBS.
   replayBufferAvailable = false;
   replayBufferActive = false;
@@ -113,9 +115,9 @@ export class FakeObs {
     return this.calls.slice(from).map(call => call.requestType);
   }
 
-  // Adds a scene the way a user would, at the top of the list.
+  // Adds a scene as OBS does: just below the current scene in the list.
   addScene(name: string) {
-    this.collection.scenes.unshift(name);
+    this.collection.scenes.splice(this.scenes.indexOf(this.collection.program) + 1, 0, name);
     this.collection.items.set(name, []);
   }
 
@@ -177,6 +179,14 @@ export class FakeObs {
       return okAsync({});
     },
 
+    GetCurrentProgramScene: () => okAsync({ currentProgramSceneName: this.collection.program, sceneName: this.collection.program }),
+    GetCurrentPreviewScene: () => this.studioMode
+      ? okAsync({ currentPreviewSceneName: this.collection.preview, sceneName: this.collection.preview })
+      : errAsync('Studio mode is not enabled.'),
+    SetStudioModeEnabled: ({ studioModeEnabled }) => {
+      this.studioMode = Boolean(studioModeEnabled);
+      return okAsync({});
+    },
     GetSceneList: () => okAsync({
       currentProgramSceneName: this.collection.program,
       currentPreviewSceneName: this.studioMode ? this.collection.preview : null,
@@ -256,6 +266,10 @@ export class FakeObs {
       input.settings = overlay === false ? { ...(inputSettings as Settings) } : { ...input.settings, ...(inputSettings as Settings) };
       return okAsync({});
     },
+    GetInputMute: ({ inputName }) => {
+      const input = this.inputs.get(String(inputName));
+      return input ? okAsync({ inputMuted: input.muted }) : errAsync(`No input named "${inputName}".`);
+    },
     SetInputMute: ({ inputName, inputMuted }) => {
       const input = this.inputs.get(String(inputName));
       if (!input)
@@ -314,6 +328,10 @@ export class FakeObs {
       items.splice(Number(sceneItemIndex), 0, item);
       return okAsync({});
     },
+    GetSceneItemTransform: ({ sceneName, sceneItemId }) => {
+      const item = this.sceneItems(sceneName)?.find(item => item.sceneItemId === sceneItemId);
+      return item ? okAsync({ sceneItemTransform: { ...item.transform } }) : errAsync(`No scene item ${sceneItemId} in "${sceneName}".`);
+    },
     SetSceneItemTransform: ({ sceneName, sceneItemId, sceneItemTransform }) => {
       const item = this.sceneItems(sceneName)?.find(item => item.sceneItemId === sceneItemId);
       if (!item)
@@ -323,6 +341,23 @@ export class FakeObs {
     },
 
     GetStreamStatus: () => okAsync({ outputActive: this.streaming }),
+    StartRecord: () => {
+      if (this.recording)
+        return errAsync('Recording is already active.');
+      this.recording = true;
+      return okAsync({});
+    },
+    StopRecord: () => {
+      if (!this.recording)
+        return errAsync('Recording is not active.');
+      this.recording = false;
+      return okAsync({ outputPath: `${this.recordDirectory}\\recording.mp4` });
+    },
+    GetRecordDirectory: () => okAsync({ recordDirectory: this.recordDirectory }),
+    SetRecordDirectory: ({ recordDirectory }) => {
+      this.recordDirectory = String(recordDirectory);
+      return okAsync({});
+    },
     GetRecordStatus: () => okAsync({ outputActive: this.recording }),
     GetReplayBufferStatus: () => this.replayBufferAvailable
       ? okAsync({ outputActive: this.replayBufferActive })

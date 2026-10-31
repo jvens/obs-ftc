@@ -174,12 +174,41 @@ libraries WebKit needs, which some distributions lack. It takes the same argumen
 (`e2e/Dockerfile`: Playwright's image plus Chrome, Chrome Beta and Edge, about 4 GB), which takes a
 few minutes.
 
+#### Testing against real OBS Studio
+
+Two suites run against a real OBS Studio, which the tests start themselves (Windows, or WSL, which
+runs it on the Windows side):
+
+- `npm run test:obs` runs the OBS setup, camera and settings code against OBS
+  (`src/**/*.obs.test.ts`). The same tests run against the in-memory OBS in `npm test`, which keeps
+  it behaving like the real thing.
+- `npm run test:e2e:obs` builds the site and drives the dashboard in Chromium against OBS and a mock
+  FTC Live (`e2e/obs`): connecting (and reconnecting when OBS restarts), setting OBS up for an event,
+  switching scenes, recording and taking screenshots as matches run, and a LAN camera appearing in
+  OBS's browser source.
+
+The tests download the portable build of the OBS release in `OBS_VERSION` (default in
+`integration/obs/obsStudio.ts`) once, into `%LOCALAPPDATA%\obs-ftc-tests`, and start it with a fresh
+configuration, its own websocket port (`OBS_PORT`, default 4466) and a random password. It never
+touches the OBS you use, which can stay open. An OBS window opens (minimized) while the tests run,
+and from WSL, Windows Firewall asks once per OBS version whether to let it on the network. If OBS
+crashes during a run, the run fails and names the crash report.
+
+```bash
+OBS_VERSION=32.2.2 npm run test:obs
+```
+
+To test an OBS you started yourself (on Linux, say), set `OBS_URL` (`ws://host:port`) and
+`OBS_PASSWORD`. The tests create scene collections and profiles in it, so use a throwaway OBS.
+
 ### Continuous Integration
 
 GitHub Actions builds the site and runs the unit tests on every pull request and push to `main`
 (`.github/workflows/ci.yml`). The end-to-end tests take longer, so they only run when started by
 hand: **Actions > E2E > Run workflow** (`.github/workflows/e2e.yml`), with the browsers and
-operating systems to test on. Each combination uploads its Playwright report.
+operating systems to test on. Each combination uploads its Playwright report. **Actions > OBS
+Studio > Run workflow** (`.github/workflows/obs.yml`) runs both real OBS suites on Windows for the
+OBS releases listed, and uploads the Playwright report and OBS's logs.
 
 ### Tech Stack
 
