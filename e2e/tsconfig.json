@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "esModuleInterop": true
   },
-  "include": [".", "../integration", "../playwright.config.ts", "../playwright.obs.config.ts"]
+  "include": [".", "../integration", "../playwright.config.ts", "../playwright.obs.config.ts", "../playwright.ftclive.config.ts"]
 }

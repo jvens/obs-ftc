@@ -207,6 +207,25 @@ OBS_PLATFORM=linux npm run test:e2e:obs
 To test an OBS you started yourself, set `OBS_URL` (`ws://host:port`) and `OBS_PASSWORD`. The tests
 create scene collections and profiles in it, so use a throwaway OBS.
 
+#### Testing against real FTC Live
+
+`npm run test:e2e:ftclive` tests against the real FTC Live scoring system (`e2e/ftclive`): the API and
+match event stream the dashboard reads, and the dashboard following matches into a real OBS (as
+above) while the tests play them from FTC Live's Match Control and referee pages, including a whole
+2:38 match through to its results. The full run takes about four minutes.
+
+The tests run the current FTC Live release for the season in `FTC_LIVE_SEASON` (default in
+`integration/ftcLive/ftcLive.ts`), downloaded from FIRST's event portal into a Docker image
+(`integration/ftcLive`), so running them after FIRST releases a new version tests that version.
+Each run starts with an empty database and sets up a test event (Event Admin > Setup Event >
+Offline Setup > Manual Setup) with eight teams and a qualification schedule. FTC Live only accepts
+its default `local` account without a password from localhost, so it runs on the host network on
+port 80, which has to be free. Needs Docker. FTC Live's output and logs are kept in `test-results`
+(`ftc-live.log`, `ftc-live-logs`).
+
+To test an FTC Live you started yourself, set `FTC_LIVE_URL` (`http://host`). The tests create an
+event in it, so use a throwaway FTC Live.
+
 ### Continuous Integration
 
 GitHub Actions builds the site and runs the unit tests on every pull request and push to `main`
@@ -214,7 +233,9 @@ GitHub Actions builds the site and runs the unit tests on every pull request and
 hand: **Actions > E2E > Run workflow** (`.github/workflows/e2e.yml`), with the browsers and
 operating systems to test on. Each combination uploads its Playwright report. **Actions > OBS
 Studio > Run workflow** (`.github/workflows/obs.yml`) runs both real OBS suites for the OBS releases
-and platforms listed, and uploads the Playwright report and OBS's logs.
+and platforms listed, and uploads the Playwright report and OBS's logs. **Actions > FTC Live > Run
+workflow** (`.github/workflows/ftclive.yml`) runs the FTC Live suite with the season's current FTC Live
+release; run it whenever FIRST releases a new version.
 
 ### Tech Stack
 
