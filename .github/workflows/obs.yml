@@ -1,6 +1,6 @@
-# Tests against real OBS Studio releases on Windows: the setup code (npm run test:obs) and the
-# dashboard (npm run test:e2e:obs). Started by hand: Actions > OBS Studio > Run workflow, with the
-# OBS releases to test.
+# Tests against real OBS Studio releases: the setup code (npm run test:obs) and the dashboard
+# (npm run test:e2e:obs), on Windows and on Linux (in Docker). Started by hand: Actions >
+# OBS Studio > Run workflow, with the OBS releases and platforms to test.
 name: OBS Studio
 
 on:
@@ -9,18 +9,23 @@ on:
       obs_versions:
         description: 'OBS Studio releases to test, as a JSON list of tags from github.com/obsproject/obs-studio/releases'
         default: '["33.0.1"]'
+      platforms:
+        description: 'Platforms to run OBS on, as a JSON list: windows, linux'
+        default: '["windows", "linux"]'
 
 jobs:
   obs:
-    name: OBS ${{ matrix.obs }}
+    name: OBS ${{ matrix.obs }} on ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
         obs: ${{ fromJSON(inputs.obs_versions) }}
-    runs-on: windows-latest
+        platform: ${{ fromJSON(inputs.platforms) }}
+    runs-on: ${{ matrix.platform == 'windows' && 'windows-latest' || 'ubuntu-latest' }}
     timeout-minutes: 30
     env:
       OBS_VERSION: ${{ matrix.obs }}
+      OBS_PLATFORM: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,21 +33,23 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # The tests download each OBS release once; keep it between runs.
+      # The tests download each Windows OBS release once; keep it between runs.
       - uses: actions/cache@v4
+        if: ${{ matrix.platform == 'windows' }}
         with:
           path: ~/AppData/Local/obs-ftc-tests/obs-${{ matrix.obs }}
           key: obs-studio-${{ matrix.obs }}-windows-x64
-      - run: npx playwright install chromium
+      - run: npx playwright install --with-deps chromium
       - run: npm run test:obs
       - run: npm run test:e2e:obs
         if: ${{ !cancelled() }}
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: obs-${{ matrix.obs }}-results
+          name: obs-${{ matrix.obs }}-${{ matrix.platform }}-results
           path: |
             playwright-report/obs/
             ~/AppData/Local/obs-ftc-tests/obs-${{ matrix.obs }}/config/obs-studio/logs/
             ~/AppData/Local/obs-ftc-tests/obs-${{ matrix.obs }}/config/obs-studio/crashes/
+            ~/.cache/obs-ftc-tests/obs-${{ matrix.obs }}-linux/config/obs-studio/logs/
           retention-days: 14

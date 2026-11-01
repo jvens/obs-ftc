@@ -3,7 +3,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 import { ObsCall } from './obsCall';
 import { startRecording } from './recording';
-import { closeObs, eventually, freshObs, setRecordDirectory, unwrap } from '../test/obsUnderTest';
+import { addSomethingToShow, closeObs, eventually, freshObs, setRecordDirectory, unwrap } from '../test/obsUnderTest';
 
 let call: ObsCall;
 let recordDirectory: string;
@@ -12,6 +12,7 @@ const recording = () => unwrap(call('GetRecordStatus').map(({ outputActive }) =>
 
 beforeEach(async () => {
   ({ call } = await freshObs());
+  await addSomethingToShow(call);
   ({ recordDirectory } = await unwrap(call('GetRecordDirectory')));
 });
 

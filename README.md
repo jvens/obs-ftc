@@ -16,7 +16,8 @@ A web application that integrates OBS Studio with the FTC Live scoring system, e
 
 ## Requirements
 
-- [OBS Studio](https://obsproject.com/) with WebSocket server enabled (v5.0+)
+- [OBS Studio](https://obsproject.com/) with WebSocket server enabled (v5.0+), on Windows or Linux
+  (Configure OBS Studio does not support OBS on macOS yet)
 - Access to an FTC Live scoring system
 - A modern web browser (Chrome recommended)
 
@@ -176,30 +177,35 @@ few minutes.
 
 #### Testing against real OBS Studio
 
-Two suites run against a real OBS Studio, which the tests start themselves (Windows, or WSL, which
-runs it on the Windows side):
+Two suites run against a real OBS Studio, which the tests start themselves, on Windows or Linux:
 
 - `npm run test:obs` runs the OBS setup, camera and settings code against OBS
   (`src/**/*.obs.test.ts`). The same tests run against the in-memory OBS in `npm test`, which keeps
   it behaving like the real thing.
 - `npm run test:e2e:obs` builds the site and drives the dashboard in Chromium against OBS and a mock
   FTC Live (`e2e/obs`): connecting (and reconnecting when OBS restarts), setting OBS up for an event,
-  switching scenes, recording and taking screenshots as matches run, and a LAN camera appearing in
-  OBS's browser source.
+  switching scenes, recording and taking screenshots as matches run, warning when a recording does
+  not start, and a LAN camera appearing in OBS's browser source.
 
-The tests download the portable build of the OBS release in `OBS_VERSION` (default in
-`integration/obs/obsStudio.ts`) once, into `%LOCALAPPDATA%\obs-ftc-tests`, and start it with a fresh
-configuration, its own websocket port (`OBS_PORT`, default 4466) and a random password. It never
-touches the OBS you use, which can stay open. An OBS window opens (minimized) while the tests run,
-and from WSL, Windows Firewall asks once per OBS version whether to let it on the network. If OBS
-crashes during a run, the run fails and names the crash report.
+The tests start the OBS release in `OBS_VERSION` (default in `integration/obs/obsStudio.ts`) with a
+fresh configuration, its own websocket port (`OBS_PORT`, default 4466) and a random password, and
+close it afterwards. It never touches the OBS you use, which can stay open. If OBS crashes during a
+run, the run fails and says so.
+
+- **Windows** (the default on Windows and WSL): the portable build of the release, downloaded once
+  into `%LOCALAPPDATA%\obs-ftc-tests`. An OBS window opens (minimized) while the tests run, and from
+  WSL, Windows Firewall asks once per OBS version whether to let it on the network.
+- **Linux** (the default elsewhere, or `OBS_PLATFORM=linux`): the Ubuntu package of the release, in
+  Docker on a virtual display (`integration/obs/linux`). The first run for a version builds its
+  image, which takes a minute or two. Needs Docker.
 
 ```bash
 OBS_VERSION=32.2.2 npm run test:obs
+OBS_PLATFORM=linux npm run test:e2e:obs
 ```
 
-To test an OBS you started yourself (on Linux, say), set `OBS_URL` (`ws://host:port`) and
-`OBS_PASSWORD`. The tests create scene collections and profiles in it, so use a throwaway OBS.
+To test an OBS you started yourself, set `OBS_URL` (`ws://host:port`) and `OBS_PASSWORD`. The tests
+create scene collections and profiles in it, so use a throwaway OBS.
 
 ### Continuous Integration
 
@@ -207,8 +213,8 @@ GitHub Actions builds the site and runs the unit tests on every pull request and
 (`.github/workflows/ci.yml`). The end-to-end tests take longer, so they only run when started by
 hand: **Actions > E2E > Run workflow** (`.github/workflows/e2e.yml`), with the browsers and
 operating systems to test on. Each combination uploads its Playwright report. **Actions > OBS
-Studio > Run workflow** (`.github/workflows/obs.yml`) runs both real OBS suites on Windows for the
-OBS releases listed, and uploads the Playwright report and OBS's logs.
+Studio > Run workflow** (`.github/workflows/obs.yml`) runs both real OBS suites for the OBS releases
+and platforms listed, and uploads the Playwright report and OBS's logs.
 
 ### Tech Stack
 

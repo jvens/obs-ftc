@@ -15,40 +15,40 @@ const options = (overrides: Partial<SetupOptions> = {}): SetupOptions => ({
 
 describe('buildPlan', () => {
   it('has a program scene per field, then ceremony, alliance selection, pit and sponsor', () => {
-    expect(buildPlan(options({ fieldCount: 3 })).scenes.map(scene => scene.name))
+    expect(buildPlan(options({ fieldCount: 3 }), 'windows').scenes.map(scene => scene.name))
       .toEqual(['Field 1', 'Field 2', 'Field 3', 'Ceremony', 'Alliance Selection', 'Pit Display', 'Sponsor Loop']);
   });
 
   it('plans one field when the event reports none', () => {
-    const plan = buildPlan(options({ fieldCount: 0 }));
+    const plan = buildPlan(options({ fieldCount: 0 }), 'windows');
     expect(plan.scenes.filter(scene => scene.name.startsWith('Field'))).toHaveLength(1);
     expect(plan.cameras.map(camera => camera.label)).toEqual(['Field 1', 'Ceremony']);
   });
 
   it('puts the overlay over the field camera, with the safe background and audio at the bottom', () => {
-    const field = buildPlan(options()).scenes.find(scene => scene.name === 'Field 2')!;
+    const field = buildPlan(options(), 'windows').scenes.find(scene => scene.name === 'Field 2')!;
     expect(field.items.map(item => item.source))
       .toEqual([SOURCE_NAMES.overlay, 'Camera - Field 2', SOURCE_NAMES.safeBackground, SOURCE_NAMES.audio]);
   });
 
   it('leaves the audio device out unless the audio comes from a device', () => {
-    const plan = buildPlan(options({ audioMode: 'camera' }));
+    const plan = buildPlan(options({ audioMode: 'camera' }), 'windows');
     expect(plan.inputs.map(input => input.name)).not.toContain(SOURCE_NAMES.audio);
     expect(plan.scenes.flatMap(scene => scene.items).map(item => item.source)).not.toContain(SOURCE_NAMES.audio);
   });
 
   it('keeps the user\'s choice of audio device once it exists', () => {
-    expect(buildPlan(options()).inputs.find(input => input.name === SOURCE_NAMES.audio)?.keepExistingSettings).toBe(true);
+    expect(buildPlan(options(), 'windows').inputs.find(input => input.name === SOURCE_NAMES.audio)?.keepExistingSettings).toBe(true);
   });
 
   it('crops the ceremony camera into the alliance selection window', () => {
-    const scene = buildPlan(options()).scenes.find(scene => scene.name === 'Alliance Selection')!;
+    const scene = buildPlan(options(), 'windows').scenes.find(scene => scene.name === 'Alliance Selection')!;
     expect(scene.items.find(item => item.source === 'Camera - Ceremony'))
       .toEqual({ source: 'Camera - Ceremony', rect: { x: 119, y: 357, width: 912, height: 513 }, fit: 'cover' });
   });
 
   it('points the browser sources at the event on the FTC Live server', () => {
-    const urls = Object.fromEntries(buildPlan(options()).inputs.map(input => [input.name, input.settings.url]));
+    const urls = Object.fromEntries(buildPlan(options(), 'windows').inputs.map(input => [input.name, input.settings.url]));
     expect(urls[SOURCE_NAMES.pit]).toBe('http://192.168.1.5/event/usmnrq1/display/?type=pit');
     expect(urls[SOURCE_NAMES.sponsor]).toBe('http://192.168.1.5/event/usmnrq1/display/?type=sponsor');
     expect(urls[SOURCE_NAMES.overlay]).toMatch(/^http:\/\/192\.168\.1\.5\/event\/usmnrq1\/display\/\?type=audience&/);

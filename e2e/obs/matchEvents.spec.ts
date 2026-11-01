@@ -1,14 +1,13 @@
 // What the dashboard does in OBS as FTC Live runs matches: switch to the match's field, record the
 // match, and take screenshots. FTC Live is a mock; OBS is real.
 import { readdirSync } from 'node:fs';
-import { localPath } from '../../integration/obs/obsStudio';
 import { connectFtcLive, connectObs, expect, section, setRecordDirectory, setUpObs, test } from './fixtures';
 
 test('switches scenes, records each match and takes screenshots as FTC Live runs matches', async ({ page, realObs, ftcLive }) => {
   const { control, studio } = realObs;
   const program = async () => (await control.call('GetCurrentProgramScene')).currentProgramSceneName;
   const recording = async () => (await control.call('GetRecordStatus')).outputActive;
-  const recordings = () => studio.recordDirectory ? readdirSync(localPath(studio.recordDirectory)) : [];
+  const recordings = () => studio.localRecordDirectory ? readdirSync(studio.localRecordDirectory) : [];
   const before = new Set(recordings());
 
   await page.goto('/');
@@ -42,7 +41,7 @@ test('switches scenes, records each match and takes screenshots as FTC Live runs
   });
 
   await test.step('the recording and the preview screenshot are saved', async () => {
-    test.skip(!studio.recordDirectory, 'OBS_URL instance: its files are not reachable');
+    test.skip(!studio.localRecordDirectory, 'OBS_URL instance: its files are not reachable');
     const code = ftcLive.event.eventCode;
     await expect.poll(() => recordings().filter(name => !before.has(name)), { timeout: 15_000 })
       .toEqual(expect.arrayContaining([`${code}_Q1_preview.png`, `${code}_Q2_preview.png`, expect.stringMatching(/\.(mp4|mkv|mov)$/)]));
