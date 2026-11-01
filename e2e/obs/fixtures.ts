@@ -27,12 +27,32 @@ export const test = base.extend<{ realObs: RealObs; ftcLive: MockFtcLive }, { ob
     await studio.stop();
   }, { scope: 'worker', timeout: 300_000 }],
   // Each test starts in a new, empty scene collection.
-  realObs: async ({ obsStudio }, use) => {
-    const control = new OBSWebSocket();
-    await control.connect(obsStudio.url, obsStudio.password);
+  realObs: async ({ obsStudio }, use, testInfo) => {
     const name = `E2E ${process.pid} ${++collections}`;
-    await control.call('CreateSceneCollection', { sceneCollectionName: name });
-    await expect.poll(async () => (await control.call('GetSceneCollectionList')).currentSceneCollectionName).toBe(name);
+    const connect = async () => {
+      const control = new OBSWebSocket();
+      await control.connect(obsStudio.url, obsStudio.password);
+      return control;
+    };
+    const switchToNewCollection = (control: OBSWebSocket) => expect(async () => {
+      if (!(await control.call('GetSceneCollectionList')).sceneCollections.includes(name))
+        await control.call('CreateSceneCollection', { sceneCollectionName: name });
+      expect((await control.call('GetSceneCollectionList')).currentSceneCollectionName).toBe(name);
+    }).toPass({ timeout: 30_000 });
+    let control = await connect();
+    try {
+      await switchToNewCollection(control);
+    } catch (error) {
+      // Now and then (about one full run in four), OBS keeps answering "not ready" (207) after
+      // switching scene collection, with "Not all sources were cleared" in its log. Not yet
+      // explained; restart OBS so the remaining tests can run, and say so in the report.
+      if (!obsStudio.restart) throw error;
+      testInfo.annotations.push({ type: 'warning', description: `OBS stayed "not ready" after a scene collection switch and was restarted: ${error}` });
+      await control.disconnect().catch(() => undefined);
+      await obsStudio.restart();
+      control = await connect();
+      await switchToNewCollection(control);
+    }
     const { hostname, port } = new URL(obsStudio.url);
     await use({ studio: obsStudio, host: hostname, port: Number(port), password: obsStudio.password, control });
     // A test may leave OBS recording (the dashboard records each match), which would stop the next
@@ -51,6 +71,10 @@ export const test = base.extend<{ realObs: RealObs; ftcLive: MockFtcLive }, { ob
     await ftcLive.close();
   },
 });
+
+// SetRecordDirectory (obs-websocket 5.3) is missing from obs-websocket-js's request types.
+export const setRecordDirectory = (control: OBSWebSocket, recordDirectory: string) =>
+  (control.call as unknown as (type: string, data: object) => Promise<unknown>)('SetRecordDirectory', { recordDirectory });
 
 export const section = (page: Page, heading: string) =>
   page.locator('.section', { has: page.getByRole('heading', { name: heading, exact: true }) });
