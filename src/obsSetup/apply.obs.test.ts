@@ -62,7 +62,8 @@ describe('setting up in a new scene collection', () => {
 
     expect(report.sceneCollection).toBe(`FTC ${setupOptions.eventCode}`);
     expect(await obs.sceneCollection()).toBe(report.sceneCollection);
-    // OBS's own empty "Scene" is gone.
+    // OBS's own empty "Scene" is gone (OBS lists a removed scene for a moment after removing it).
+    await eventually(async () => !(await obs.scenes()).includes('Scene'), 'the removed "Scene" to leave the scene list');
     expect(await obs.scenes()).toEqual(OUR_SCENES);
     expect(await obs.programScene()).toBe('Field 1');
     for (const scene of buildPlan(setupOptions).scenes)
@@ -205,7 +206,7 @@ describe('wiping the current scene collection', () => {
       await setup('wipe', options());
 
       expect(await obs.sceneCollection()).toBe(collection);
-      // OBS 32 lists a removed scene for a moment after removing it.
+      // OBS lists a removed scene for a moment after removing it.
       await eventually(async () => !(await obs.scenes()).includes(SETUP_SCENE), 'wipe\'s temporary scene to leave the scene list');
       expect(await obs.scenes()).toEqual(OUR_SCENES);
       expect(await obs.inputs()).not.toContain('Old Camera');
