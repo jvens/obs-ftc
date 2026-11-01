@@ -83,15 +83,6 @@ export const fetchMatchList = createAsyncThunk(
   }
 );
 
-// Async thunk to fetch a single match by number
-export const fetchSingleMatch = createAsyncThunk(
-  'matchData/fetchSingleMatch',
-  async ({ eventCode, matchNumber, serverUrl }: { eventCode: string; matchNumber: number; serverUrl?: string }) => {
-    const match = await ftcLiveApi.fetchMatch(eventCode, matchNumber, serverUrl);
-    return match;
-  }
-);
-
 // Async thunk to fetch match info if we receive an event for an unknown match
 export const fetchMatchIfUnknown = createAsyncThunk(
   'matchData/fetchMatchIfUnknown',
@@ -188,22 +179,6 @@ const matchDataSlice = createSlice({
       .addCase(fetchMatchList.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch matches';
-      });
-
-    // fetchSingleMatch
-    builder
-      .addCase(fetchSingleMatch.fulfilled, (state, action) => {
-        if (action.payload) {
-          const match = action.payload;
-          const existingIndex = state.matches.findIndex(m => m.name === match.matchName);
-          const newRow = ftcMatchToRow(match, existingIndex !== -1 ? state.matches[existingIndex] : undefined);
-
-          if (existingIndex !== -1) {
-            state.matches[existingIndex] = newRow;
-          } else {
-            state.matches.push(newRow);
-          }
-        }
       });
 
     // fetchMatchIfUnknown
