@@ -84,25 +84,6 @@ export const fetchActiveMatches = async (eventCode: string, serverUrl?: string):
 };
 
 /**
- * Fetch a specific match by match number
- */
-export const fetchMatch = async (
-  eventCode: string,
-  matchNumber: number,
-  serverUrl?: string
-): Promise<FtcMatch | null> => {
-  const url = serverUrl || getServerUrl();
-  const response = await fetch(`http://${url}/api/v1/events/${eventCode}/matches/${matchNumber}/`);
-  if (!response.ok) {
-    if (response.status === 404) {
-      return null;
-    }
-    throw new Error(`Failed to fetch match ${matchNumber}: ${response.statusText}`);
-  }
-  return await response.json() as FtcMatch;
-};
-
-/**
  * Fetch team numbers for an event
  */
 export const fetchTeamNumbers = async (eventCode: string, serverUrl?: string): Promise<number[]> => {
