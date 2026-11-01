@@ -1,0 +1,43 @@
+# Tests against the real FTC Live scoring system: the API and match stream the dashboard reads, and
+# the dashboard following matches into a real OBS. FTC Live is the current release for the season,
+# from FIRST's event portal, so running this after FIRST releases a new version tests that version.
+# Started by hand: Actions > FTC Live > Run workflow.
+name: FTC Live
+
+on:
+  workflow_dispatch:
+    inputs:
+      season:
+        description: 'Season year whose FTC Live release to test'
+        default: '2027'
+      obs_version:
+        description: 'OBS Studio release to run the matches into'
+        default: '33.0.1'
+
+jobs:
+  ftc-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FTC_LIVE_SEASON: ${{ inputs.season }}
+      OBS_VERSION: ${{ inputs.obs_version }}
+      OBS_PLATFORM: linux
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:ftclive
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: ftc-live-results
+          path: |
+            playwright-report/ftclive/
+            test-results/ftc-live.log
+            test-results/ftc-live-logs/
+            ~/.cache/obs-ftc-tests/obs-${{ inputs.obs_version }}-linux/config/obs-studio/logs/
+          retention-days: 14
