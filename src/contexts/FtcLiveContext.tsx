@@ -10,17 +10,15 @@ import { updateMatchEvent, updateMatchInfo, fetchMatchIfUnknown } from '../store
 import { useAppSelector } from '../store/hooks';
 import { selectFtcServerUrl, selectSelectedEvent, setSelectedEvent } from '../store/connectionSlice';
 import { fetchEvent } from '../services/ftcLiveApi';
+import { MatchController, RecordStartCondition, RecordStopCondition, createMatchController } from '../ftcLive/matchController';
 
-const MATCH_TIME_SECONDS = 158 as const; // 2:38 in seconds
 const RECONNECT_INTERVAL = 10; // seconds
 
 type FtcLiveProviderProps = {
   children: ReactNode;
 };
-// Start conditions for match recording
-// Order matters - events come in this sequence, and we start on the selected event OR any later one
-export type RecordStartCondition = 'MATCH_LOAD' | 'SHOW_PREVIEW' | 'SHOW_RANDOM' | 'SHOW_MATCH' | 'MATCH_START';
-const RECORD_START_ORDER: RecordStartCondition[] = ['MATCH_LOAD', 'SHOW_PREVIEW', 'SHOW_RANDOM', 'SHOW_MATCH', 'MATCH_START'];
+// When to start and stop recording each match (see ../ftcLive/matchController.ts).
+export type { RecordStartCondition, RecordStopCondition } from '../ftcLive/matchController';
 export const RecordStartConditions: { value: RecordStartCondition; label: string }[] = [
   { value: 'MATCH_LOAD', label: 'Match Load' },
   { value: 'SHOW_PREVIEW', label: 'Show Preview' },
@@ -29,19 +27,6 @@ export const RecordStartConditions: { value: RecordStartCondition; label: string
   { value: 'MATCH_START', label: 'Match Start' },
 ];
 
-// Helper to check if an event is at or after the selected start condition
-const isAtOrAfterStartCondition = (event: string, startCondition: RecordStartCondition): boolean => {
-  const eventIndex = RECORD_START_ORDER.indexOf(event as RecordStartCondition);
-  const conditionIndex = RECORD_START_ORDER.indexOf(startCondition);
-  // If event is not in the start order list, it's not a valid start trigger
-  if (eventIndex === -1) return false;
-  // Event is valid if it's at or after the configured start condition
-  return eventIndex >= conditionIndex;
-};
-
-// Stop conditions for match recording
-// 'MATCH_END' is a virtual event triggered MATCH_TIME_SECONDS after MATCH_START
-export type RecordStopCondition = 'MATCH_END' | 'MATCH_COMMIT' | 'MATCH_POST';
 export const RecordStopConditions: { value: RecordStopCondition; label: string }[] = [
   { value: 'MATCH_END', label: 'Match End' },
   { value: 'MATCH_COMMIT', label: 'Match Commit' },
@@ -164,15 +149,11 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
   const [screenshotRandomDelay, setScreenshotRandomDelay] = usePersistentState<number>('Screenshot_Random_Delay', 1500);
   const [screenshotResultDelay, setScreenshotResultDelay] = usePersistentState<number>('Screenshot_Result_Delay', 11000);
 
-  const replayBufferTime = useRef<NodeJS.Timeout | null>(null);
   const [postMatchReplayTime, setPostMatchReplayTime] = usePersistentState<number>('Replay_PostMatchTime', 15);
   const [enableReplayBuffer, setEnableReplayBuffer] = usePersistentState<boolean>('Replay_Enabled', true);
   const [recordingMatch, setRecordingMatch] = useState<string | null>(null);
   const [isRecordingReplay, setIsRecordingReplay] = useState<boolean>(false);
 
-  const recordingMatchRef = useRef<string | null>(null);
-  const replayRecordingMatchRef = useRef<string | null>(null);
-  const matchEndTimer = useRef<NodeJS.Timeout | null>(null);
   const transitionTriggersRef = useRef<UpdateType[]>(transitionTriggers);
   const recordStartConditionRef = useRef<RecordStartCondition>(recordStartCondition);
   const recordStopConditionRef = useRef<RecordStopCondition>(recordStopCondition);
@@ -212,172 +193,58 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
     trackFeatureEnabled('screenshots', enableScreenshots);
   }, [enableScreenshots]);
 
-  const saveOffReplayBuffer = useCallback(async (matchName: string) => {
-    replayBufferTime.current = null;
-    setIsRecordingReplay(false);
-    console.log('Stopping replay buffer');
-    const file = await saveReplayBuffer();
-    console.log(`Replay buffer saved for match ${matchName}: ${file}`);
-    store.dispatch(updateMatchInfo({
-      name: matchName,
-      replayFile: file,
-    }));
-  }, [saveReplayBuffer]);
-
-  const onFtcEvent = useCallback(async (streamData: FtcLiveSteamData) => {
-    console.log('Selected Event:', streamData);
-    console.log('Websocket Message: ', streamData)
-
-    // Dispatch to Redux store
-    store.dispatch(updateMatchEvent({
-      shortName: streamData.payload.shortName,
-      number: streamData.payload.number,
-      updateType: streamData.updateType,
-      updateTime: streamData.updateTime,
-    }));
-
-    // Auto-fetch match info if we don't have it yet
-    const connectionState = store.getState().connection;
-    if (connectionState.selectedEvent?.eventCode) {
-      console.log('Fetching match info for', streamData.payload.shortName);
-      store.dispatch(fetchMatchIfUnknown({
-        eventCode: connectionState.selectedEvent.eventCode,
-        matchName: streamData.payload.shortName,
-        serverUrl: connectionState.ftcServerUrl,
-      }) as any);
-    } else {
-      console.warn('No selected event code in connection state, cannot fetch match info');
-    }
-
-    if (transitionTriggersRef.current.some(trigger => trigger === streamData.updateType)) {
-      console.log('Set the active field')
-      setActiveField(streamData.payload.field)
-    } else {
-      console.log('Event was not in the selected triggers list:', streamData.updateType)
-    }
-
-    // Screenshot logic
-    if (enableScreenshotsRef.current) {
-      const eventCode = connectionState.selectedEvent?.eventCode ?? '';
-      const filePrefix = eventCode ? `${eventCode}_` : '';
-
-      if (streamData.updateType === 'SHOW_PREVIEW') {
-        setTimeout(async () => {
-          const fileName = `${filePrefix}${streamData.payload.shortName}_preview.png`;
-          const file = await takeScreenshot(fileName, streamData.payload.field);
-          store.dispatch(updateMatchInfo({
-            name: streamData.payload.shortName,
-            previewScreenshot: file,
+  // The latest OBS actions, for the match controller, which outlives renders.
+  const obsActions = useRef({ setActiveField, setRecording, saveReplayBuffer, takeScreenshot });
+  obsActions.current = { setActiveField, setRecording, saveReplayBuffer, takeScreenshot };
+  const controller = useRef<MatchController | null>(null);
+  if (!controller.current)
+    controller.current = createMatchController(
+      () => ({
+        transitionTriggers: transitionTriggersRef.current,
+        enableScreenshots: enableScreenshotsRef.current,
+        screenshotPreviewDelay: screenshotPreviewDelayRef.current,
+        screenshotRandomDelay: screenshotRandomDelayRef.current,
+        screenshotResultDelay: screenshotResultDelayRef.current,
+        enableReplayBuffer: enableReplayBufferRef.current,
+        postMatchReplayTime: postMatchReplayTimeRef.current,
+        enableMatchRecording: enableMatchRecordingRef.current,
+        recordStartCondition: recordStartConditionRef.current,
+        recordStopCondition: recordStopConditionRef.current,
+        recordStopDelay: recordStopDelayRef.current,
+      }),
+      () => store.getState().connection.selectedEvent?.eventCode ?? '',
+      {
+        setActiveField: field => obsActions.current.setActiveField(field),
+        setRecording: start => obsActions.current.setRecording(start),
+        saveReplayBuffer: () => obsActions.current.saveReplayBuffer(),
+        takeScreenshot: (fileName, field) => obsActions.current.takeScreenshot(fileName, field),
+        matchEvent: streamData => {
+          store.dispatch(updateMatchEvent({
+            shortName: streamData.payload.shortName,
+            number: streamData.payload.number,
+            updateType: streamData.updateType,
+            updateTime: streamData.updateTime,
           }));
-        }, screenshotPreviewDelayRef.current);
-      } else if (streamData.updateType === 'SHOW_RANDOM') {
-        setTimeout(async () => {
-          const fileName = `${filePrefix}${streamData.payload.shortName}_random.png`;
-          const file = await takeScreenshot(fileName, streamData.payload.field);
-          store.dispatch(updateMatchInfo({
-            name: streamData.payload.shortName,
-            randomScreenshot: file,
-          }));
-        }, screenshotRandomDelayRef.current);
-      } else if (streamData.updateType === 'MATCH_POST') {
-        setTimeout(async () => {
-          const fileName = `${filePrefix}${streamData.payload.shortName}_score.png`;
-          const file = await takeScreenshot(fileName, streamData.payload.field);
-          store.dispatch(updateMatchInfo({
-            name: streamData.payload.shortName,
-            scoreScreenshot: file,
-          }));
-        }, screenshotResultDelayRef.current);
-      }
-    }
+          // Fetch the match's teams if we don't have them yet.
+          const connectionState = store.getState().connection;
+          if (connectionState.selectedEvent?.eventCode)
+            store.dispatch(fetchMatchIfUnknown({
+              eventCode: connectionState.selectedEvent.eventCode,
+              matchName: streamData.payload.shortName,
+              serverUrl: connectionState.ftcServerUrl,
+            }) as any);
+          else
+            console.warn('No selected event code in connection state, cannot fetch match info');
+        },
+        matchInfo: info => store.dispatch(updateMatchInfo(info)),
+        replayHolding: match => {
+          if (match !== undefined) setRecordingMatch(match);
+          setIsRecordingReplay(match !== undefined);
+        },
+      });
+  useEffect(() => () => controller.current?.dispose(), []);
 
-    // Replay buffer logic
-    if (enableReplayBufferRef.current) {
-      if (streamData.updateType === 'MATCH_START') {
-        if (replayBufferTime.current) {
-          await saveOffReplayBuffer(replayRecordingMatchRef.current ?? 'Unknown');
-          clearTimeout(replayBufferTime.current);
-          replayBufferTime.current = null;
-        }
-        console.log('Starting replay buffer');
-        replayRecordingMatchRef.current = streamData.payload.shortName;
-        setRecordingMatch(streamData.payload.shortName);
-        setIsRecordingReplay(true);
-        replayBufferTime.current = setTimeout(async () => {
-          await saveOffReplayBuffer(streamData.payload.shortName);
-        }, (MATCH_TIME_SECONDS + postMatchReplayTimeRef.current) * 1000);
-      }
-      else if (streamData.updateType === 'MATCH_ABORT') {
-        if (replayBufferTime.current) {
-          clearTimeout(replayBufferTime.current);
-          replayBufferTime.current = null;
-          setIsRecordingReplay(false);
-        }
-        console.log('Cancel replay buffer');
-      }
-    }
-
-    // Match recording logic
-    if (enableMatchRecordingRef.current) {
-      const doStopRecording = async () => {
-        const path = await setRecording(false);
-        if (recordingMatchRef.current !== null) {
-          const match = recordingMatchRef.current;
-          recordingMatchRef.current = null;
-          if (path) {
-            store.dispatch(updateMatchInfo({
-              name: match,
-              recordingFile: path,
-            }));
-          }
-        }
-        if (matchEndTimer.current) {
-          clearTimeout(matchEndTimer.current);
-          matchEndTimer.current = null;
-        }
-      };
-
-      // Check if this event is at or after the start condition (and we haven't already started)
-      // This handles cases where an earlier event in the sequence was missed
-      if (recordingMatchRef.current === null &&
-          isAtOrAfterStartCondition(streamData.updateType, recordStartConditionRef.current)) {
-        console.log(`Start recording (match recording) on ${streamData.updateType}`);
-        setRecording(true);
-        recordingMatchRef.current = streamData.payload.shortName;
-      }
-
-      // Handle MATCH_START for MATCH_END stop condition (timer-based)
-      if (streamData.updateType === 'MATCH_START' && recordStopConditionRef.current === 'MATCH_END') {
-        // Set up timer to stop recording at match end + delay
-        const stopTime = (MATCH_TIME_SECONDS + recordStopDelayRef.current) * 1000;
-        console.log(`Will stop recording in ${stopTime / 1000} seconds (match end + delay)`);
-        matchEndTimer.current = setTimeout(doStopRecording, stopTime);
-      }
-
-      // Handle MATCH_ABORT - cancel any pending stop timer and stop immediately
-      if (streamData.updateType === 'MATCH_ABORT') {
-        if (matchEndTimer.current) {
-          clearTimeout(matchEndTimer.current);
-          matchEndTimer.current = null;
-        }
-        console.log('Match aborted, stopping recording');
-        await doStopRecording();
-      }
-
-      // Check if this event matches the stop condition (for non-MATCH_END conditions)
-      if (recordStopConditionRef.current !== 'MATCH_END' &&
-          streamData.updateType === recordStopConditionRef.current) {
-        const delay = recordStopDelayRef.current;
-        if (delay > 0) {
-          console.log(`Stop recording in ${delay} seconds`);
-          setTimeout(doStopRecording, delay * 1000);
-        } else {
-          console.log('Stop recording');
-          await doStopRecording();
-        }
-      }
-    }
-  }, [setActiveField, takeScreenshot, saveOffReplayBuffer, setRecording]);
+  const onFtcEvent = useCallback((streamData: FtcLiveSteamData) => controller.current!.handle(streamData), []);
 
   // The function to connect the WebSocket and handle messages
   const connectWebSocket = useCallback((connect: boolean) => {
