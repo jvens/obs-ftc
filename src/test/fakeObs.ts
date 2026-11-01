@@ -31,6 +31,8 @@ interface Collection {
 
 export interface FakeObsOptions {
   version?: string;
+  // Decides which input kinds exist (default windows). GetVersion names Linux by its distribution.
+  platform?: 'windows' | 'linux';
   canvas?: { width: number; height: number };
   // Choices for list properties, by input kind and property name.
   propertyItems?: Record<string, Record<string, { itemName: string; itemValue: string; itemEnabled?: boolean }[]>>;
@@ -45,15 +47,30 @@ export interface Call {
 
 export const SPECIAL_INPUTS = { desktop1: 'Desktop Audio', mic1: 'Mic/Aux' };
 
+// The input kinds each platform's OBS has (with the NDI plugin), as GetInputKindList lists them.
+const COMMON_KINDS = ['browser_source', 'color_source_v3', 'image_source', 'ffmpeg_source', 'ndi_source'];
+export const INPUT_KINDS = {
+  windows: [...COMMON_KINDS, 'dshow_input', 'wasapi_input_capture', 'wasapi_output_capture', 'text_gdiplus_v3'],
+  linux: [...COMMON_KINDS, 'v4l2_input', 'pulse_input_capture', 'pulse_output_capture', 'text_ft2_source_v2'],
+};
+// Kinds OBS refuses to mute: they have no audio.
+const SILENT_KINDS = ['v4l2_input', 'color_source_v3', 'image_source', 'text_gdiplus_v3', 'text_ft2_source_v2'];
+const NO_AUDIO = 'The specified input does not support audio.';
+
+const SPECIAL_INPUT_KINDS = {
+  windows: { desktop1: 'wasapi_output_capture', mic1: 'wasapi_input_capture' },
+  linux: { desktop1: 'pulse_output_capture', mic1: 'pulse_input_capture' },
+};
+
 const SCENE_TYPE = 'OBS_SOURCE_TYPE_SCENE';
 const INPUT_TYPE = 'OBS_SOURCE_TYPE_INPUT';
 
-const newCollection = (): Collection => ({
+const newCollection = (platform: 'windows' | 'linux'): Collection => ({
   scenes: ['Scene'],
   items: new Map([['Scene', []]]),
   inputs: new Map([
-    [SPECIAL_INPUTS.desktop1, { kind: 'wasapi_output_capture', settings: {}, muted: false }],
-    [SPECIAL_INPUTS.mic1, { kind: 'wasapi_input_capture', settings: {}, muted: false }],
+    [SPECIAL_INPUTS.desktop1, { kind: SPECIAL_INPUT_KINDS[platform].desktop1, settings: {}, muted: false }],
+    [SPECIAL_INPUTS.mic1, { kind: SPECIAL_INPUT_KINDS[platform].mic1, settings: {}, muted: false }],
   ]),
   program: 'Scene',
   preview: 'Scene',
@@ -63,7 +80,8 @@ export class FakeObs {
   readonly calls: Call[] = [];
   version: string;
   video: { baseWidth: number; baseHeight: number; outputWidth: number; outputHeight: number; fpsNumerator: number; fpsDenominator: number };
-  collections = new Map<string, Collection>([['Untitled', newCollection()]]);
+  readonly platform: 'windows' | 'linux';
+  collections: Map<string, Collection>;
   currentCollection = 'Untitled';
   studioMode = false;
   profiles = new Map<string, Map<string, string>>([['Untitled', new Map()]]);
@@ -80,6 +98,8 @@ export class FakeObs {
 
   constructor(options: FakeObsOptions = {}) {
     this.options = options;
+    this.platform = options.platform ?? 'windows';
+    this.collections = new Map([['Untitled', newCollection(this.platform)]]);
     this.version = options.version ?? '31.0.0';
     const canvas = options.canvas ?? { width: 1920, height: 1080 };
     this.video = { baseWidth: canvas.width, baseHeight: canvas.height, outputWidth: canvas.width, outputHeight: canvas.height, fpsNumerator: 30, fpsDenominator: 1 };
@@ -158,7 +178,15 @@ export class FakeObs {
   }
 
   private readonly handlers: Record<string, (data: Record<string, unknown>) => ResultAsync<unknown, string>> = {
-    GetVersion: () => okAsync({ obsVersion: this.version, obsWebSocketVersion: '5.5.0', rpcVersion: 1 }),
+    GetVersion: () => okAsync({
+      obsVersion: this.version,
+      obsWebSocketVersion: '5.5.0',
+      rpcVersion: 1,
+      ...(this.platform === 'windows'
+        ? { platform: 'windows', platformDescription: 'Windows 11 Version 24H2' }
+        : { platform: 'ubuntu', platformDescription: 'Ubuntu 26.04.1 LTS' }),
+    }),
+    GetInputKindList: () => okAsync({ inputKinds: INPUT_KINDS[this.platform] }),
     GetVideoSettings: () => okAsync({ ...this.video }),
     SetVideoSettings: data => {
       if (this.streaming || this.recording || this.replayBufferActive)
@@ -174,7 +202,7 @@ export class FakeObs {
       const name = String(sceneCollectionName);
       if (this.collections.has(name))
         return errAsync(`A scene collection named "${name}" already exists.`);
-      this.collections.set(name, newCollection());
+      this.collections.set(name, newCollection(this.platform));
       this.currentCollection = name;
       return okAsync({});
     },
@@ -240,6 +268,8 @@ export class FakeObs {
         return errAsync(`A source named "${name}" already exists.`);
       if (!this.sceneItems(sceneName))
         return errAsync(`No scene named "${sceneName}".`);
+      if (!INPUT_KINDS[this.platform].includes(String(inputKind)))
+        return errAsync('Your specified input kind is not supported by OBS. (code 605)');
       const sceneItemId = this.addInput(String(sceneName), name, String(inputKind), (inputSettings ?? {}) as Settings);
       return okAsync({ inputUuid: name, sceneItemId });
     },
@@ -268,12 +298,16 @@ export class FakeObs {
     },
     GetInputMute: ({ inputName }) => {
       const input = this.inputs.get(String(inputName));
-      return input ? okAsync({ inputMuted: input.muted }) : errAsync(`No input named "${inputName}".`);
+      if (!input)
+        return errAsync(`No input named "${inputName}".`);
+      return SILENT_KINDS.includes(input.kind) ? errAsync(NO_AUDIO) : okAsync({ inputMuted: input.muted });
     },
     SetInputMute: ({ inputName, inputMuted }) => {
       const input = this.inputs.get(String(inputName));
       if (!input)
         return errAsync(`No input named "${inputName}".`);
+      if (SILENT_KINDS.includes(input.kind))
+        return errAsync(NO_AUDIO);
       input.muted = Boolean(inputMuted);
       return okAsync({});
     },

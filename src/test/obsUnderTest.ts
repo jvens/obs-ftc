@@ -1,6 +1,7 @@
 import OBSWebSocket, { OBSWebSocketError } from 'obs-websocket-js';
 import { ResultAsync, okAsync } from 'neverthrow';
-import type { ObsCall } from '../obsSetup/obsCall';
+import { ObsCall, getPlatform } from '../obsSetup/obsCall';
+import { PLATFORM_KINDS } from '../obsSetup/layout';
 import { FakeObs } from './fakeObs';
 
 // The OBS a contract test (*.obs.test.ts) runs against: FakeObs in the unit tests, or the real OBS
@@ -113,7 +114,17 @@ export const queries = (call: ObsCall) => ({
     unwrap(call('GetProfileParameter', { parameterCategory, parameterName }).map(({ parameterValue }) => parameterValue)),
   video: () => unwrap(call('GetVideoSettings')),
   version: () => unwrap(call('GetVersion').map(({ obsVersion }) => obsVersion)),
+  // The input kinds for cameras and audio devices on this OBS's platform.
+  kinds: () => unwrap(getPlatform(call).map(platform => PLATFORM_KINDS[platform])),
+  platform: () => unwrap(getPlatform(call)),
 });
+
+// OBS asks before starting a recording or the replay buffer when the scene shows nothing, which a
+// test OBS without audio devices (in a container) would otherwise do.
+export const addSomethingToShow = (call: ObsCall) => unwrap(call('GetCurrentProgramScene')
+  .andThen(({ currentProgramSceneName }) => call('CreateInput', {
+    sceneName: currentProgramSceneName, inputName: 'Something to show', inputKind: 'color_source_v3', inputSettings: {},
+  })));
 
 // SetRecordDirectory (obs-websocket 5.3) is missing from obs-websocket-js's request types.
 export const setRecordDirectory = (call: ObsCall, recordDirectory: string) =>

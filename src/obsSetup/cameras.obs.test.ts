@@ -66,11 +66,17 @@ describe('camera sources', () => {
     expect(await obs.sources(FIELD_1.scene)).toEqual([CEREMONY.scene, 'Label']);
   });
 
+  // A LAN camera has audio on every platform; capture cameras have none on Linux.
   it('mutes and unmutes the camera audio', async () => {
-    await setSource({ type: 'capture' }, false);
-    expect(await obs.input('Camera - Field 1 (Capture)')).toMatchObject({ muted: false });
+    await setSource({ type: 'lan' }, false);
+    expect(await obs.input('Camera - Field 1 (LAN)')).toMatchObject({ muted: false });
     await unwrap(setCameraAudioMuted(call, FIELD_1, true));
-    expect(await obs.input('Camera - Field 1 (Capture)')).toMatchObject({ muted: true });
+    expect(await obs.input('Camera - Field 1 (LAN)')).toMatchObject({ muted: true });
+  });
+
+  it('leaves capture cameras without audio unmuted, rather than failing', async () => {
+    await setSource({ type: 'capture' });
+    expect((await setCameraAudioMuted(call, FIELD_1, false)).isOk()).toBe(true);
   });
 
   it('lists the capture devices OBS offers', async () => {
