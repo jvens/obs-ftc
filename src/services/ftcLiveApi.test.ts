@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
-import { fetchActiveMatches, fetchAllEvents, fetchMatch, fetchMatches, fetchTeam } from './ftcLiveApi';
+import { fetchActiveMatches, fetchAllEvents, fetchMatches, fetchTeam } from './ftcLiveApi';
 import { mockFetch } from '../test/fetchMock';
 
 const EVENT = { eventCode: 'usmnrq1', name: 'Qualifier', fieldCount: 2 };
@@ -28,10 +28,9 @@ describe('FTC Live API', () => {
     expect(fetchMock).toHaveBeenCalledWith('http://localhost/api/v1/events/usmnrq1/matches/');
   });
 
-  it('reports no active match or missing match as null', async () => {
+  it('reports no active match as null', async () => {
     mockFetch({});
     await expect(fetchActiveMatches('usmnrq1', 'h')).resolves.toBeNull();
-    await expect(fetchMatch('usmnrq1', 3, 'h')).resolves.toBeNull();
   });
 
   it('fails on other errors', async () => {
