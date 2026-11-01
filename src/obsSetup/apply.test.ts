@@ -134,8 +134,11 @@ describe('applySetup updating the current collection', () => {
     await setup(obs, 'newCollection');
     await setup(obs, 'update', options({ fieldCount: 3 }));
     expect(obs.sources('Field 3')).toEqual([SOURCE_NAMES.overlay, 'Camera - Field 3', SOURCE_NAMES.safeBackground, SOURCE_NAMES.audio]);
-    // OBS adds scenes below the current one, Field 1.
-    expect(obs.scenes.slice(0, 3)).toEqual(['Field 1', 'Field 3', 'Camera - Field 3']);
+    expect(obs.scenes).toEqual([
+      'Field 1', 'Field 2', 'Field 3', 'Ceremony', 'Alliance Selection', 'Pit Display', 'Sponsor Loop',
+      'Camera - Field 1', 'Camera - Field 2', 'Camera - Field 3', 'Camera - Ceremony',
+    ]);
+    expect(obs.collection.program).toBe('Field 1');
   });
 
   it('keeps the camera choices', async () => {
