@@ -40,10 +40,14 @@ describe('applyRecommendedSettings', () => {
 
     const report = (await apply(obs))._unsafeUnwrap();
 
-    expect(Object.fromEntries(obs.profileParameters())).toMatchObject(RECOMMENDED);
+    for (const [key, value] of Object.entries(RECOMMENDED)) {
+      const [parameterCategory, parameterName] = key.split('.');
+      expect([key, (await obs.call('GetProfileParameter', { parameterCategory, parameterName }))._unsafeUnwrap().parameterValue]).toEqual([key, value]);
+    }
     expect(report.changes).toContain('Video bitrate: null kbps → 6000 kbps');
     expect(report.changes).toContain('Replay buffer: off → on');
-    expect(report.changes).toHaveLength(Object.keys(RECOMMENDED).length);
+    // A new profile is already in Simple output mode.
+    expect(report.changes).not.toContainEqual(expect.stringMatching(/^Output mode/));
     expect(obs.replayBufferAvailable).toBe(true);
     expect(obs.currentProfile).toBe('Untitled');
     expect([...obs.profiles.keys()]).toEqual(['Untitled']);

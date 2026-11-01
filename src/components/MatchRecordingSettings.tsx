@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { useObsStudio } from '../contexts/ObsStudioContext';
 import { useFtcLive } from '../contexts/FtcLiveContext';
 import { usePersistentState } from '../helpers/persistant';
+import { MATCH_TIME_SECONDS } from '../ftcLive/matchController';
 
-const MATCH_TIME_SECONDS = 158; // 2:38 in seconds
 
 const MatchRecordingSettings: React.FC = () => {
   const {

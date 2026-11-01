@@ -57,6 +57,15 @@ export const INPUT_KINDS = {
 const SILENT_KINDS = ['v4l2_input', 'color_source_v3', 'image_source', 'text_gdiplus_v3', 'text_ft2_source_v2'];
 const NO_AUDIO = 'The specified input does not support audio.';
 
+// What OBS reports for profile settings a profile has not changed.
+const PROFILE_DEFAULTS: Record<string, string> = {
+  'Output.Mode': 'Simple',
+  'SimpleOutput.RecRB': 'false',
+  'SimpleOutput.RecRBTime': '20',
+  'AdvOut.RecRB': 'false',
+  'AdvOut.RecRBTime': '20',
+};
+
 const SPECIAL_INPUT_KINDS = {
   windows: { desktop1: 'wasapi_output_capture', mic1: 'wasapi_input_capture' },
   linux: { desktop1: 'pulse_output_capture', mic1: 'pulse_input_capture' },
@@ -92,6 +101,8 @@ export class FakeObs {
   // Whether the loaded profile has a replay buffer, decided when the profile loads, as in OBS.
   replayBufferAvailable = false;
   replayBufferActive = false;
+  // The length the running replay buffer holds, set when it starts.
+  replayBufferSeconds = 0;
   private nextItemId = 1;
   private lingering = new Map<string, number>();
   private readonly options: FakeObsOptions;
@@ -135,9 +146,11 @@ export class FakeObs {
     return this.calls.slice(from).map(call => call.requestType);
   }
 
-  // Adds a scene as OBS does: just below the current scene in the list.
+  // Adds a scene as OBS does: just below the current scene in the list (the preview scene in studio
+  // mode).
   addScene(name: string) {
-    this.collection.scenes.splice(this.scenes.indexOf(this.collection.program) + 1, 0, name);
+    const current = this.studioMode ? this.collection.preview : this.collection.program;
+    this.collection.scenes.splice(this.scenes.indexOf(current) + 1, 0, name);
     this.collection.items.set(name, []);
   }
 
@@ -402,12 +415,24 @@ export class FakeObs {
       if (!this.replayBufferAvailable)
         return errAsync('Replay buffer is not available.');
       this.replayBufferActive = true;
+      const mode = this.profileParameters().get('Output.Mode') ?? 'Simple';
+      const key = `${mode === 'Advanced' ? 'AdvOut' : 'SimpleOutput'}.RecRBTime`;
+      this.replayBufferSeconds = Number(this.profileParameters().get(key) ?? PROFILE_DEFAULTS[key]);
       return okAsync({});
     },
     StopReplayBuffer: () => {
       this.replayBufferActive = false;
       return okAsync({});
     },
+    GetOutputList: () => okAsync({
+      outputs: [
+        { outputName: 'simple_file_output', outputKind: 'mp4_output', outputActive: this.recording },
+        ...(this.replayBufferAvailable ? [{ outputName: 'Replay Buffer', outputKind: 'replay_buffer', outputActive: this.replayBufferActive }] : []),
+      ],
+    }),
+    GetOutputSettings: ({ outputName }) => outputName === 'Replay Buffer' && this.replayBufferAvailable
+      ? okAsync({ outputSettings: { max_time_sec: this.replayBufferSeconds } })
+      : errAsync(`No output named "${outputName}".`),
     GetProfileList: () => okAsync({ currentProfileName: this.currentProfile, profiles: [...this.profiles.keys()] }),
     CreateProfile: ({ profileName }) => {
       const name = String(profileName);
@@ -432,8 +457,11 @@ export class FakeObs {
       this.profiles.delete(name);
       return okAsync({});
     },
-    GetProfileParameter: ({ parameterCategory, parameterName }) =>
-      okAsync({ parameterValue: this.profileParameters().get(`${parameterCategory}.${parameterName}`) ?? null, defaultParameterValue: null }),
+    GetProfileParameter: ({ parameterCategory, parameterName }) => {
+      const key = `${parameterCategory}.${parameterName}`;
+      const defaultParameterValue = PROFILE_DEFAULTS[key] ?? null;
+      return okAsync({ parameterValue: this.profileParameters().get(key) ?? defaultParameterValue, defaultParameterValue });
+    },
     SetProfileParameter: ({ parameterCategory, parameterName, parameterValue }) => {
       this.profileParameters().set(`${parameterCategory}.${parameterName}`, String(parameterValue));
       return okAsync({});

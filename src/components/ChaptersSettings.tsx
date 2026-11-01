@@ -3,7 +3,7 @@ import { usePersistentState } from "../helpers/persistant";
 import { UpdateType } from "../types/FtcLive";
 import { useObsStudio } from "../contexts/ObsStudioContext";
 import { useAppSelector } from "../store/hooks";
-import { MatchRow } from "../store/matchDataSlice";
+import { buildChapters } from "../chapters/chapters";
 
 const ChapterEventOptions: { value: UpdateType; label: string }[] = [
   { value: 'SHOW_PREVIEW', label: 'Show Preview' },
@@ -44,77 +44,14 @@ const ChaptersSettings: React.FC = () => {
     }
   }, [obsStreamTime, setStreamStartTime]);
 
-  const formatTeamInfo = useCallback((row: MatchRow): string => {
-    if (!includeTeamNumbers) return '';
-
-    const blueTeams = [row.blue1, row.blue2, row.blue3]
-      .filter(Boolean)
-      .join(', ');
-    const redTeams = [row.red1, row.red2, row.red3]
-      .filter(Boolean)
-      .join(', ');
-
-    if (!blueTeams && !redTeams) return '';
-    return ` - Blue: ${blueTeams}; Red: ${redTeams}`;
-  }, [includeTeamNumbers]);
-
-  const chapters = useMemo(() => {
-    // Filter rows based on includeTestMatches and includePracticeMatches
-    let filteredRows = rows.filter(r => {
-      if (!r.name) return true;
-      const isTestMatch = r.name.startsWith('T');
-      const isPracticeMatch = r.name.startsWith('P');
-      if (isTestMatch && !includeTestMatches) return false;
-      if (isPracticeMatch && !includePracticeMatches) return false;
-      return true;
-    });
-
-    // Filter out rows that don't have the selected event timestamp
-    filteredRows = filteredRows.filter(r => r[chapterEvent] !== undefined);
-
-    // Sort by the selected event timestamp
-    filteredRows = [...filteredRows].sort((a, b) => {
-      const aTime = a[chapterEvent] ?? 0;
-      const bTime = b[chapterEvent] ?? 0;
-      return aTime - bTime;
-    });
-
-    // Calculate reference time
-    let referenceTime: number;
-    if (streamStartTime > 0) {
-      referenceTime = streamStartTime;
-    } else {
-      referenceTime = filteredRows[0]?.[chapterEvent] ?? 0;
-    }
-
-    const chapterLines: string[] = [];
-
-    // Add event start chapter
-    chapterLines.push('00:00:00 Event Start');
-
-    for (const row of filteredRows) {
-      const eventTime = row[chapterEvent];
-      if (eventTime === undefined) continue;
-
-      let time = (eventTime - referenceTime) / 1000 + offsetTime;
-
-      // Skip negative times
-      if (time < 0) continue;
-
-      const hours = Math.floor(time / 3600);
-      time -= hours * 3600;
-      const minutes = Math.floor(time / 60);
-      time -= minutes * 60;
-      const seconds = Math.floor(time);
-
-      const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-      const allianceString = formatTeamInfo(row);
-
-      chapterLines.push(`${timeString} ${row.name}${allianceString}`);
-    }
-
-    return chapterLines;
-  }, [rows, chapterEvent, offsetTime, includeTestMatches, includePracticeMatches, streamStartTime, formatTeamInfo]);
+  const chapters = useMemo(() => buildChapters(rows, {
+    event: chapterEvent,
+    offsetSeconds: offsetTime,
+    includeTestMatches,
+    includePracticeMatches,
+    includeTeamNumbers,
+    streamStartTime,
+  }), [rows, chapterEvent, offsetTime, includeTestMatches, includePracticeMatches, includeTeamNumbers, streamStartTime]);
 
   const chaptersText = useMemo(() => chapters.join('\n'), [chapters]);
 
