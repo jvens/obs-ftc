@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import { okAsync } from 'neverthrow';
 import { SetupMode, applySetup } from './apply';
 import { setCameraSource } from './cameras';
 import { SOURCE_NAMES, SetupOptions, buildPlan, overlayUrl } from './layout';
@@ -46,7 +47,7 @@ describe('applySetup in a new scene collection', () => {
   it('stacks each scene\'s sources as planned', async () => {
     const obs = new FakeObs();
     await setup(obs, 'newCollection');
-    for (const scene of buildPlan(options()).scenes)
+    for (const scene of buildPlan(options(), 'windows').scenes)
       expect(obs.sources(scene.name)).toEqual(scene.items.map(item => item.source));
   });
 
@@ -182,5 +183,32 @@ describe('applySetup wiping the current collection', () => {
     expect(obs.inputs.has('Old Camera')).toBe(false);
     expect(obs.inputs.has(SPECIAL_INPUTS.desktop1)).toBe(true);
     expect(obs.collection.preview).toBe('Field 1');
+  });
+});
+
+describe('applySetup on Linux', () => {
+  it('uses Video4Linux cameras and a PulseAudio device', async () => {
+    const obs = new FakeObs({ platform: 'linux' });
+
+    expect((await setup(obs, 'newCollection')).isOk()).toBe(true);
+
+    expect(obs.inputs.get('Camera - Field 1 (Capture)')).toMatchObject({ kind: 'v4l2_input', settings: {} });
+    expect(obs.inputs.get(SOURCE_NAMES.audio)).toMatchObject({ kind: 'pulse_input_capture', settings: { device_id: 'default' } });
+  });
+});
+
+describe('applySetup on a platform it does not support', () => {
+  it('stops before changing anything', async () => {
+    const obs = new FakeObs();
+    // OBS on macOS has neither DirectShow nor Video4Linux.
+    const call = ((type: string, data?: unknown) =>
+      type === 'GetInputKindList' ? okAsync({ inputKinds: ['browser_source', 'av_capture_input_v2', 'coreaudio_input_capture'] })
+      : type === 'GetVersion' ? okAsync({ obsVersion: '33.0.1', platform: 'macos', platformDescription: 'macOS 15.6' })
+      : (obs.call as (type: string, data?: unknown) => ReturnType<typeof obs.call>)(type, data)) as typeof obs.call;
+
+    const result = await applySetup(call, options(), 'update', () => {});
+
+    expect(result._unsafeUnwrapErr()).toBe('Setting up OBS on macOS 15.6 is not supported yet; only Windows and Linux are.');
+    expect(obs.requestTypes().filter(type => /^(Create|Set|Remove)/.test(type))).toEqual([]);
   });
 });

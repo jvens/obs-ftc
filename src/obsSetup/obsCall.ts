@@ -1,6 +1,6 @@
 import type { OBSRequestTypes, OBSResponseTypes } from 'obs-websocket-js';
 import { ResultAsync, errAsync, okAsync } from 'neverthrow';
-import { CANVAS, Fit, Rect } from './layout';
+import { CANVAS, Fit, OBS_PLATFORMS, ObsPlatform, PLATFORM_KINDS, Rect } from './layout';
 
 export type ObsCall = <Type extends keyof OBSRequestTypes>(
   requestType: Type,
@@ -45,6 +45,17 @@ export const listPropertyItems = (call: ObsCall, inputName: string, propertyName
     .map(({ propertyItems }) => propertyItems
       .filter(item => item.itemEnabled !== false)
       .map(item => ({ name: String(item.itemName), value: String(item.itemValue) })));
+
+// Which platform OBS runs on, which decides the input kinds for cameras and audio devices. Told by
+// the capture source OBS has: GetVersion names the Linux distribution ("ubuntu") rather than Linux.
+export const getPlatform = (call: ObsCall): ResultAsync<ObsPlatform, string> =>
+  call('GetInputKindList', { unversioned: true }).andThen(({ inputKinds }) => {
+    const platform = OBS_PLATFORMS.find(candidate => inputKinds.includes(PLATFORM_KINDS[candidate].capture));
+    return platform
+      ? okAsync(platform)
+      : call('GetVersion').andThen(({ platformDescription }) =>
+        errAsync(`Setting up OBS on ${platformDescription} is not supported yet; only Windows and Linux are.`));
+  });
 
 export const getCanvas = (call: ObsCall): ResultAsync<Canvas, string> =>
   call('GetVideoSettings').map(({ baseWidth, baseHeight }) => ({ width: baseWidth, height: baseHeight }));

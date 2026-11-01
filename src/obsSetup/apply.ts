@@ -3,7 +3,7 @@ import {
   DEFAULT_CAMERA_TYPE, Plan, PlannedCamera, PlannedItem, PlannedScene, SOURCE_NAMES, SetupOptions, buildPlan, cameraInputName,
 } from './layout';
 import { addCameraInput, cameraMuted, setCameraAudioMuted, updateLanReceiver } from './cameras';
-import { Canvas, ObsCall, getCanvas, ignoreError, sequence, transformFor, waitForInputsRemoved } from './obsCall';
+import { Canvas, ObsCall, getCanvas, getPlatform, ignoreError, sequence, transformFor, waitForInputsRemoved } from './obsCall';
 
 // update:        add whatever is missing and point the browser sources at the current event; keeps
 //                camera choices, audio devices, item positions and anything the user added.
@@ -191,7 +191,8 @@ export const applySetup = (call: ObsCall, options: SetupOptions, mode: SetupMode
     : mode === 'wipe' ? wipe(call, log) : okAsync(undefined);
 
   return prepare
-    .andThen(() => okAsync(buildPlan(options)))
+    .andThen(() => getPlatform(call))
+    .map(platform => buildPlan(options, platform))
     .andThen(plan => sync(call, plan, options, warnings, log).map(() => plan))
     .andThen(plan => {
       if (mode === 'update')
