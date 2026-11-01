@@ -27,7 +27,8 @@ const timestamp = (seconds: number) => {
 };
 
 // YouTube chapter lines ("HH:MM:SS name") for the matches that reached `event`, in the order they
-// reached it, after an "Event Start" chapter at the start of the video.
+// reached it. YouTube needs a chapter at 00:00:00 and no two chapters starting together, so an
+// "Event Start" chapter opens the video unless the first match does.
 export const buildChapters = (rows: MatchRow[], options: ChapterOptions): string[] => {
   const matches = rows
     .filter(row => !row.name
@@ -36,12 +37,12 @@ export const buildChapters = (rows: MatchRow[], options: ChapterOptions): string
     .sort((a, b) => (a[options.event] ?? 0) - (b[options.event] ?? 0));
 
   const reference = options.streamStartTime > 0 ? options.streamStartTime : matches[0]?.[options.event] ?? 0;
-  const lines = ['00:00:00 Event Start'];
+  const lines: string[] = [];
   for (const row of matches) {
     const seconds = ((row[options.event] ?? 0) - reference) / 1000 + options.offsetSeconds;
     // Before the stream started.
     if (seconds < 0) continue;
     lines.push(`${timestamp(seconds)} ${row.name}${options.includeTeamNumbers ? teams(row) : ''}`);
   }
-  return lines;
+  return lines[0]?.startsWith('00:00:00 ') ? lines : ['00:00:00 Event Start', ...lines];
 };
