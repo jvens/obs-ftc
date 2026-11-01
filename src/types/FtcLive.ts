@@ -12,7 +12,10 @@ export interface Event {
 };
 
 
-export type UpdateType = 'MATCH_LOAD' | 'MATCH_START' | 'MATCH_ABORT' | 'MATCH_COMMIT' | 'MATCH_POST' | 'SHOW_PREVIEW' | 'SHOW_RANDOM' | 'SHOW_MATCH';
+// SHOW_RANDOM only comes in seasons whose game has a randomization step; INIT_SUBMITTED (FTC Live 8
+// and later) when both alliances' referees have submitted the pre-match setup.
+export type UpdateType = 'MATCH_LOAD' | 'MATCH_START' | 'MATCH_ABORT' | 'MATCH_COMMIT' | 'MATCH_POST' | 'SHOW_PREVIEW' | 'SHOW_RANDOM' | 'SHOW_MATCH'
+  | 'INIT_SUBMITTED';
 export interface FtcLiveSteamData {
   updateTime: number;
   updateType: UpdateType;
@@ -31,7 +34,8 @@ export const UpdateTypes: UpdateType[] = [
   'MATCH_POST',
   'SHOW_PREVIEW',
   'SHOW_RANDOM',
-  'SHOW_MATCH'
+  'SHOW_MATCH',
+  'INIT_SUBMITTED',
 ]
 
 export interface FtcMatch {

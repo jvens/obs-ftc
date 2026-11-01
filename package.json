@@ -28,7 +28,8 @@
     "test:e2e": "npm run build && playwright test --project=chromium",
     "test:e2e:ui": "npm run build && playwright test --project=chromium --ui",
     "test:obs": "jest -c jest.obs.config.js",
-    "test:e2e:obs": "npm run build && playwright test -c playwright.obs.config.ts"
+    "test:e2e:obs": "npm run build && playwright test -c playwright.obs.config.ts",
+    "test:e2e:ftclive": "npm run build && playwright test -c playwright.ftclive.config.ts"
   },
   "devDependencies": {
     "@jest/globals": "^30.5.2",

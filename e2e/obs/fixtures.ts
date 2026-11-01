@@ -89,8 +89,16 @@ export const connectObs = async (page: Page, obs: Pick<RealObs, 'host' | 'port' 
   return panel;
 };
 
+// An FTC Live server with an event: the mock, or the real one (e2e/ftclive).
+export interface FtcLiveWithEvent {
+  host: string;
+  event: { eventCode: string };
+  // Resolves once a dashboard is listening to the match event stream (the mock knows).
+  connected?: () => Promise<void>;
+}
+
 // Picks the event on FTC Live and, with `listen`, follows its match events.
-export const connectFtcLive = async (page: Page, ftcLive: MockFtcLive, { listen = false } = {}) => {
+export const connectFtcLive = async (page: Page, ftcLive: FtcLiveWithEvent, { listen = false } = {}) => {
   const panel = section(page, 'FTC Live Server');
   await panel.getByPlaceholder('Enter server IP').fill(ftcLive.host);
   await panel.getByRole('button', { name: 'Get Event Codes' }).click();
@@ -98,14 +106,15 @@ export const connectFtcLive = async (page: Page, ftcLive: MockFtcLive, { listen 
   if (listen) {
     await panel.getByRole('button', { name: 'Connect' }).click();
     await expect(panel.getByText('Connected', { exact: true })).toBeVisible();
-    await ftcLive.connected();
+    await ftcLive.connected?.();
   }
 };
 
 // Builds the event's scenes with "Set up in a new scene collection" and waits for it to finish.
-export const setUpObs = async (page: Page, ftcLive: MockFtcLive) => {
+export const setUpObs = async (page: Page, ftcLive: FtcLiveWithEvent) => {
   const panel = section(page, 'Configure OBS Studio');
   await panel.getByRole('button', { name: 'Set up in a new scene collection' }).click();
-  await expect(panel.getByText(`Scene collection: FTC ${ftcLive.event.eventCode}`)).toBeVisible({ timeout: 60_000 });
+  // "FTC <code>", or "FTC <code> (2)" and so on when an earlier test set the same event up.
+  await expect(panel.getByText(new RegExp(`Scene collection: FTC ${ftcLive.event.eventCode}( \\(\\d+\\))?(?!\\w)`))).toBeVisible({ timeout: 60_000 });
   return panel;
 };

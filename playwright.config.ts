@@ -14,8 +14,9 @@ const chromiumMedia = {
 
 export default defineConfig({
   testDir: 'e2e',
-  // The tests against a real OBS Studio run on their own: playwright.obs.config.ts.
-  testIgnore: 'obs/**',
+  // The tests against a real OBS Studio and FTC Live run on their own: playwright.obs.config.ts and
+  // playwright.ftclive.config.ts.
+  testIgnore: ['obs/**', 'ftclive/**'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

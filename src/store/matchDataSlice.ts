@@ -21,6 +21,7 @@ export interface MatchRow {
   MATCH_ABORT?: number;
   MATCH_COMMIT?: number;
   MATCH_POST?: number;
+  INIT_SUBMITTED?: number;
   replayFile?: string;
   recordingFile?: string;
   previewScreenshot?: string;
