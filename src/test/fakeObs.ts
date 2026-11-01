@@ -341,10 +341,12 @@ export class FakeObs {
     },
 
     GetStreamStatus: () => okAsync({ outputActive: this.streaming }),
+    // Like OBS, accepts StartRecord for a folder it cannot record to, and then never starts. Only
+    // drive C: exists here.
     StartRecord: () => {
       if (this.recording)
         return errAsync('Recording is already active.');
-      this.recording = true;
+      this.recording = /^C:/i.test(this.recordDirectory);
       return okAsync({});
     },
     StopRecord: () => {

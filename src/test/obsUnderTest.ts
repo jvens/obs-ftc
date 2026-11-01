@@ -115,6 +115,10 @@ export const queries = (call: ObsCall) => ({
   version: () => unwrap(call('GetVersion').map(({ obsVersion }) => obsVersion)),
 });
 
+// SetRecordDirectory (obs-websocket 5.3) is missing from obs-websocket-js's request types.
+export const setRecordDirectory = (call: ObsCall, recordDirectory: string) =>
+  (call as unknown as (type: string, data: object) => ResultAsync<unknown, string>)('SetRecordDirectory', { recordDirectory });
+
 // Polls until `check` passes; OBS finishes some changes (recording starting, inputs going away) in
 // the background.
 export const eventually = async (check: () => Promise<boolean>, what: string, timeoutMs = 20_000) => {

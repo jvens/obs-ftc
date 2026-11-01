@@ -3,7 +3,7 @@ import { useObsStudio } from '../contexts/ObsStudioContext';
 import { useFtcLive, RecordStartConditions, RecordStopConditions, RecordStartCondition, RecordStopCondition } from '../contexts/FtcLiveContext';
 
 const MatchRecordSettings: React.FC = () => {
-  const { status } = useObsStudio();
+  const { status, recordingError } = useObsStudio();
   const {
     enableMatchRecording,
     setEnableMatchRecording,
@@ -89,6 +89,12 @@ const MatchRecordSettings: React.FC = () => {
               </label>
             </div>
           </div>
+
+          {recordingError && (
+            <div className="error-message" role="alert">
+              {recordingError}
+            </div>
+          )}
 
           <div>
             Status:

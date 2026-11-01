@@ -5,6 +5,7 @@ import { usePersistentState } from '../helpers/persistant';
 import { trackEvent, AnalyticsEvents } from '../helpers/analytics';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { ObsCall } from '../obsSetup/obsCall';
+import { startRecording } from '../obsSetup/recording';
 import { setObsUrl as setObsUrlAction, setObsPort as setObsPortAction, setObsPassword as setObsPasswordAction, selectObsUrl, selectObsPort, selectObsPassword } from '../store/connectionSlice';
 
 type ObsStudioProviderProps = {
@@ -40,6 +41,8 @@ interface ObsStudioContextData {
   field3Scene?: string;
   setField3Scene: React.Dispatch<React.SetStateAction<string | undefined>>;
   setRecording: (start: boolean) => Promise<string | undefined>;
+  // Why the last recording the dashboard started did not start, until one does.
+  recordingError: string | undefined;
   saveReplayBuffer: () => Promise<string>;
   takeScreenshot: (fileName: string, field: number) => Promise<string>;
   startReplayBuffer: () => Promise<boolean>;
@@ -83,6 +86,8 @@ export type BrowserEventData = NonNullable<OBSRequestTypes['CallVendorRequest'][
 
 const toErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
 
+const call: ObsCall = (requestType, requestData) => ResultAsync.fromPromise(obs.call(requestType, requestData), toErrorMessage);
+
 // OBS reports scenes bottom first.
 const sceneNames = (scenes: { sceneName?: unknown }[]) => scenes.map(scene => String(scene.sceneName)).reverse();
 
@@ -119,6 +124,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   const [outputMode, setOutputMode] = useState<'Simple' | 'Advanced' | null>(null);
   const [replayBufferConfigError, setReplayBufferConfigError] = useState<string | null>(null);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [recordingError, setRecordingError] = useState<string | undefined>(undefined);
   const [startStreamTime, setStartStreamTime] = useState<number>(0);
   const [recordDirectory, setRecordDirectory] = useState<string>('');
 
@@ -597,8 +603,15 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       if (recordingStatus.outputActive !== start) {
         if (start) {
           console.log('Start recording');
-          await obs.call('StartRecord');
-          setIsRecording(true);
+          await startRecording(call).match(
+            () => {
+              setIsRecording(true);
+              setRecordingError(undefined);
+            },
+            message => {
+              console.error(message);
+              setRecordingError(message);
+            });
         } else {
           console.log('Stop recording');
           const outputPath = await obs.call('StopRecord');
@@ -674,6 +687,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       error,
       startStreamTime,
       setRecording,
+      recordingError,
       takeScreenshot,
       status: {
         connected: isConnected,
