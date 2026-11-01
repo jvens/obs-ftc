@@ -3,13 +3,14 @@
 import { afterAll, beforeEach, describe, expect, it } from '@jest/globals';
 import { applyRecommendedSettings } from './outputSettings';
 import { ObsCall } from './obsCall';
-import { closeObs, eventually, freshObs, queries, unwrap } from '../test/obsUnderTest';
+import { addSomethingToShow, closeObs, eventually, freshObs, queries, unwrap } from '../test/obsUnderTest';
 
 let call: ObsCall;
 let obs: ReturnType<typeof queries>;
 
 beforeEach(async () => {
   ({ call } = await freshObs({ profile: true }));
+  await addSomethingToShow(call);
   obs = queries(call);
 });
 

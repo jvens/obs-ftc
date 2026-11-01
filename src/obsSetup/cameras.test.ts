@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { getCameraStatus, listCameraDevices, setCameraAudioMuted, setCameraSource, setLanCameraSender, updateLanReceiver } from './cameras';
+import { getCameraStatus, listCameraDevices, setCameraAudioMuted, setCameraDevice, setCameraSource, setLanCameraSender, updateLanReceiver } from './cameras';
 import { PlannedCamera } from './layout';
 import { lanReceiverUrl } from '../lanCamera/urls';
 import { FakeObs } from '../test/fakeObs';
@@ -137,5 +137,24 @@ describe('setCameraAudioMuted', () => {
 
     expect(obs.inputs.get('Camera - Field 1 (Capture)')!.muted).toBe(true);
     expect(obs.inputs.get('Music')!.muted).toBe(false);
+  });
+});
+
+describe('cameras on Linux', () => {
+  it('creates, reads and points a Video4Linux camera at a device', async () => {
+    const obs = new FakeObs({
+      platform: 'linux',
+      propertyItems: { v4l2_input: { device_id: [{ itemName: 'USB Webcam', itemValue: '/dev/video0' }] } },
+    });
+    obs.addScene(FIELD_1.scene);
+
+    await setCameraSource(obs.call, FIELD_1, { type: 'capture' }, true, LAN);
+    expect((await listCameraDevices(obs.call, 'Camera - Field 1 (Capture)', 'capture'))._unsafeUnwrap())
+      .toEqual([{ name: 'USB Webcam', value: '/dev/video0' }]);
+    await setCameraDevice(obs.call, 'Camera - Field 1 (Capture)', 'capture', '/dev/video0');
+
+    expect(obs.inputs.get('Camera - Field 1 (Capture)')).toMatchObject({ kind: 'v4l2_input', settings: { device_id: '/dev/video0' } });
+    expect((await getCameraStatus(obs.call, FIELD_1))._unsafeUnwrap())
+      .toEqual({ state: 'input', type: 'capture', inputName: 'Camera - Field 1 (Capture)', device: '/dev/video0' });
   });
 });

@@ -17,17 +17,41 @@ export type AudioMode = 'device' | 'camera' | 'none';
 
 export const DEFAULT_CAMERA_TYPE: InputCameraType = 'capture';
 
-export const CAMERA_INPUT_KINDS: Record<InputCameraType, string> = {
-  capture: 'dshow_input',
-  ndi: 'ndi_source',
-  lan: 'browser_source',
+// The platforms the dashboard can set OBS up on.
+export type ObsPlatform = 'windows' | 'linux';
+export const OBS_PLATFORMS: readonly ObsPlatform[] = ['windows', 'linux'];
+
+// Webcams and capture cards, and audio devices, are different input kinds on each platform;
+// everything else is the same everywhere.
+export interface PlatformKinds {
+  capture: string;
+  audio: string;
+}
+
+export const PLATFORM_KINDS: Record<ObsPlatform, PlatformKinds> = {
+  windows: { capture: 'dshow_input', audio: 'wasapi_input_capture' },
+  linux: { capture: 'v4l2_input', audio: 'pulse_input_capture' },
 };
 
+export const cameraInputKind = (type: InputCameraType, platform: ObsPlatform) =>
+  type === 'capture' ? PLATFORM_KINDS[platform].capture : type === 'ndi' ? 'ndi_source' : 'browser_source';
+
+// The camera type of an input kind, on any platform.
+export const cameraTypeOfKind = (kind: unknown): InputCameraType | undefined =>
+  OBS_PLATFORMS.some(platform => PLATFORM_KINDS[platform].capture === kind) ? 'capture'
+    : kind === 'ndi_source' ? 'ndi'
+    : kind === 'browser_source' ? 'lan'
+    : undefined;
+
+// Video4Linux cameras carry no audio (OBS refuses to mute them); the other camera kinds can.
+export const cameraKindHasAudio = (kind: unknown) => kind !== PLATFORM_KINDS.linux.capture;
+
 // The setting on each camera input kind that picks which device or stream it shows.
-export const CAMERA_DEVICE_PROPERTY: Record<InputCameraType, string> = {
-  capture: 'video_device_id',
-  ndi: 'ndi_source_name',
-  lan: 'url',
+export const CAMERA_DEVICE_PROPERTY: Record<string, string> = {
+  dshow_input: 'video_device_id',
+  v4l2_input: 'device_id',
+  ndi_source: 'ndi_source_name',
+  browser_source: 'url',
 };
 
 export const CAMERA_TYPE_LABELS: Record<CameraType, string> = {
@@ -164,7 +188,7 @@ export const plannedCameras = (fieldCount: number): PlannedCamera[] =>
   [...fieldNumbers(fieldCount).map(field => `Field ${field}`), 'Ceremony']
     .map(label => ({ label, scene: cameraSceneName(label) }));
 
-export const buildPlan = (options: SetupOptions): Plan => {
+export const buildPlan = (options: SetupOptions, platform: ObsPlatform): Plan => {
   const fields = fieldNumbers(options.fieldCount);
   const cameras = plannedCameras(options.fieldCount);
   const ceremonyCamera = cameraSceneName('Ceremony');
@@ -187,7 +211,7 @@ export const buildPlan = (options: SetupOptions): Plan => {
     }),
     browserSource(SOURCE_NAMES.lowerThird, options.lowerThirdUrl, { restart_when_active: true }),
     ...(options.audioMode === 'device'
-      ? [{ name: SOURCE_NAMES.audio, kind: 'wasapi_input_capture', settings: { device_id: 'default' }, keepExistingSettings: true }]
+      ? [{ name: SOURCE_NAMES.audio, kind: PLATFORM_KINDS[platform].audio, settings: { device_id: 'default' }, keepExistingSettings: true }]
       : []),
   ];
 

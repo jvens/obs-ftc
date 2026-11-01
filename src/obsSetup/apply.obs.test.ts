@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from '@jest/globals';
 import { SetupMode, applySetup } from './apply';
 import { setCameraSource } from './cameras';
 import { ObsCall } from './obsCall';
-import { SOURCE_NAMES, SetupOptions, buildPlan } from './layout';
+import { SOURCE_NAMES, SetupOptions, buildPlan, cameraKindHasAudio } from './layout';
 import { lanReceiverUrl } from '../lanCamera/urls';
 import { closeObs, eventually, freshObs, queries, unwrap } from '../test/obsUnderTest';
 
@@ -66,24 +66,27 @@ describe('setting up in a new scene collection', () => {
     await eventually(async () => !(await obs.scenes()).includes('Scene'), 'the removed "Scene" to leave the scene list');
     expect(await obs.scenes()).toEqual(OUR_SCENES);
     expect(await obs.programScene()).toBe('Field 1');
-    for (const scene of buildPlan(setupOptions).scenes)
+    for (const scene of buildPlan(setupOptions, await obs.platform()).scenes)
       expect(await obs.sources(scene.name)).toEqual(scene.items.map(item => item.source));
   });
 
   it('gives each camera a muted capture input filling the canvas, and an audio device', async () => {
+    const kinds = await obs.kinds();
     await setup('newCollection', options());
     expect(await obs.sources('Camera - Field 2')).toEqual(['Camera - Field 2 (Capture)']);
-    expect(await obs.input('Camera - Field 2 (Capture)')).toMatchObject({ kind: 'dshow_input', muted: true });
+    // Video4Linux cameras have no audio to mute.
+    expect(await obs.input('Camera - Field 2 (Capture)'))
+      .toMatchObject({ kind: kinds.capture, muted: cameraKindHasAudio(kinds.capture) ? true : undefined });
     expect(await obs.transform('Camera - Field 2', 'Camera - Field 2 (Capture)')).toMatchObject({
       positionX: 0, positionY: 0, boundsWidth: 1920, boundsHeight: 1080, boundsType: 'OBS_BOUNDS_SCALE_INNER',
     });
-    expect(await obs.input(SOURCE_NAMES.audio)).toMatchObject({ kind: 'wasapi_input_capture', muted: false });
+    expect(await obs.input(SOURCE_NAMES.audio)).toMatchObject({ kind: kinds.audio, muted: false });
   });
 
   it('points the browser sources at the event', async () => {
     const setupOptions = options();
     await setup('newCollection', setupOptions);
-    for (const input of buildPlan(setupOptions).inputs.filter(input => input.kind === 'browser_source'))
+    for (const input of buildPlan(setupOptions, await obs.platform()).inputs.filter(input => input.kind === 'browser_source'))
       expect((await obs.input(input.name)).settings).toMatchObject(input.settings);
   });
 
@@ -98,8 +101,16 @@ describe('setting up in a new scene collection', () => {
 
   it('crops the ceremony camera into the alliance selection window, scaled to the canvas', async () => {
     await call('SetVideoSettings', { baseWidth: 1280, baseHeight: 720, outputWidth: 1280, outputHeight: 720 });
-    await setup('newCollection', options());
-    expect(await obs.transform('Alliance Selection', 'Camera - Ceremony')).toMatchObject({
+    let transform: Awaited<ReturnType<typeof obs.transform>>;
+    // The real OBS tests share the profile, which holds the canvas size. OBS rescales the scenes when
+    // it changes, so the transform is read first.
+    try {
+      await setup('newCollection', options());
+      transform = await obs.transform('Alliance Selection', 'Camera - Ceremony');
+    } finally {
+      await call('SetVideoSettings', { baseWidth: 1920, baseHeight: 1080, outputWidth: 1920, outputHeight: 1080 });
+    }
+    expect(transform).toMatchObject({
       // OBS keeps positions to the half pixel.
       positionX: expect.closeTo(119 * 2 / 3, 0),
       positionY: expect.closeTo(357 * 2 / 3, 0),
@@ -198,7 +209,7 @@ describe('updating the current scene collection', () => {
 describe('wiping the current scene collection', () => {
   it('removes everything but desktop audio and the microphone, then builds', async () => {
     await call('CreateScene', { sceneName: 'Old Scene' });
-    await call('CreateInput', { sceneName: 'Old Scene', inputName: 'Old Camera', inputKind: 'dshow_input', inputSettings: {} });
+    await call('CreateInput', { sceneName: 'Old Scene', inputName: 'Old Camera', inputKind: (await obs.kinds()).capture, inputSettings: {} });
     await call('SetStudioModeEnabled', { studioModeEnabled: true });
     const collection = await obs.sceneCollection();
 
