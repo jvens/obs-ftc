@@ -28,9 +28,20 @@ describe('buildChapters', () => {
     ]);
   });
 
-  it('times from the first match when the stream start is unknown', () => {
+  it('times from the first match when the stream start is unknown, which then opens the video', () => {
     const rows = [match('Q1', at(2)), match('Q2', at(9))];
-    expect(buildChapters(rows, { ...OPTIONS, streamStartTime: 0 })).toEqual(['00:00:00 Event Start', '00:00:00 Q1', '00:07:00 Q2']);
+    expect(buildChapters(rows, { ...OPTIONS, streamStartTime: 0 })).toEqual(['00:00:00 Q1', '00:07:00 Q2']);
+  });
+
+  it('lets a match that starts with the video open it instead of Event Start', () => {
+    const rows = [match('Q1', START), match('Q2', at(7))];
+    expect(buildChapters(rows, OPTIONS)).toEqual(['00:00:00 Q1', '00:07:00 Q2']);
+  });
+
+  it('keeps Event Start when the offset moves the first match later', () => {
+    const rows = [match('Q1', at(2)), match('Q2', at(9))];
+    expect(buildChapters(rows, { ...OPTIONS, streamStartTime: 0, offsetSeconds: 30 }))
+      .toEqual(['00:00:00 Event Start', '00:00:30 Q1', '00:07:30 Q2']);
   });
 
   it('shifts every chapter by the offset, dropping any that would start before the video', () => {
