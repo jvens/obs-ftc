@@ -34,24 +34,52 @@ const loadState = (call: ObsCall): ResultAsync<ObsState, string> =>
       canvas,
     }));
 
-const ensureScene = (call: ObsCall, state: ObsState, name: string, log: Log) => {
-  if (state.scenes.has(name))
-    return okAsync<void, string>(undefined);
+const createScene = (call: ObsCall, state: ObsState, name: string, log: Log) => {
   log(`Creating scene "${name}"`);
   return call('CreateScene', { sceneName: name }).map(() => { state.scenes.add(name); });
 };
 
-const ensureCamera = (call: ObsCall, state: ObsState, camera: PlannedCamera, options: SetupOptions, log: Log) => {
-  const muted = cameraMuted(options.audioMode);
-  if (state.scenes.has(camera.scene))
-    return setCameraAudioMuted(call, camera, muted)
-      .andThen(() => updateLanReceiver(call, camera, options.lanReceiver))
-      .map(updated => { if (updated) log(`Updating the LAN camera receiver of "${camera.scene}"`); });
-  return ensureScene(call, state, camera.scene, log)
-    .andThen(() => addCameraInput(call, camera, DEFAULT_CAMERA_TYPE, muted,
-      state.inputs.has(cameraInputName(camera.label, DEFAULT_CAMERA_TYPE)), options.lanReceiver))
-    .map(inputName => { state.inputs.set(inputName, 'camera'); });
+const quoted = (names: string[]) => names.map(name => `"${name}"`).join(', ');
+
+// OBS adds each new scene just below the current scene (the preview scene in studio mode) and has
+// no request to move scenes, so each new scene is created with the scene that should be above it
+// made current, and the current scene is put back afterwards. Outside studio mode that changes what
+// is on program, so while OBS streams or records the new scenes go where OBS puts them instead,
+// with a warning.
+const createScenes = (call: ObsCall, state: ObsState, order: string[], warnings: string[], log: Log) => {
+  const missing = order.filter(name => !state.scenes.has(name));
+  if (missing.length === 0)
+    return okAsync<void, string>(undefined);
+  return ResultAsync.combine([call('GetStudioModeEnabled'), call('GetStreamStatus'), call('GetRecordStatus'), call('GetSceneList')])
+    .andThen(([{ studioModeEnabled }, stream, record, sceneList]) => {
+      const current = String(studioModeEnabled ? sceneList.currentPreviewSceneName : sceneList.currentProgramSceneName);
+      const select = (sceneName: string) => (studioModeEnabled
+        ? call('SetCurrentPreviewScene', { sceneName })
+        : call('SetCurrentProgramScene', { sceneName })).map(() => undefined);
+      if (!studioModeEnabled && (stream.outputActive || record.outputActive)) {
+        warnings.push(`OBS is ${stream.outputActive ? 'streaming' : 'recording'}, so ${quoted(missing)} `
+          + `${missing.length === 1 ? 'was' : 'were'} added below "${current}" rather than in order. `
+          + `Drag ${missing.length === 1 ? 'it' : 'them'} into place in the OBS Scenes list.`);
+        return sequence(missing, name => createScene(call, state, name, log));
+      }
+      // OBS lists scenes bottom first.
+      const top = String(sceneList.scenes.at(-1)?.sceneName ?? current);
+      return sequence(missing, name => {
+        const above = order.slice(0, order.indexOf(name)).reverse().find(other => state.scenes.has(other)) ?? top;
+        return select(above).andThen(() => createScene(call, state, name, log));
+      }).andThen(() => select(current));
+    });
 };
+
+const addDefaultCamera = (call: ObsCall, state: ObsState, camera: PlannedCamera, options: SetupOptions) =>
+  addCameraInput(call, camera, DEFAULT_CAMERA_TYPE, cameraMuted(options.audioMode),
+    state.inputs.has(cameraInputName(camera.label, DEFAULT_CAMERA_TYPE)), options.lanReceiver)
+    .map(inputName => { state.inputs.set(inputName, 'camera'); });
+
+const refreshCamera = (call: ObsCall, camera: PlannedCamera, options: SetupOptions, log: Log) =>
+  setCameraAudioMuted(call, camera, cameraMuted(options.audioMode))
+    .andThen(() => updateLanReceiver(call, camera, options.lanReceiver))
+    .map(updated => { if (updated) log(`Updating the LAN camera receiver of "${camera.scene}"`); });
 
 // Compares setting values regardless of the key order OBS returns nested objects (e.g. fonts) in.
 const canonical = (value: unknown): string =>
@@ -118,11 +146,14 @@ const sync = (call: ObsCall, plan: Plan, options: SetupOptions, warnings: string
   loadState(call).andThen(state => {
     if (state.canvas.width * 9 !== state.canvas.height * 16)
       warnings.push(`The OBS canvas is ${state.canvas.width}x${state.canvas.height}. FTC Live graphics are 16:9, so expect borders; 1920x1080 is recommended (Settings > Video).`);
+    const newCameras = new Set(plan.cameras.filter(camera => !state.scenes.has(camera.scene)).map(camera => camera.scene));
+    // Program scenes first in the OBS list, cameras after them.
+    const order = [...plan.scenes.map(scene => scene.name), ...plan.cameras.map(camera => camera.scene)];
     return updateInputs(call, state, plan, warnings, log)
-      // OBS puts each new scene just below the current scene (and has no request to reorder them),
-      // so create from the bottom up: cameras last in the list, program scenes above them.
-      .andThen(() => sequence([...plan.cameras].reverse(), camera => ensureCamera(call, state, camera, options, log)))
-      .andThen(() => sequence([...plan.scenes].reverse(), scene => ensureScene(call, state, scene.name, log)))
+      .andThen(() => createScenes(call, state, order, warnings, log))
+      .andThen(() => sequence(plan.cameras, camera => newCameras.has(camera.scene)
+        ? addDefaultCamera(call, state, camera, options)
+        : refreshCamera(call, camera, options, log)))
       .andThen(() => sequence(plan.scenes, scene => fillScene(call, state, plan, scene, log)))
       .andThen(() => state.inputs.has(SOURCE_NAMES.audio)
         ? call('SetInputMute', { inputName: SOURCE_NAMES.audio, inputMuted: options.audioMode !== 'device' })

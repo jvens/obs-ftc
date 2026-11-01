@@ -5,7 +5,7 @@ import { setCameraSource } from './cameras';
 import { ObsCall } from './obsCall';
 import { SOURCE_NAMES, SetupOptions, buildPlan, cameraKindHasAudio } from './layout';
 import { lanReceiverUrl } from '../lanCamera/urls';
-import { closeObs, eventually, freshObs, queries, unwrap } from '../test/obsUnderTest';
+import { addSomethingToShow, closeObs, eventually, freshObs, queries, unwrap } from '../test/obsUnderTest';
 
 let call: ObsCall;
 let obs: ReturnType<typeof queries>;
@@ -38,6 +38,17 @@ const OUR_SCENES = [
   'Field 1', 'Field 2', 'Ceremony', 'Alliance Selection', 'Pit Display', 'Sponsor Loop',
   'Camera - Field 1', 'Camera - Field 2', 'Camera - Ceremony',
 ];
+
+const THREE_FIELD_SCENES = [
+  'Field 1', 'Field 2', 'Field 3', 'Ceremony', 'Alliance Selection', 'Pit Display', 'Sponsor Loop',
+  'Camera - Field 1', 'Camera - Field 2', 'Camera - Field 3', 'Camera - Ceremony',
+];
+
+const recording = () => unwrap(call('GetRecordStatus').map(({ outputActive }) => outputActive));
+const stopRecording = async () => {
+  await call('StopRecord');
+  await eventually(async () => !(await recording()), 'recording to stop');
+};
 
 // Requests that change OBS, other than muting (which setup repeats harmlessly).
 const MUTATION = /^(Create|Remove|Set(?!InputMute))/;
@@ -167,13 +178,54 @@ describe('updating the current scene collection', () => {
       .toEqual([SOURCE_NAMES.overlay, 'Score Bug', 'Camera - Field 1', SOURCE_NAMES.safeBackground, SOURCE_NAMES.audio]);
   });
 
-  // OBS adds new scenes just below the current one (Field 1 after setup), which puts the new
-  // camera's scene among the program scenes.
-  it('adds the scenes a bigger event needs below the current scene', async () => {
+  it('adds the scenes a bigger event needs in their places, keeping the scene on program', async () => {
     await setup('newCollection', options({ eventCode: 'event' }));
+    await call('SetCurrentProgramScene', { sceneName: 'Pit Display' });
+
     await setup('update', options({ eventCode: 'event', fieldCount: 3 }));
-    expect((await obs.scenes()).slice(0, 4)).toEqual(['Field 1', 'Field 3', 'Camera - Field 3', 'Field 2']);
+
+    expect(await obs.scenes()).toEqual(THREE_FIELD_SCENES);
     expect(await obs.sources('Field 3')).toEqual([SOURCE_NAMES.overlay, 'Camera - Field 3', SOURCE_NAMES.safeBackground, SOURCE_NAMES.audio]);
+    expect(await obs.programScene()).toBe('Pit Display');
+  });
+
+  it('places new scenes in studio mode by moving only the preview, even while recording', async () => {
+    await setup('newCollection', options({ eventCode: 'event' }));
+    await addSomethingToShow(call);
+    await call('SetStudioModeEnabled', { studioModeEnabled: true });
+    await call('SetCurrentPreviewScene', { sceneName: 'Ceremony' });
+    await unwrap(call('StartRecord'));
+    try {
+      await eventually(recording, 'recording to start');
+
+      const report = await setup('update', options({ eventCode: 'event', fieldCount: 3 }));
+
+      expect(await obs.scenes()).toEqual(THREE_FIELD_SCENES);
+      expect(await obs.programScene()).toBe('Field 1');
+      expect((await unwrap(call('GetCurrentPreviewScene'))).currentPreviewSceneName).toBe('Ceremony');
+      expect(report.warnings).toEqual([]);
+    } finally {
+      await stopRecording();
+      await call('SetStudioModeEnabled', { studioModeEnabled: false });
+    }
+  });
+
+  it('leaves new scenes where OBS puts them while it records, and says so', async () => {
+    await setup('newCollection', options({ eventCode: 'event' }));
+    await addSomethingToShow(call);
+    await unwrap(call('StartRecord'));
+    try {
+      await eventually(recording, 'recording to start');
+
+      const report = await setup('update', options({ eventCode: 'event', fieldCount: 3 }));
+
+      expect(await obs.programScene()).toBe('Field 1');
+      expect((await obs.scenes()).slice(0, 3)).toEqual(['Field 1', 'Camera - Field 3', 'Field 3']);
+      expect(report.warnings).toContain('OBS is recording, so "Field 3", "Camera - Field 3" were added below "Field 1" rather than in order. '
+        + 'Drag them into place in the OBS Scenes list.');
+    } finally {
+      await stopRecording();
+    }
   });
 
   it('keeps the camera choices', async () => {
