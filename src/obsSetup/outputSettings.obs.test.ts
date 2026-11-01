@@ -86,6 +86,8 @@ describe('applyRecommendedSettings', () => {
       expect(requests.filter(type => type.startsWith('Set'))).toEqual([]);
     } finally {
       await unwrap(call('StopRecord'));
+      // OBS finishes the file in the background; the next test may want to record.
+      await eventually(async () => !(await unwrap(call('GetRecordStatus').map(({ outputActive }) => outputActive))), 'recording to stop');
     }
   });
 });
