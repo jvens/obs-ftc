@@ -55,9 +55,20 @@ test('the header shows whether FTC Live and OBS are connected, on every view', a
 });
 
 test('the dashboard links to the LAN camera page', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('link', { name: 'Create LAN Camera' }).click();
+  await page.goto('/#setup');
+  await page.getByRole('banner').getByRole('link', { name: 'Create LAN Camera' }).click();
   await expect(page.getByRole('heading', { name: 'FTC LAN Camera' })).toBeVisible();
+});
+
+test('a first visit, as on a camera computer, offers the LAN camera page on About', async ({ browser, baseURL }) => {
+  // A camera computer has never opened the dashboard, so it lands on About.
+  const context = await browser.newContext({ baseURL });
+  const page = await context.newPage();
+  await page.goto('/');
+  const callout = page.getByRole('complementary', { name: 'Camera computers' });
+  await callout.getByRole('link', { name: 'Create LAN Camera' }).click();
+  await expect(page.getByRole('heading', { name: 'FTC LAN Camera' })).toBeVisible();
+  await context.close();
 });
 
 test('opened as an OBS browser source, the dashboard shows a warning instead', async ({ page }) => {

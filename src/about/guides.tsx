@@ -51,7 +51,7 @@ const LanCameras: React.FC = () => (
         through the firewall: allow it.
       </Step>
       <Step number={2} title="On the camera computer">
-        Open this site in Chrome or Edge and click <a href="/camera">Create LAN Camera</a> at the top. Allow the camera,
+        Open this site in Chrome or Edge and click <a href="/camera">Create LAN Camera</a> (at the top of every page, and on About). Allow the camera,
         and allow access to the local network when the browser asks.
       </Step>
       <Step number={3} title="Connect and send">

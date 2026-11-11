@@ -119,6 +119,15 @@ const AboutView: React.FC<Props> = ({ sub, active }) => {
         </div>
       ) : (
         <div className="about-main">
+          {/* A camera computer opens this site for the first time, so it lands here. */}
+          <aside className="about-camera-callout" aria-label="Camera computers">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 10l5-3v10l-5-3z" /><rect x="3" y="6" width="12" height="12" rx="2" /></svg>
+            <span>
+              <strong>Setting up a camera computer?</strong> Send this computer's webcam to OBS over the network.{' '}
+              <a href="#about/lan-cameras">How it works</a>
+            </span>
+            <a className="button-link primary" href="/camera">Create LAN Camera</a>
+          </aside>
           <section id={sectionElementId('what')} aria-labelledby="about-what-title">
             <p className="about-kicker">About FTC OBS</p>
             <h2 id="about-what-title" className="about-title">Stream your FTC event, and let the matches run the camera.</h2>

@@ -16,12 +16,20 @@ interface Props {
   onToggleTheme: () => void;
 }
 
-const Pill: React.FC<{ tone: 'ok' | 'live' | 'off'; children: React.ReactNode }> = ({ tone, children }) => (
-  <span className={`status-pill ${tone}`}>
-    {tone !== 'off' && <span className="status-dot" aria-hidden="true" />}
-    {children}
-  </span>
-);
+// A short label keeps the header on two lines. An off pill is grey with no dot; its tooltip and
+// screen readers get the whole phrase ("OBS not connected").
+const Pill: React.FC<{ tone: 'ok' | 'live' | 'off'; label: string; offText: string }> = ({ tone, label, offText }) =>
+  tone === 'off' ? (
+    <span className="status-pill off" title={offText}>
+      <span aria-hidden="true">{label}</span>
+      <span className="visually-hidden">{offText}</span>
+    </span>
+  ) : (
+    <span className={`status-pill ${tone}`}>
+      <span className="status-dot" aria-hidden="true" />
+      {label}
+    </span>
+  );
 
 // The logo, the views, and the connection status, which stays in view on every view.
 const AppHeader: React.FC<Props> = ({ view, onAbout, helpOpen, onToggleHelp, theme, onToggleTheme }) => {
@@ -42,20 +50,22 @@ const AppHeader: React.FC<Props> = ({ view, onAbout, helpOpen, onToggleHelp, the
         ))}
       </nav>
 
+      {/* Camera computers open this site too, to get to the camera page. */}
+      <a href="/camera" className="camera-page-link" title="Send a webcam on this computer to OBS">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 10l5-3v10l-5-3z" /><rect x="3" y="6" width="12" height="12" rx="2" /></svg>
+        Create LAN Camera
+      </a>
+
       <div className="header-spacer" />
 
       <div className="header-status" role="group" aria-label="Connection status">
-        <Pill tone={ftcConnected ? 'ok' : 'off'}>
-          {ftcConnected ? `FTC Live${event ? ` · ${event.eventCode}` : ''}` : 'FTC Live not connected'}
-        </Pill>
-        <Pill tone={status.connected ? 'ok' : 'off'}>{status.connected ? 'OBS' : 'OBS not connected'}</Pill>
-        <Pill tone={status.recording ? 'live' : 'off'}>{status.recording ? 'Recording' : 'Not recording'}</Pill>
-        <Pill tone={status.streaming ? 'live' : 'off'}>{status.streaming ? 'Streaming' : 'Not streaming'}</Pill>
+        <Pill tone={ftcConnected ? 'ok' : 'off'} label={`FTC Live${ftcConnected && event ? ` · ${event.eventCode}` : ''}`} offText="FTC Live not connected" />
+        <Pill tone={status.connected ? 'ok' : 'off'} label="OBS" offText="OBS not connected" />
+        <Pill tone={status.recording ? 'live' : 'off'} label="Recording" offText="Not recording" />
+        <Pill tone={status.streaming ? 'live' : 'off'} label="Streaming" offText="Not streaming" />
       </div>
 
       <div className="header-links">
-        {/* Camera computers open this site too, to get to the camera page. */}
-        <a href="/camera" className="camera-page-link" title="Send a webcam on this computer to OBS">Create LAN Camera</a>
         {helpOpen !== undefined && (
           <button className={`help-button${helpOpen ? ' on' : ''}`} onClick={onToggleHelp} aria-pressed={helpOpen} aria-label="Help" title={helpOpen ? 'Hide help' : 'Show help'}>?</button>
         )}
