@@ -94,7 +94,9 @@ const SetupHelp: React.FC<{ step: SetupStepId; title: string; onClose: () => voi
   <aside className="help-sidebar" aria-label="Help">
     <div className="help-sidebar-header">
       <h2>{title}</h2>
-      <button className="icon-button" onClick={onClose} aria-label="Close help" title="Close help">×</button>
+      <button className="icon-button" onClick={onClose} aria-label="Hide help" title="Hide help">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 6l6 6-6 6M13 6l6 6-6 6" /></svg>
+      </button>
     </div>
     <div className="help-sidebar-body">{HELP[step]}</div>
   </aside>

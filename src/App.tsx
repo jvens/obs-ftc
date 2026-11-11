@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { store } from './store';
 import './App.css';
@@ -10,7 +10,6 @@ import ScreenshotSettings from './components/ScreenshotSettings';
 import MatchEventsTable from './components/MatchEventsTable';
 import ChaptersSettings from './components/ChaptersSettings';
 import LowerThirdsPanel from './components/LowerThirdsPanel';
-import AboutModal from './components/AboutModal';
 import ObsBrowserSourceWarning, { isRunningInObs } from './components/ObsBrowserSourceWarning';
 import { initializeAnalytics, trackPageView } from './helpers/analytics';
 import AppHeader from './components/AppHeader';
@@ -33,7 +32,6 @@ function App() {
 }
 
 function Dashboard() {
-  const [showAbout, setShowAbout] = useState(false);
   const { view, sub } = useLocation();
   const [theme, setTheme] = useTheme();
   const [helpOpen, setHelpOpen] = usePersistentState('setupHelpOpen', true);
@@ -49,17 +47,15 @@ function Dashboard() {
     <ObsStudioProvider>
     <FtcLiveProvider>
     <div className="App">
-      <AppHeader view={view} onAbout={() => setShowAbout(true)} helpOpen={view === 'setup' ? helpOpen : undefined} onToggleHelp={() => setHelpOpen(open => !open)}
-        theme={theme} onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />
+      <AppHeader view={view} theme={theme} onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />
       <WarningsBanner />
-      <AboutModal isOpen={showAbout} onClose={() => setShowAbout(false)} />
       {/* Every view stays mounted, so switching views keeps what each panel holds. */}
       <main>
         <section className="view" aria-label="About" hidden={view !== 'about'}>
           <AboutView sub={view === 'about' ? sub : ''} active={view === 'about'} />
         </section>
         <section className="view" aria-label="Setup" hidden={view !== 'setup'}>
-          <SetupView sub={view === 'setup' ? sub : ''} helpOpen={helpOpen} onCloseHelp={() => setHelpOpen(false)} />
+          <SetupView sub={view === 'setup' ? sub : ''} helpOpen={helpOpen} onOpenHelp={() => setHelpOpen(true)} onCloseHelp={() => setHelpOpen(false)} />
         </section>
         <section className="view" aria-labelledby="view-run" hidden={view !== 'run'}>
           <div className="view-intro">

@@ -96,14 +96,15 @@ test('Setup goes through the steps before going live, with help for each', async
   await expect(stepArea(page, 'scenes')).toBeVisible();
   await expect(help).toContainText('Choosing a camera type');
 
-  // The help closes from its own button or the header's, and stays closed after a reload.
-  await help.getByRole('button', { name: 'Close help' }).click();
+  // The help folds into a tab on the edge, stays folded after a reload, and the tab opens it again.
+  await help.getByRole('button', { name: 'Hide help' }).click();
   await expect(help).toBeHidden();
   await page.reload();
   await expect(help).toBeHidden();
   await expect(stepArea(page, 'scenes')).toBeVisible();
-  await page.getByRole('button', { name: 'Help' }).click();
+  await page.getByRole('button', { name: 'Show help' }).click();
   await expect(help).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Show help' })).toHaveCount(0);
 
   // Setup opens on the last step shown.
   const views = page.getByRole('navigation', { name: 'Views' });
@@ -214,6 +215,16 @@ test('a first visit opens About, which leads on to Setup', async ({ browser, bas
   await page.goto('/');
   await expect(views.getByRole('link', { name: 'Setup' })).toHaveAttribute('aria-current', 'page');
   await context.close();
+});
+
+test('About ends with who makes the project and where to report problems', async ({ page }) => {
+  await page.goto('/#about');
+  await page.getByRole('navigation', { name: 'About pages' }).getByRole('link', { name: 'About this project' }).click();
+  const project = page.getByRole('region', { name: 'About this project' });
+  await expect(project).toBeInViewport();
+  await expect(project).toContainText('not an official project of FIRST');
+  await expect(project.getByRole('link', { name: /Report a problem/ })).toHaveAttribute('href', 'https://github.com/jvens/obs-ftc/issues');
+  await expect(project.getByRole('link', { name: /Source code/ })).toHaveAttribute('href', 'https://github.com/jvens/obs-ftc');
 });
 
 test('About has guides beneath the overview, each a page of its own', async ({ page }) => {
