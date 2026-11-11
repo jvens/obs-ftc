@@ -5,7 +5,7 @@ import WebSocket from 'ws';
 import { UpdateTypes } from '../../src/types/FtcLive';
 import { Page } from '@playwright/test';
 import { submitScores } from '../support/ftcLivePages';
-import { connectFtcLive, connectObs, section, setUpObs } from '../obs/fixtures';
+import { connectFtcLive, connectObs, section, setUpObs, showView } from '../obs/fixtures';
 import { RealFtcLive, expect, test } from './fixtures';
 
 // The match FTC Live has loaded, once the scorekeeper has loaded it.
@@ -22,6 +22,7 @@ const openDashboard = async (page: Page, realFtcLive: RealFtcLive, realObs: Para
   await connectFtcLive(page, realFtcLive, { listen: true });
   await expect((await connectObs(page, realObs)).getByText('Connected', { exact: true })).toBeVisible();
   await setUpObs(page, realFtcLive);
+  await showView(page, 'Outputs');
   const record = section(page, 'Match Record Settings');
   await record.getByLabel('Enable Match Recording Control').check();
   await record.getByLabel('Time After Stop Condition (seconds)').fill('0');
@@ -45,6 +46,7 @@ test('switches to the match\'s field and records it, and stops when the match is
   await scorekeeper.abortMatch();
 
   await expect.poll(recording, { timeout: 20_000 }).toBe(false);
+  await showView(page, 'Run');
   await expect(section(page, 'Match Events').getByRole('row', { name: new RegExp(`\\b${match.matchName}\\b`) })).toBeVisible();
 });
 
@@ -76,6 +78,7 @@ test('records a whole match, with its teams, results and score screenshot', asyn
   // Every event a scored match sends is one the dashboard knows.
   expect([...streamed].filter(type => !(UpdateTypes as string[]).includes(type))).toEqual([]);
   expect([...streamed]).toEqual(expect.arrayContaining(['SHOW_PREVIEW', 'SHOW_MATCH', 'MATCH_START', 'INIT_SUBMITTED', 'MATCH_COMMIT', 'MATCH_POST']));
+  await showView(page, 'Run');
   const row = section(page, 'Match Events').getByRole('row', { name: new RegExp(`\\b${match.matchName}\\b`) });
   const { matches } = await (await fetch(`${realFtcLive.url}/api/v1/events/${realFtcLive.event.eventCode}/matches/`)).json() as
     { matches: { matchName: string; red: { team1: number }; blue: { team1: number } }[] };

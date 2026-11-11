@@ -1,7 +1,7 @@
 // What the dashboard does in OBS as FTC Live runs matches: switch to the match's field, record the
 // match, and take screenshots. FTC Live is a mock; OBS is real.
 import { readdirSync } from 'node:fs';
-import { connectFtcLive, connectObs, expect, section, setRecordDirectory, setUpObs, test } from './fixtures';
+import { connectFtcLive, connectObs, expect, section, setRecordDirectory, setUpObs, showView, test } from './fixtures';
 
 test('switches scenes, records each match and takes screenshots as FTC Live runs matches', async ({ page, realObs, ftcLive }) => {
   const { control, studio } = realObs;
@@ -14,6 +14,7 @@ test('switches scenes, records each match and takes screenshots as FTC Live runs
   await connectFtcLive(page, ftcLive, { listen: true });
   await expect((await connectObs(page, realObs)).getByText('Connected', { exact: true })).toBeVisible();
   await setUpObs(page, ftcLive);
+  await showView(page, 'Outputs');
   const record = section(page, 'Match Record Settings');
   await record.getByLabel('Enable Match Recording Control').check();
   await record.getByLabel('Time After Stop Condition (seconds)').fill('0');
@@ -35,6 +36,7 @@ test('switches scenes, records each match and takes screenshots as FTC Live runs
   });
 
   await test.step('the events table shows the matches with teams from FTC Live', async () => {
+    await showView(page, 'Run');
     const row = section(page, 'Match Events').getByRole('row', { name: /Q1/ });
     await expect(row).toContainText('1001');
     await expect(row).toContainText('3001');
@@ -74,6 +76,7 @@ test('warns when OBS cannot record a match, until it can again', async ({ page, 
   await connectFtcLive(page, ftcLive, { listen: true });
   await expect((await connectObs(page, realObs)).getByText('Connected', { exact: true })).toBeVisible();
   await setUpObs(page, ftcLive);
+  await showView(page, 'Outputs');
   const record = section(page, 'Match Record Settings');
   await record.getByLabel('Enable Match Recording Control').check();
   await record.getByLabel('Time After Stop Condition (seconds)').fill('0');

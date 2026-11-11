@@ -28,6 +28,10 @@ const handle = (socket: WebSocket, clients: Set<WebSocket>, raw: string) => {
       currentProgramSceneName: 'Field 1',
       scenes: SCENES.map((sceneName, sceneIndex) => ({ sceneName, sceneIndex })),
     };
+  // What the dashboard reads when it connects: no outputs running, and no replay buffer.
+  if (d.requestType === 'GetOutputList') responseData = { outputs: [] };
+  if (d.requestType === 'GetRecordStatus' || d.requestType === 'GetStreamStatus') responseData = { outputActive: false };
+  if (d.requestType === 'GetRecordDirectory') responseData = { recordDirectory: '/recordings' };
   if (d.requestType === 'BroadcastCustomEvent') {
     const { eventData } = d.requestData;
     for (const client of clients)

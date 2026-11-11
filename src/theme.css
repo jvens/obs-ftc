@@ -1,0 +1,107 @@
+/* Colors, by role. Light is the default; every token has a dark value too, so a dark mode only has
+   to set data-theme="dark" on <html>. Components use these tokens, never raw colors. */
+:root {
+  --bg: #F4F6F9;
+  --surface: #FFFFFF;
+  --surface-2: #F4F6F9;
+  --hover: #EEF1F5;
+  --ink: #16191F;
+  --ink-2: #2E3540;
+  --muted: #4A5260;
+  --border: #DDE1E7;
+  --control: #C9CFD8;
+  --pending: #9AA3B0;
+  --accent: #1A56C4;
+  --accent-hover: #123F92;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #E8EFFC;
+  --ok-bg: #E2F3E9;
+  --ok-ink: #17633C;
+  --ok-dot: #1E8A52;
+  --off-bg: #ECEEF2;
+  --off-ink: #4A5260;
+  --live-bg: #FDE7E7;
+  --live-ink: #A61B1B;
+  --live-dot: #C62828;
+  --danger: #A32020;
+  --danger-hover: #C43030;
+  --danger-ink: #FFFFFF;
+  --warn-bg: #FFF1DB;
+  --warn-ink: #6B4100;
+  --warn-border: #F1D3A0;
+  --info-bg: #E8EFFC;
+  --info-border: #B9CCF0;
+  --tab-on-bg: #16191F;
+  --tab-on-ink: #FFFFFF;
+  --thumb: #2A3038;
+  --thumb-ink: #C9CFD8;
+  --scrim: rgba(0, 0, 0, 0.6);
+  --checker-a: #CCCCCC;
+  --checker-b: #EEEEEE;
+  /* Match events table column groups: header and cell tints. */
+  --group-info: #E3F2FD;
+  --group-info-cell: #F5FAFF;
+  --group-time: #FFF3E0;
+  --group-time-cell: #FFFAF5;
+  --group-rec: #E8F5E9;
+  --group-rec-cell: #F5FFF5;
+  --group-shots: #FCE4EC;
+  --group-shots-cell: #FFF5F8;
+  /* Brand orange, from the robot logo. */
+  --brand: #F57E25;
+  --brand-hover: #F79A54;
+  --brand-ink: #1A1A1A;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0F1216;
+  --surface: #171B21;
+  --surface-2: #1E232A;
+  --hover: #232932;
+  --ink: #E8EBF0;
+  --ink-2: #CBD1DA;
+  --muted: #A3ACB9;
+  --border: #2C333D;
+  --control: #3A424E;
+  --pending: #5F6875;
+  --accent: #6EA0F5;
+  --accent-hover: #9BBEF8;
+  --accent-ink: #0F1216;
+  --accent-soft: #1C2A44;
+  --ok-bg: #15301F;
+  --ok-ink: #7FD3A0;
+  --ok-dot: #3FB873;
+  --off-bg: #232932;
+  --off-ink: #A3ACB9;
+  --live-bg: #3A1A1A;
+  --live-ink: #FF9C9C;
+  --live-dot: #F05252;
+  --danger: #C43030;
+  --danger-hover: #D94848;
+  --danger-ink: #FFFFFF;
+  --warn-bg: #33270F;
+  --warn-ink: #F3C77A;
+  --warn-border: #5A4416;
+  --info-bg: #1C2A44;
+  --info-border: #2F4A78;
+  --tab-on-bg: #E8EBF0;
+  --tab-on-ink: #0F1216;
+  --thumb: #0B0D10;
+  --thumb-ink: #8B95A3;
+  --scrim: rgba(0, 0, 0, 0.7);
+  --checker-a: #2A2F37;
+  --checker-b: #3A404A;
+  --group-info: #1A2A3D;
+  --group-info-cell: #151D28;
+  --group-time: #33281A;
+  --group-time-cell: #221C15;
+  --group-rec: #17301E;
+  --group-rec-cell: #142118;
+  --group-shots: #351C26;
+  --group-shots-cell: #23171C;
+  --brand: #F57E25;
+  --brand-hover: #F79A54;
+  --brand-ink: #1A1A1A;
+  color-scheme: dark;
+}
