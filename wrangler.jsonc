@@ -8,8 +8,8 @@
   // client-side routes and refreshes resolve to index.html.
   "assets": {
     "directory": "./build",
-    // Serves camera.html at /camera (and redirects /camera.html there). This is the default; it is
-    // spelled out because the camera page links depend on it.
+    // Serves camera.html at /camera and camera-receiver.html at /camera-receiver, and redirects the
+    // .html URLs there. This is the default; it is spelled out because the camera links depend on it.
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "single-page-application"
   }
