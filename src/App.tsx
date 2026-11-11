@@ -18,6 +18,8 @@ import { applyThemeFromUrl, useLocation } from './helpers/views';
 import { usePersistentState } from './helpers/persistant';
 import SetupView from './setup/SetupView';
 import SceneButtons from './run/SceneButtons';
+import FieldStatus from './run/FieldStatus';
+import WarningsBanner from './components/WarningsBanner';
 
 // Checked once at load: when OBS has the dashboard open as a browser source, show only the
 // warning so the hidden copy never connects to FTC Live or OBS.
@@ -47,6 +49,7 @@ function Dashboard() {
     <FtcLiveProvider>
     <div className="App">
       <AppHeader view={view} onAbout={() => setShowAbout(true)} helpOpen={view === 'setup' ? helpOpen : undefined} onToggleHelp={() => setHelpOpen(open => !open)} />
+      <WarningsBanner />
       <AboutModal isOpen={showAbout} onClose={() => setShowAbout(false)} />
       {/* Every view stays mounted, so switching views keeps what each panel holds. */}
       <main>
@@ -61,6 +64,7 @@ function Dashboard() {
           <div className="content-container">
             <SceneButtons active={view === 'run'} />
             <LowerThirdsPanel />
+            <FieldStatus />
             <MatchEventsTable />
           </div>
         </section>

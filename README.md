@@ -72,6 +72,10 @@ Then turn on recording, replays and screenshots in **Outputs**.
 **Run** shows every scene as a button with a live preview: click one to put it on the stream, for
 example for awards or alliance selection. Automatic switching stays on: the next match event
 switches back to that match's field, so there is nothing to remember to turn back on.
+Run also lists the lower thirds with **Show** and **Hide** (**Edit list** to add or import them),
+shows what each field is doing (its latest match, how far along it is, and the teams), and the
+Match Events table. Warnings, such as a lost connection to FTC Live or OBS not starting a
+recording, show under the header on every view.
 
 ## LAN Cameras
 

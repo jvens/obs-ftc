@@ -30,6 +30,13 @@ describe('match events', () => {
     expect(selectMatches(store.getState())).toEqual([{ name: 'Q1', number: 1, MATCH_LOAD: 100, MATCH_START: 200 }]);
   });
 
+  it('keeps the field from the match events', () => {
+    const store = newStore();
+    store.dispatch(updateMatchEvent({ shortName: 'Q1', number: 1, updateType: 'MATCH_LOAD', updateTime: 100, field: 2 }));
+    store.dispatch(updateMatchEvent({ shortName: 'Q1', number: 1, updateType: 'MATCH_START', updateTime: 200 }));
+    expect(selectMatches(store.getState())[0].field).toBe(2);
+  });
+
   it('merges match info into the match', () => {
     const store = newStore();
     store.dispatch(updateMatchEvent({ shortName: 'Q1', number: 1, updateType: 'MATCH_LOAD', updateTime: 100 }));
