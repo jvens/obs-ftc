@@ -1,6 +1,7 @@
 import React from 'react';
 import { useObsStudio } from '../contexts/ObsStudioContext';
 import NetworkAccessHelp from './NetworkAccessHelp';
+import { currentBrowser, firefoxBlocks } from '../helpers/browserNetwork';
 
 const ObsStudioManager: React.FC = () => {
   const {
@@ -48,7 +49,8 @@ const ObsStudioManager: React.FC = () => {
         </div>
       )}
 
-      {error && (
+      {/* In Firefox the warning below already says why it cannot connect. */}
+      {error && !firefoxBlocks(currentBrowser(), obsUrl) && (
         <div className="error-message">
           <p>{error}</p>
         </div>

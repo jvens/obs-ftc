@@ -142,16 +142,18 @@ test.describe('Firefox', () => {
     const page = await open('/');
 
     await ftcLivePanel(page).getByPlaceholder('Enter server IP').fill(`${lan}:${ftcLive.port}`);
-    await expect(ftcLivePanel(page).getByRole('alert')).toContainText('Firefox will not connect to FTC Live on another computer');
+    await expect(ftcLivePanel(page).getByRole('alert')).toContainText('Firefox cannot connect to FTC Live on another computer');
     await ftcLivePanel(page).getByRole('button', { name: 'Get Event Codes' }).click();
     // The request is blocked, so no events arrive.
     await expect(ftcLivePanel(page).getByRole('option')).toHaveText(['Select an event']);
 
     await fillObs(page, lan, mockObs.port);
-    await expect(obsPanel(page).getByRole('alert')).toContainText('Firefox will not connect to OBS on another computer');
+    await expect(obsPanel(page).getByRole('alert')).toContainText('Firefox cannot connect to OBS on another computer');
     await obsPanel(page).getByRole('button', { name: 'Connect' }).click();
-    await expect(obsPanel(page).getByText(/Unable to connect/)).toBeVisible();
+    await expect(obsPanel(page).getByText('Disconnected', { exact: true })).toBeVisible();
     await expect(obsPanel(page).getByText('Connected', { exact: true })).toHaveCount(0);
+    // The Firefox warning says why; the general "Unable to connect" would only add noise.
+    await expect(obsPanel(page).getByText(/Unable to connect/)).toHaveCount(0);
     await expect(page.getByRole('note')).toHaveCount(0);
   });
 
@@ -171,6 +173,6 @@ test.describe('Firefox', () => {
   test('the camera page warns before connecting to another computer', async ({ open, lan }) => {
     const page = await open('/camera');
     await page.getByLabel('OBS computer:').fill(lan);
-    await expect(page.getByRole('alert')).toContainText('Firefox will not connect to OBS on another computer');
+    await expect(page.getByRole('alert')).toContainText('Firefox cannot connect to OBS on another computer');
   });
 });

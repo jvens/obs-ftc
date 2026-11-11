@@ -2100,6 +2100,70 @@ ol li {
   font-weight: 600;
 }
 
+/* Errors: what went wrong, and what to do about it. */
+.error-message {
+  margin: 10px 0;
+  padding: 12px 16px;
+  border: 1px solid var(--error-border);
+  border-left: 4px solid var(--danger);
+  border-radius: 10px;
+  background: var(--error-bg);
+  color: var(--error-ink);
+  text-align: left;
+}
+
+.error-message p + p,
+.error-message p + ol {
+  margin-top: 6px;
+}
+
+.error-message a {
+  color: inherit;
+  font-weight: 600;
+}
+
+/* Firefox cannot reach another computer: the reason a connection fails, so it has to stand out. */
+.network-help.firefox-blocked {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px;
+}
+
+.network-help-icon {
+  flex: none;
+  color: var(--danger);
+}
+
+.network-help-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.network-help-title {
+  font-size: 1.1rem;
+}
+
+.network-help-text code {
+  overflow-wrap: anywhere;
+}
+
+.network-help-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 4px;
+}
+
+.network-help-copy button {
+  background: var(--surface);
+  border-color: var(--error-border);
+  color: var(--ink);
+}
+
 button.danger {
   background-color: var(--danger);
 }

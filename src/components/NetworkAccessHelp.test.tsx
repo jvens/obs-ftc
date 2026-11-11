@@ -8,7 +8,9 @@ const CHROME = { userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 
 describe('NetworkAccessHelp', () => {
   it('warns in Firefox before connecting to another computer', () => {
     render(<NetworkAccessHelp service="OBS" address="192.168.1.10" failed={false} env={FIREFOX} />);
-    expect(screen.getByRole('alert')).toHaveTextContent('Firefox will not connect to OBS on another computer');
+    expect(screen.getByRole('alert')).toHaveTextContent('Firefox cannot connect to OBS on another computer');
+    expect(screen.getByRole('alert')).toHaveTextContent('192.168.1.10');
+    expect(screen.getByRole('button', { name: "Copy this page's address" })).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('Chrome or Edge');
   });
 
