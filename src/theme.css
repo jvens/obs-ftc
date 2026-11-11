@@ -29,6 +29,9 @@
   --warn-bg: #FFF1DB;
   --warn-ink: #6B4100;
   --warn-border: #F1D3A0;
+  --error-bg: #FDECEC;
+  --error-ink: #7F1D1D;
+  --error-border: #F2B8B8;
   --info-bg: #E8EFFC;
   --info-border: #B9CCF0;
   --tab-on-bg: #16191F;
@@ -83,6 +86,9 @@
   --warn-bg: #33270F;
   --warn-ink: #F3C77A;
   --warn-border: #5A4416;
+  --error-bg: #3A1818;
+  --error-ink: #FFC2C2;
+  --error-border: #6E2A2A;
   --info-bg: #1C2A44;
   --info-border: #2F4A78;
   --tab-on-bg: #E8EBF0;
