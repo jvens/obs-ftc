@@ -1,5 +1,13 @@
 {
   "projects": {
     "default": "obs-ftc"
+  },
+  "targets": {
+    "obs-ftc": {
+      "hosting": {
+        "production": ["obs-ftc"],
+        "beta": ["obs-ftc-beta"]
+      }
+    }
   }
 }

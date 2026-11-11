@@ -151,7 +151,14 @@ Locally preview the production build before deploying.
 
 #### `npm run deploy`
 
-Builds the app and deploys it to Firebase Hosting.
+Builds the app and deploys it to the production site on Firebase Hosting
+([obs.vens.co](https://obs.vens.co), the `obs-ftc` site).
+
+#### `npm run deploy:beta`
+
+Builds the app and deploys it to the beta site ([beta.obs.vens.co](https://beta.obs.vens.co), the
+`obs-ftc-beta` site), for testing changes before they reach production. Both sites are in the
+`obs-ftc` Firebase project; `.firebaserc` maps the `production` and `beta` targets to them.
 
 #### `npm run cf:deploy`
 
