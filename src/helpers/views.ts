@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 
-// The dashboard's views: getting ready (Setup), running the event (Run), and what is saved for each
-// match (Outputs). The view is in the URL's hash (#run), so a reload or a bookmark opens it again.
+// The dashboard's views: getting ready (Setup), running the event (Run), what is saved for each match
+// (Outputs), and every match's events and files (Matches). The view is in the URL's hash (#run), so a reload or a bookmark opens it again.
 export const VIEWS = [
   { id: 'setup', label: 'Setup' },
   { id: 'run', label: 'Run' },
   { id: 'outputs', label: 'Outputs' },
+  { id: 'matches', label: 'Matches' },
 ] as const;
 
 export type ViewId = typeof VIEWS[number]['id'];

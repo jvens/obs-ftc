@@ -1,4 +1,5 @@
 import React from 'react';
+import OutputCard from './OutputCard';
 import { useObsStudio } from '../contexts/ObsStudioContext';
 import { useFtcLive } from '../contexts/FtcLiveContext';
 
@@ -15,84 +16,27 @@ const ScreenshotSettings: React.FC = () => {
     setScreenshotResultDelay
   } = useFtcLive();
 
+  const delayField = (label: string, value: number, set: (ms: number) => void) => (
+    <label>
+      {label}
+      <input type="number" value={value / 1000} onChange={(e) => set(Math.round(parseFloat(e.target.value) * 1000) || 0)} min={0} step={0.1} />
+    </label>
+  );
+
   return (
-    <div className="section">
-      <h2>Screenshot Settings</h2>
-      <p>Automatically capture screenshots at key match moments.</p>
-
-      <div>
-        <label>
-          <input
-            type="checkbox"
-            checked={enableScreenshots}
-            onChange={(e) => setEnableScreenshots(e.target.checked)}
-            disabled={!status.connected}
-          />
-          Enable Screenshots
-        </label>
+    <OutputCard
+      title="Screenshots"
+      hint="Saves a screenshot of the stream at three points in each match: the match preview, the randomization and the results."
+      status={!status.connected ? { tone: 'off', text: 'OBS not connected' } : enableScreenshots ? { tone: 'ok', text: 'On' } : { tone: 'off', text: 'Off' }}
+      toggle={{ label: 'Take screenshots', checked: enableScreenshots, onChange: setEnableScreenshots, disabled: !status.connected }}
+    >
+      <p className="output-card-note">Seconds to wait after each event before the screenshot.</p>
+      <div className="output-fields">
+        {delayField('After the match preview (s)', screenshotPreviewDelay, setScreenshotPreviewDelay)}
+        {delayField('After the randomization (s)', screenshotRandomDelay, setScreenshotRandomDelay)}
+        {delayField('After the results (s)', screenshotResultDelay, setScreenshotResultDelay)}
       </div>
-
-      {enableScreenshots && (
-        <>
-          <div>
-            <h3>Screenshot Delays</h3>
-            <p>Time to wait after each event before taking the screenshot (in seconds).</p>
-
-            <div>
-              <label>
-                Match Preview:
-                <input
-                  type="number"
-                  value={screenshotPreviewDelay / 1000}
-                  onChange={(e) => setScreenshotPreviewDelay(Math.round(parseFloat(e.target.value) * 1000) || 0)}
-                  min={0}
-                  step={0.1}
-                  style={{ marginLeft: '10px', width: '80px' }}
-                />
-                s
-              </label>
-            </div>
-
-            <div>
-              <label>
-                Randomization:
-                <input
-                  type="number"
-                  value={screenshotRandomDelay / 1000}
-                  onChange={(e) => setScreenshotRandomDelay(Math.round(parseFloat(e.target.value) * 1000) || 0)}
-                  min={0}
-                  step={0.1}
-                  style={{ marginLeft: '10px', width: '80px' }}
-                />
-                s
-              </label>
-            </div>
-
-            <div>
-              <label>
-                Match Result:
-                <input
-                  type="number"
-                  value={screenshotResultDelay / 1000}
-                  onChange={(e) => setScreenshotResultDelay(Math.round(parseFloat(e.target.value) * 1000) || 0)}
-                  min={0}
-                  step={0.1}
-                  style={{ marginLeft: '10px', width: '80px' }}
-                />
-                s
-              </label>
-            </div>
-          </div>
-
-          <div>
-            Status:
-            <span className={`connection-status ${status.connected ? 'connected' : 'disconnected'}`}>
-              {status.connected ? 'Ready' : 'Not Connected'}
-            </span>
-          </div>
-        </>
-      )}
-    </div>
+    </OutputCard>
   );
 };
 

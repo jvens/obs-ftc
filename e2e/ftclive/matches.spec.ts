@@ -23,9 +23,9 @@ const openDashboard = async (page: Page, realFtcLive: RealFtcLive, realObs: Para
   await expect((await connectObs(page, realObs)).getByText('Connected', { exact: true })).toBeVisible();
   await setUpObs(page, realFtcLive);
   await showView(page, 'Outputs');
-  const record = section(page, 'Match Record Settings');
-  await record.getByLabel('Enable Match Recording Control').check();
-  await record.getByLabel('Time After Stop Condition (seconds)').fill('0');
+  const record = section(page, 'Match Recording');
+  await record.getByLabel('Record each match').check();
+  await record.getByLabel('Stop delay (seconds)').fill('0');
 };
 
 test('switches to the match\'s field and records it, and stops when the match is aborted', async ({ page, realFtcLive, realObs, scorekeeper }) => {
@@ -46,7 +46,7 @@ test('switches to the match\'s field and records it, and stops when the match is
   await scorekeeper.abortMatch();
 
   await expect.poll(recording, { timeout: 20_000 }).toBe(false);
-  await showView(page, 'Run');
+  await showView(page, 'Matches');
   await expect(section(page, 'Match Events').getByRole('row', { name: new RegExp(`\\b${match.matchName}\\b`) })).toBeVisible();
 });
 
@@ -78,7 +78,7 @@ test('records a whole match, with its teams, results and score screenshot', asyn
   // Every event a scored match sends is one the dashboard knows.
   expect([...streamed].filter(type => !(UpdateTypes as string[]).includes(type))).toEqual([]);
   expect([...streamed]).toEqual(expect.arrayContaining(['SHOW_PREVIEW', 'SHOW_MATCH', 'MATCH_START', 'INIT_SUBMITTED', 'MATCH_COMMIT', 'MATCH_POST']));
-  await showView(page, 'Run');
+  await showView(page, 'Matches');
   const row = section(page, 'Match Events').getByRole('row', { name: new RegExp(`\\b${match.matchName}\\b`) });
   const { matches } = await (await fetch(`${realFtcLive.url}/api/v1/events/${realFtcLive.event.eventCode}/matches/`)).json() as
     { matches: { matchName: string; red: { team1: number }; blue: { team1: number } }[] };

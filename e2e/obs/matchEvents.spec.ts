@@ -15,9 +15,9 @@ test('switches scenes, records each match and takes screenshots as FTC Live runs
   await expect((await connectObs(page, realObs)).getByText('Connected', { exact: true })).toBeVisible();
   await setUpObs(page, ftcLive);
   await showView(page, 'Outputs');
-  const record = section(page, 'Match Record Settings');
-  await record.getByLabel('Enable Match Recording Control').check();
-  await record.getByLabel('Time After Stop Condition (seconds)').fill('0');
+  const record = section(page, 'Match Recording');
+  await record.getByLabel('Record each match').check();
+  await record.getByLabel('Stop delay (seconds)').fill('0');
   await control.call('SetCurrentProgramScene', { sceneName: 'Pit Display' });
 
   await test.step('match 1 on field 2: shows field 2 and records', async () => {
@@ -36,7 +36,7 @@ test('switches scenes, records each match and takes screenshots as FTC Live runs
   });
 
   await test.step('the events table shows the matches with teams from FTC Live', async () => {
-    await showView(page, 'Run');
+    await showView(page, 'Matches');
     const row = section(page, 'Match Events').getByRole('row', { name: /Q1/ });
     await expect(row).toContainText('1001');
     await expect(row).toContainText('3001');
@@ -77,9 +77,9 @@ test('warns when OBS cannot record a match, until it can again', async ({ page, 
   await expect((await connectObs(page, realObs)).getByText('Connected', { exact: true })).toBeVisible();
   await setUpObs(page, ftcLive);
   await showView(page, 'Outputs');
-  const record = section(page, 'Match Record Settings');
-  await record.getByLabel('Enable Match Recording Control').check();
-  await record.getByLabel('Time After Stop Condition (seconds)').fill('0');
+  const record = section(page, 'Match Recording');
+  await record.getByLabel('Record each match').check();
+  await record.getByLabel('Stop delay (seconds)').fill('0');
 
   try {
     await setRecordDirectory(control, 'Q:\\no such drive');

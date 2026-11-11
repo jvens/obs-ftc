@@ -13,7 +13,7 @@ test('the dashboard loads', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('the dashboard has a view for setting up, running the event, and what it saves', async ({ page }) => {
+test('the dashboard has a view for setting up, running the event, what it saves, and the matches', async ({ page }) => {
   await page.goto('/');
   const views = page.getByRole('navigation', { name: 'Views' });
   await expect(views.getByRole('link', { name: 'Setup' })).toHaveAttribute('aria-current', 'page');
@@ -21,17 +21,21 @@ test('the dashboard has a view for setting up, running the event, and what it sa
 
   await views.getByRole('link', { name: 'Run' }).click();
   await expect(page).toHaveURL(/#run$/);
-  await expect(page.getByRole('heading', { name: 'Match Events' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Lower Thirds' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'On the Fields' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Match Events' })).toBeHidden();
   await expect(page.getByRole('heading', { name: 'FTC Live Server' })).toBeHidden();
 
+  await views.getByRole('link', { name: 'Matches' }).click();
+  await expect(page.getByRole('heading', { name: 'Match Events' })).toBeVisible();
+
   await views.getByRole('link', { name: 'Outputs' }).click();
-  await expect(page.getByRole('heading', { name: 'Match Record Settings' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'YouTube Video Chapters' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Match Recording' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'YouTube Chapters' })).toBeVisible();
 
   // A reload, or a link to a view, opens that view.
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Match Record Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Match Recording' })).toBeVisible();
 });
 
 test('the header shows whether FTC Live and OBS are connected, on every view', async ({ page, obs }) => {

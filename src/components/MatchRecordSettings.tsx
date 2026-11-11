@@ -1,4 +1,5 @@
 import React from 'react';
+import OutputCard from './OutputCard';
 import { useObsStudio } from '../contexts/ObsStudioContext';
 import { useFtcLive, RecordStartConditions, RecordStopConditions, RecordStartCondition, RecordStopCondition } from '../contexts/FtcLiveContext';
 
@@ -15,101 +16,46 @@ const MatchRecordSettings: React.FC = () => {
     setRecordStopDelay
   } = useFtcLive();
 
+  const recordingStatus = !status.connected ? { tone: 'off' as const, text: 'OBS not connected' }
+    : !enableMatchRecording ? { tone: 'off' as const, text: 'Off' }
+    : status.recording ? { tone: 'live' as const, text: 'Recording' }
+    : { tone: 'ok' as const, text: 'Waiting for a match' };
+
   return (
-    <div className="section">
-      <h2>Match Record Settings</h2>
-      <p>Control OBS recording start/stop based on match events.</p>
-
-      <div className="error-message">
-        <strong>Warning:</strong> Enabling this will automatically start and stop OBS recording
-        for each match. Do not use this if you want an uninterrupted recording of the entire event.
-      </div>
-
-      <div>
+    <OutputCard
+      title="Match Recording"
+      hint="Starts and stops OBS recording for each match, so each match is a video of its own. Leave it off for one recording of the whole event."
+      status={recordingStatus}
+      toggle={{ label: 'Record each match', checked: enableMatchRecording, onChange: setEnableMatchRecording, disabled: !status.connected }}
+    >
+      <div className="output-fields">
         <label>
-          <input
-            type="checkbox"
-            checked={enableMatchRecording}
-            onChange={(e) => setEnableMatchRecording(e.target.checked)}
-            disabled={!status.connected}
-          />
-          Enable Match Recording Control
+          Start recording on
+          <select value={recordStartCondition} onChange={(e) => setRecordStartCondition(e.target.value as RecordStartCondition)}>
+            {RecordStartConditions.map((condition) => (
+              <option key={condition.value} value={condition.value}>{condition.label}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Stop recording on
+          <select value={recordStopCondition} onChange={(e) => setRecordStopCondition(e.target.value as RecordStopCondition)}>
+            {RecordStopConditions.map((condition) => (
+              <option key={condition.value} value={condition.value}>{condition.label}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Stop delay (seconds)
+          <input type="number" value={recordStopDelay} onChange={(e) => setRecordStopDelay(parseInt(e.target.value) || 0)} min={0} />
         </label>
       </div>
-
-      {enableMatchRecording && (
-        <>
-          <div>
-            <h3>Recording Triggers</h3>
-
-            <div>
-              <label>
-                Start Recording On:
-                <select
-                  value={recordStartCondition}
-                  onChange={(e) => setRecordStartCondition(e.target.value as RecordStartCondition)}
-                  style={{ marginLeft: '10px' }}
-                >
-                  {RecordStartConditions.map((condition) => (
-                    <option key={condition.value} value={condition.value}>
-                      {condition.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div>
-              <label>
-                Stop Recording On:
-                <select
-                  value={recordStopCondition}
-                  onChange={(e) => setRecordStopCondition(e.target.value as RecordStopCondition)}
-                  style={{ marginLeft: '10px' }}
-                >
-                  {RecordStopConditions.map((condition) => (
-                    <option key={condition.value} value={condition.value}>
-                      {condition.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div>
-              <label>
-                Time After Stop Condition (seconds):
-                <input
-                  type="number"
-                  value={recordStopDelay}
-                  onChange={(e) => setRecordStopDelay(parseInt(e.target.value) || 0)}
-                  min={0}
-                  style={{ marginLeft: '10px', width: '60px' }}
-                />
-              </label>
-            </div>
-          </div>
-
-          {recordingError && (
-            <div className="error-message" role="alert">
-              {recordingError}
-            </div>
-          )}
-
-          <div>
-            Status:
-            <span className={`connection-status ${status.connected ? 'connected' : 'disconnected'}`}>
-              {status.connected ? 'Ready' : 'Not Connected'}
-            </span>
-            {status.connected && (
-              <span className={`connection-status ${status.recording ? 'connected' : 'disconnected'}`}>
-                {status.recording ? 'Recording' : 'Not Recording'}
-              </span>
-            )}
-          </div>
-        </>
+      {recordingError && (
+        <div className="error-message" role="alert">
+          {recordingError}
+        </div>
       )}
-    </div>
+    </OutputCard>
   );
 };
 

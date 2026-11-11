@@ -59,25 +59,33 @@ function Dashboard() {
         <section className="view" aria-labelledby="view-run" hidden={view !== 'run'}>
           <div className="view-intro">
             <h2 id="view-run">Run</h2>
-            <p>During the event: put scenes on the stream, show lower thirds, and follow each match.</p>
+            <p>During the event: put scenes on the stream, show lower thirds, and see what each field is doing.</p>
           </div>
           <div className="content-container">
             <SceneButtons active={view === 'run'} />
             <LowerThirdsPanel />
             <FieldStatus />
-            <MatchEventsTable />
           </div>
         </section>
         <section className="view" aria-labelledby="view-outputs" hidden={view !== 'outputs'}>
           <div className="view-intro">
             <h2 id="view-outputs">Outputs</h2>
-            <p>What is saved for each match: recordings, replays, screenshots and YouTube chapters.</p>
+            <p>What is saved for each match: recordings, replays, screenshots, and chapters for the stream's video.</p>
           </div>
           <div className="content-container">
             <MatchRecordSettings />
             <MatchRecordingSettings />
             <ScreenshotSettings />
             <ChaptersSettings />
+          </div>
+        </section>
+        <section className="view" aria-labelledby="view-matches" hidden={view !== 'matches'}>
+          <div className="view-intro">
+            <h2 id="view-matches">Matches</h2>
+            <p>Every match FTC Live has sent events for: when each event happened, and the replay, recording and screenshots saved for it.</p>
+          </div>
+          <div className="content-container">
+            <MatchEventsTable />
           </div>
         </section>
       </main>

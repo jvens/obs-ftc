@@ -38,7 +38,7 @@ const profileSettings = (obsVersion: string): ProfileSetting[] => [
   { label: 'Recording quality', category: 'SimpleOutput', name: 'RecQuality', value: 'Stream',
     describe: value => value === 'Stream' ? 'same as stream' : String(value) },
   { label: 'Recording format', category: 'SimpleOutput', name: 'RecFormat2', value: recordingFormat(obsVersion) },
-  // Match replays are saved from the replay buffer (see Match Replay Recording Settings).
+  // Match replays are saved from the replay buffer (see Replays on the Outputs view).
   { label: 'Replay buffer', category: 'SimpleOutput', name: 'RecRB', value: 'true', describe: yesNo },
   { label: 'Automatically reconnect', category: 'Output', name: 'Reconnect', value: 'true', describe: yesNo },
 ];

@@ -2,7 +2,7 @@
 // Setup view's steps.
 import type { Page } from '@playwright/test';
 
-export const showView = (page: Page, name: 'Setup' | 'Run' | 'Outputs') =>
+export const showView = (page: Page, name: 'Setup' | 'Run' | 'Outputs' | 'Matches') =>
   page.getByRole('navigation', { name: 'Views' }).getByRole('link', { name, exact: true }).click();
 
 export type SetupStep = 'ftc-live' | 'obs' | 'scenes' | 'audio' | 'settings' | 'switching';

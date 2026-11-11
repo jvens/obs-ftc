@@ -4,6 +4,7 @@ import { UpdateType } from "../types/FtcLive";
 import { useObsStudio } from "../contexts/ObsStudioContext";
 import { useAppSelector } from "../store/hooks";
 import { buildChapters } from "../chapters/chapters";
+import OutputCard from './OutputCard';
 
 const ChapterEventOptions: { value: UpdateType; label: string }[] = [
   { value: 'SHOW_PREVIEW', label: 'Show Preview' },
@@ -62,79 +63,50 @@ const ChaptersSettings: React.FC = () => {
   }, [chaptersText]);
 
   return (
-    <div className="section">
-      <h2>YouTube Video Chapters</h2>
-
-      <div className="chapters-options">
-        <div className="chapters-option-row">
-          <label htmlFor="chapter-event">Chapter Event:</label>
-          <select
-            id="chapter-event"
-            value={chapterEvent}
-            onChange={(e) => setChapterEvent(e.target.value as UpdateType)}
-          >
+    <OutputCard
+      title="YouTube Chapters"
+      hint="Chapters for the stream's video, one per match, to paste into its description on YouTube."
+    >
+      <div className="output-fields">
+        <label>
+          Chapter at
+          <select value={chapterEvent} onChange={(e) => setChapterEvent(e.target.value as UpdateType)}>
             {ChapterEventOptions.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
-        </div>
-
-        <div className="chapters-option-row">
-          <label htmlFor="stream-start-time">Stream Start Time:</label>
-          <input
-            id="stream-start-time"
-            type="time"
-            step="1"
-            value={streamStartTime > 0 ? timestampToTimeString(streamStartTime) : ''}
-            onChange={(e) => setStreamStartTime(e.target.value ? timeStringToTimestamp(e.target.value) : 0)}
-          />
-          <button onClick={syncToStreamTime} disabled={obsStreamTime === 0}>
-            Sync with OBS
-          </button>
-        </div>
-
-        <div className="chapters-option-row">
-          <label htmlFor="video-offset">Video Offset (seconds):</label>
-          <input
-            id="video-offset"
-            type="number"
-            value={offsetTime}
-            onChange={(e) => setOffsetTime(parseInt(e.target.value) || 0)}
-          />
-        </div>
-
-        <div className="chapters-option-row">
-          <label>
+        </label>
+        <label>
+          Stream start time
+          <span className="output-field-row">
             <input
-              type="checkbox"
-              checked={includeTestMatches}
-              onChange={(e) => setIncludeTestMatches(e.target.checked)}
+              type="time"
+              step="1"
+              value={streamStartTime > 0 ? timestampToTimeString(streamStartTime) : ''}
+              onChange={(e) => setStreamStartTime(e.target.value ? timeStringToTimestamp(e.target.value) : 0)}
             />
-            Include test matches
-          </label>
-        </div>
+            <button onClick={syncToStreamTime} disabled={obsStreamTime === 0} title="Use the time OBS started streaming">Sync with OBS</button>
+          </span>
+        </label>
+        <label>
+          Video offset (seconds)
+          <input type="number" value={offsetTime} onChange={(e) => setOffsetTime(parseInt(e.target.value) || 0)} />
+        </label>
+      </div>
 
-        <div className="chapters-option-row">
-          <label>
-            <input
-              type="checkbox"
-              checked={includePracticeMatches}
-              onChange={(e) => setIncludePracticeMatches(e.target.checked)}
-            />
-            Include practice matches
-          </label>
-        </div>
-
-        <div className="chapters-option-row">
-          <label>
-            <input
-              type="checkbox"
-              checked={includeTeamNumbers}
-              onChange={(e) => setIncludeTeamNumbers(e.target.checked)}
-            />
-            Include team numbers
-          </label>
-        </div>
+      <div className="output-checks">
+        <label>
+          <input type="checkbox" checked={includeTestMatches} onChange={(e) => setIncludeTestMatches(e.target.checked)} />
+          Include test matches
+        </label>
+        <label>
+          <input type="checkbox" checked={includePracticeMatches} onChange={(e) => setIncludePracticeMatches(e.target.checked)} />
+          Include practice matches
+        </label>
+        <label>
+          <input type="checkbox" checked={includeTeamNumbers} onChange={(e) => setIncludeTeamNumbers(e.target.checked)} />
+          Include team numbers
+        </label>
       </div>
 
       <div className="chapters-output">
@@ -142,13 +114,9 @@ const ChaptersSettings: React.FC = () => {
           <span>{chapters.length} chapters</span>
           <button onClick={copyToClipboard}>Copy to Clipboard</button>
         </div>
-        <textarea
-          className="chapters-textarea"
-          value={chaptersText}
-          readOnly
-        />
+        <textarea className="chapters-textarea" aria-label="Chapters" value={chaptersText} readOnly />
       </div>
-    </div>
+    </OutputCard>
   )
 }
 

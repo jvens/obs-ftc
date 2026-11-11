@@ -52,8 +52,9 @@ Served over plain HTTP (`npm start`, at `http://localhost:3000`), the dashboard 
 
 ## Usage
 
-The dashboard has three views, as tabs in its header: **Setup**, **Run** (lower thirds and match
-events, during the event) and **Outputs** (recording, replays, screenshots and YouTube chapters).
+The dashboard has four views, as tabs in its header: **Setup**, **Run** (scenes, lower thirds and
+the fields, during the event), **Outputs** (recording, replays, screenshots and YouTube chapters)
+and **Matches** (the Match Events table).
 The header shows whether FTC Live and OBS are connected, and whether OBS is recording and streaming,
 on every view.
 
@@ -67,14 +68,14 @@ help sidebar for each step (the **?** button in the header shows and hides it):
 5. **Stream and recording settings**: Click **Apply recommended settings**
 6. **Scene switching**: Setup assigns its field scenes automatically; adjust them if you use your own scenes, and choose which match events switch scenes
 
-Then turn on recording, replays and screenshots in **Outputs**.
+Then turn on what to save for each match in **Outputs**: **Record each match**, **Save a replay after each match** and **Take screenshots**. YouTube chapters for the stream's video are there too.
 
 **Run** shows every scene as a button with a live preview: click one to put it on the stream, for
 example for awards or alliance selection. Automatic switching stays on: the next match event
 switches back to that match's field, so there is nothing to remember to turn back on.
 Run also lists the lower thirds with **Show** and **Hide** (**Edit list** to add or import them),
-shows what each field is doing (its latest match, how far along it is, and the teams), and the
-Match Events table. Warnings, such as a lost connection to FTC Live or OBS not starting a
+and shows what each field is doing (its latest match, how far along it is, and the teams).
+**Matches** has every match's event times and the replay, recording and screenshots saved for it. Warnings, such as a lost connection to FTC Live or OBS not starting a
 recording, show under the header on every view.
 
 ## LAN Cameras
