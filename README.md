@@ -59,7 +59,7 @@ connection.
    (Windows asks the first time the WebSocket server is reached from another computer) and note the
    computer's IP address (the WebSocket Server Settings window shows it under **Show Connect Info**).
 2. On the camera computer, open this site and click **Create LAN Camera** at the top (or open
-   `/camera.html`). Allow **Insecure content** for the site (see Browser Configuration above), and
+   `/camera`). Allow **Insecure content** for the site (see Browser Configuration above), and
    allow camera access and local network access when Chrome asks.
 3. Enter the OBS computer's address, port and password and click **Connect**. Name the camera (for
    example "Field 1 tripod" or "Pit Cam"), pick the webcam, then click **Start sending**.

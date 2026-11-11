@@ -57,7 +57,7 @@ const discoverCameras = () => new Promise((resolve, reject) => {
 
 const openCameraPage = async (context, host, audio = false) => {
   const page = await context.newPage();
-  await page.goto(`${BASE}/camera.html`);
+  await page.goto(`${BASE}/camera`);
   if (host) {
     await page.fill('input[placeholder="192.168.1.10"]', host);
     await page.fill('input[type=number]', String(OBS_PORT));
