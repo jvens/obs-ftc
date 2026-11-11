@@ -52,17 +52,22 @@ Served over plain HTTP (`npm start`, at `http://localhost:3000`), the dashboard 
 
 ## Usage
 
-The dashboard has three views, as tabs in its header: **Setup** (steps 1 to 5, before going live),
-**Run** (lower thirds and match events, during the event) and **Outputs** (recording, replays,
-screenshots and YouTube chapters). The header shows whether FTC Live and OBS are connected, and
-whether OBS is recording and streaming, on every view.
+The dashboard has three views, as tabs in its header: **Setup**, **Run** (lower thirds and match
+events, during the event) and **Outputs** (recording, replays, screenshots and YouTube chapters).
+The header shows whether FTC Live and OBS are connected, and whether OBS is recording and streaming,
+on every view.
 
-1. **Connect to FTC Live**: Enter the FTC Live server IP address, fetch events, and select your event
-2. **Connect to OBS Studio**: Enter your OBS WebSocket connection details
-3. **Configure OBS Studio**: Run the dashboard on the OBS computer. Click **Set up in a new scene collection** to build everything, **Apply recommended settings**, then choose each camera and the audio device. For the next event, select it and click **Update for this event**
-4. **Check Scene Assignments**: Setup assigns its field scenes automatically; adjust them if you use your own scenes
-5. **Set Transition Triggers**: Choose which match events trigger scene switches
-6. **Configure Recording/Screenshots** (Outputs): Enable and configure automatic recording and screenshot capture
+**Setup** lists the steps before going live, ticks off each one the dashboard can check, and has a
+help sidebar for each step (the **?** button in the header shows and hides it):
+
+1. **Connect to FTC Live**: Enter the FTC Live server IP address, fetch events, select your event and connect
+2. **Connect to OBS Studio**: Enter your OBS WebSocket connection details. Run the dashboard on the OBS computer and connect to OBS as `localhost`
+3. **Scenes and cameras**: Click **Set up in a new scene collection** to build everything, then choose each camera. For the next event, select it and click **Update for this event**
+4. **Audio**: Choose where the stream's sound comes from and pick the audio device
+5. **Stream and recording settings**: Click **Apply recommended settings**
+6. **Scene switching**: Setup assigns its field scenes automatically; adjust them if you use your own scenes, and choose which match events switch scenes
+
+Then turn on recording, replays and screenshots in **Outputs**.
 
 ## LAN Cameras
 

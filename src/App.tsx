@@ -2,23 +2,21 @@ import { useState, useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { store } from './store';
 import './App.css';
-import FtcLiveConnectionManager from './components/FtcLiveConnectionManager';
 import { FtcLiveProvider } from './contexts/FtcLiveContext';
 import { ObsStudioProvider } from './contexts/ObsStudioContext';
-import ObsStudioManager from './components/ObsStudioConnectionManager';
 import MatchRecordingSettings from './components/MatchRecordingSettings';
 import MatchRecordSettings from './components/MatchRecordSettings';
-import SceneMapper from './components/SceneMapper';
 import ScreenshotSettings from './components/ScreenshotSettings';
 import MatchEventsTable from './components/MatchEventsTable';
 import ChaptersSettings from './components/ChaptersSettings';
 import LowerThirdsPanel from './components/LowerThirdsPanel';
-import ObsSetupPanel from './components/ObsSetupPanel';
 import AboutModal from './components/AboutModal';
 import ObsBrowserSourceWarning, { isRunningInObs } from './components/ObsBrowserSourceWarning';
 import { initializeAnalytics, trackPageView } from './helpers/analytics';
 import AppHeader from './components/AppHeader';
-import { applyThemeFromUrl, useView } from './helpers/views';
+import { applyThemeFromUrl, useLocation } from './helpers/views';
+import { usePersistentState } from './helpers/persistant';
+import SetupView from './setup/SetupView';
 
 // Checked once at load: when OBS has the dashboard open as a browser source, show only the
 // warning so the hidden copy never connects to FTC Live or OBS.
@@ -33,7 +31,8 @@ function App() {
 
 function Dashboard() {
   const [showAbout, setShowAbout] = useState(false);
-  const view = useView();
+  const { view, sub } = useLocation();
+  const [helpOpen, setHelpOpen] = usePersistentState('setupHelpOpen', true);
 
   // Initialize analytics on app load
   useEffect(() => {
@@ -46,21 +45,12 @@ function Dashboard() {
     <ObsStudioProvider>
     <FtcLiveProvider>
     <div className="App">
-      <AppHeader view={view} onAbout={() => setShowAbout(true)} />
+      <AppHeader view={view} onAbout={() => setShowAbout(true)} helpOpen={view === 'setup' ? helpOpen : undefined} onToggleHelp={() => setHelpOpen(open => !open)} />
       <AboutModal isOpen={showAbout} onClose={() => setShowAbout(false)} />
       {/* Every view stays mounted, so switching views keeps what each panel holds. */}
       <main>
-        <section className="view" aria-labelledby="view-setup" hidden={view !== 'setup'}>
-          <div className="view-intro">
-            <h2 id="view-setup">Setup</h2>
-            <p>Before going live: connect to FTC Live and OBS, build the scenes, and choose which match events switch scenes.</p>
-          </div>
-          <div className="content-container">
-            <FtcLiveConnectionManager />
-            <ObsStudioManager />
-            <ObsSetupPanel />
-            <SceneMapper />
-          </div>
+        <section className="view" aria-label="Setup" hidden={view !== 'setup'}>
+          <SetupView sub={view === 'setup' ? sub : ''} helpOpen={helpOpen} onCloseHelp={() => setHelpOpen(false)} />
         </section>
         <section className="view" aria-labelledby="view-run" hidden={view !== 'run'}>
           <div className="view-intro">

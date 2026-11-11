@@ -1,4 +1,5 @@
 import { expect, test } from './support/fixtures';
+import { showStep } from './support/dashboard';
 
 test('the dashboard loads', async ({ page }) => {
   const errors: Error[] = [];
@@ -7,8 +8,8 @@ test('the dashboard loads', async ({ page }) => {
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: 'FTC OBS', exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Setup steps' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'FTC Live Server' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'OBS Studio Connection' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -39,7 +40,7 @@ test('the header shows whether FTC Live and OBS are connected, on every view', a
   await expect(status).toContainText('FTC Live not connected');
   await expect(status).toContainText('OBS not connected');
 
-  await page.getByRole('link', { name: 'Setup' }).click();
+  await showStep(page, 'obs');
   const obsPanel = page.locator('.section', { has: page.getByRole('heading', { name: 'OBS Studio Connection' }) });
   await obsPanel.getByPlaceholder('Enter OBS Studio IP').fill('localhost');
   await obsPanel.getByPlaceholder('Port').fill(String(obs.port));
@@ -60,4 +61,48 @@ test('opened as an OBS browser source, the dashboard shows a warning instead', a
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Open this page in Chrome, not in OBS' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'FTC Live Server' })).toHaveCount(0);
+});
+
+test('Setup goes through the steps before going live, with help for each', async ({ page }) => {
+  await page.goto('/');
+  const steps = page.getByRole('navigation', { name: 'Setup steps' });
+  await expect(steps.getByRole('listitem')).toHaveCount(6);
+  await expect(page.getByText('Step 1 of 6')).toBeVisible();
+  const help = page.getByRole('complementary', { name: 'Help' });
+  await expect(help.getByRole('heading', { name: 'Connect to FTC Live' })).toBeVisible();
+
+  await page.getByRole('link', { name: 'Next: Connect to OBS Studio' }).click();
+  await expect(page).toHaveURL(/#setup\/obs$/);
+  await expect(page.getByRole('heading', { name: 'OBS Studio Connection' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'FTC Live Server' })).toBeHidden();
+  await expect(help).toContainText('Tools > WebSocket Server Settings');
+
+  await steps.locator('a[href="#setup/scenes"]').click();
+  await expect(page.getByRole('heading', { name: 'Scenes and Cameras', exact: true })).toBeVisible();
+  await expect(help).toContainText('Choosing a camera type');
+
+  // The help closes from its own button or the header's, and stays closed after a reload.
+  await help.getByRole('button', { name: 'Close help' }).click();
+  await expect(help).toBeHidden();
+  await page.reload();
+  await expect(help).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Scenes and Cameras', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Help' }).click();
+  await expect(help).toBeVisible();
+
+  // Setup opens on the last step shown.
+  await page.getByRole('link', { name: 'Run', exact: true }).click();
+  await page.getByRole('link', { name: 'Setup', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Scenes and Cameras', exact: true })).toBeVisible();
+});
+
+test('Setup ticks off a step once it is done', async ({ page, obs }) => {
+  await page.goto('/#setup/obs');
+  const step = page.getByRole('navigation', { name: 'Setup steps' }).locator('a[href="#setup/obs"]');
+  await expect(step).toContainText('Not connected');
+  const panel = page.locator('.section', { has: page.getByRole('heading', { name: 'OBS Studio Connection' }) });
+  await panel.getByPlaceholder('Port').fill(String(obs.port));
+  await panel.getByRole('button', { name: 'Connect' }).click();
+  await expect(step.getByLabel('Done')).toBeVisible();
+  await expect(step).toContainText(`localhost:${obs.port}`);
 });
