@@ -3,6 +3,10 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { applyTheme, storedTheme } from './helpers/theme';
+
+// Before the first render, so the page never flashes the other theme.
+applyTheme(storedTheme(), document.documentElement);
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement

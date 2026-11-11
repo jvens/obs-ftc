@@ -4,6 +4,7 @@ import { useObsStudio } from '../contexts/ObsStudioContext';
 import { useAppSelector } from '../store/hooks';
 import { selectSelectedEvent } from '../store/connectionSlice';
 import { VIEWS, ViewId } from '../helpers/views';
+import { Theme } from '../helpers/theme';
 
 interface Props {
   view: ViewId;
@@ -11,6 +12,8 @@ interface Props {
   // Whether the help sidebar is open; undefined on views without one.
   helpOpen?: boolean;
   onToggleHelp: () => void;
+  theme: Theme;
+  onToggleTheme: () => void;
 }
 
 const Pill: React.FC<{ tone: 'ok' | 'live' | 'off'; children: React.ReactNode }> = ({ tone, children }) => (
@@ -21,7 +24,7 @@ const Pill: React.FC<{ tone: 'ok' | 'live' | 'off'; children: React.ReactNode }>
 );
 
 // The logo, the views, and the connection status, which stays in view on every view.
-const AppHeader: React.FC<Props> = ({ view, onAbout, helpOpen, onToggleHelp }) => {
+const AppHeader: React.FC<Props> = ({ view, onAbout, helpOpen, onToggleHelp, theme, onToggleTheme }) => {
   const { isConnected: ftcConnected } = useFtcLive();
   const { status } = useObsStudio();
   const event = useAppSelector(selectSelectedEvent);
@@ -56,6 +59,14 @@ const AppHeader: React.FC<Props> = ({ view, onAbout, helpOpen, onToggleHelp }) =
         {helpOpen !== undefined && (
           <button className={`help-button${helpOpen ? ' on' : ''}`} onClick={onToggleHelp} aria-pressed={helpOpen} aria-label="Help" title={helpOpen ? 'Hide help' : 'Show help'}>?</button>
         )}
+        <button className="icon-link theme-button" onClick={onToggleTheme} aria-pressed={theme === 'dark'} aria-label="Dark mode"
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+          {theme === 'dark' ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
+          )}
+        </button>
         <button className="about-button" onClick={onAbout} title="About" aria-label="About">
           <span className="info-icon" aria-hidden="true">i</span>
         </button>

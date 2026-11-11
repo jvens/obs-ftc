@@ -56,7 +56,8 @@ The dashboard has four views, as tabs in its header: **Setup**, **Run** (scenes,
 the fields, during the event), **Outputs** (recording, replays, screenshots and YouTube chapters)
 and **Matches** (the Match Events table).
 The header shows whether FTC Live and OBS are connected, and whether OBS is recording and streaming,
-on every view.
+on every view. The moon button in the header switches to dark mode (and the sun back to light); the
+choice is remembered in the browser, and the LAN camera page follows it.
 
 **Setup** lists the steps before going live, ticks off each one the dashboard can check, and has a
 help sidebar for each step (the **?** button in the header shows and hides it):

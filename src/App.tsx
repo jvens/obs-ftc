@@ -14,7 +14,8 @@ import AboutModal from './components/AboutModal';
 import ObsBrowserSourceWarning, { isRunningInObs } from './components/ObsBrowserSourceWarning';
 import { initializeAnalytics, trackPageView } from './helpers/analytics';
 import AppHeader from './components/AppHeader';
-import { applyThemeFromUrl, useLocation } from './helpers/views';
+import { useLocation } from './helpers/views';
+import { useTheme } from './helpers/theme';
 import { usePersistentState } from './helpers/persistant';
 import SetupView from './setup/SetupView';
 import SceneButtons from './run/SceneButtons';
@@ -25,8 +26,6 @@ import WarningsBanner from './components/WarningsBanner';
 // warning so the hidden copy never connects to FTC Live or OBS.
 const inObsBrowserSource = isRunningInObs();
 
-applyThemeFromUrl(window.location.search, document.documentElement);
-
 function App() {
   if (inObsBrowserSource) return <ObsBrowserSourceWarning />;
   return <Dashboard />;
@@ -35,6 +34,7 @@ function App() {
 function Dashboard() {
   const [showAbout, setShowAbout] = useState(false);
   const { view, sub } = useLocation();
+  const [theme, setTheme] = useTheme();
   const [helpOpen, setHelpOpen] = usePersistentState('setupHelpOpen', true);
 
   // Initialize analytics on app load
@@ -48,7 +48,8 @@ function Dashboard() {
     <ObsStudioProvider>
     <FtcLiveProvider>
     <div className="App">
-      <AppHeader view={view} onAbout={() => setShowAbout(true)} helpOpen={view === 'setup' ? helpOpen : undefined} onToggleHelp={() => setHelpOpen(open => !open)} />
+      <AppHeader view={view} onAbout={() => setShowAbout(true)} helpOpen={view === 'setup' ? helpOpen : undefined} onToggleHelp={() => setHelpOpen(open => !open)}
+        theme={theme} onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />
       <WarningsBanner />
       <AboutModal isOpen={showAbout} onClose={() => setShowAbout(false)} />
       {/* Every view stays mounted, so switching views keeps what each panel holds. */}

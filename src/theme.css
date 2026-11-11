@@ -1,5 +1,5 @@
-/* Colors, by role. Light is the default; every token has a dark value too, so a dark mode only has
-   to set data-theme="dark" on <html>. Components use these tokens, never raw colors. */
+/* Colors, by role. Light is the default; the header's dark mode button sets data-theme="dark" on
+   <html> (src/helpers/theme.ts). Components use these tokens, never raw colors. */
 :root {
   --bg: #F4F6F9;
   --surface: #FFFFFF;

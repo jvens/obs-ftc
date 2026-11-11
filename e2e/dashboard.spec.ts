@@ -157,3 +157,25 @@ test('custom cameras are kept in a list until OBS is there to build them', async
   await custom.getByRole('listitem').filter({ hasText: 'Pit Camera' }).getByRole('button', { name: 'Remove' }).click();
   await expect(custom.getByRole('listitem')).toHaveCount(0);
 });
+
+test('dark mode is a setting in the header, kept for the dashboard and the camera page', async ({ page }) => {
+  await page.goto('/');
+  const html = page.locator('html');
+  const darkMode = page.getByRole('button', { name: 'Dark mode' });
+  await expect(html).not.toHaveAttribute('data-theme');
+  await expect(darkMode).toHaveAttribute('aria-pressed', 'false');
+
+  await darkMode.click();
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(15, 18, 22)');
+
+  await page.reload();
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+  await expect(darkMode).toHaveAttribute('aria-pressed', 'true');
+  await page.goto('/camera');
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+
+  await page.goto('/');
+  await darkMode.click();
+  await expect(html).not.toHaveAttribute('data-theme');
+});

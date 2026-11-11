@@ -36,8 +36,3 @@ export const useLocation = (): Location => {
   }, []);
   return location;
 };
-
-// A preview of dark mode until it has a setting of its own: ?theme=dark.
-export const applyThemeFromUrl = (search: string, root: HTMLElement) => {
-  if (new URLSearchParams(search).get('theme') === 'dark') root.dataset.theme = 'dark';
-};
