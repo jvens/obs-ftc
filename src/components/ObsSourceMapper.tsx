@@ -61,12 +61,14 @@ interface Props {
   refreshKey: number;
   // On screen: live previews only refresh while someone can see them.
   active: boolean;
+  // After a camera or the audio device is changed here.
+  onChanged?: () => void;
 }
 
 const typeOf = (status: CameraStatus): CameraType | '' =>
   status.state === 'input' ? status.type : status.state === 'shared' ? 'shared' : '';
 
-const ObsSourceMapper: React.FC<Props> = ({ part, cameras, audioMode, refreshKey, active }) => {
+const ObsSourceMapper: React.FC<Props> = ({ part, cameras, audioMode, refreshKey, active, onChanged }) => {
   const { status, callObs, obsPort, obsPassword, onCustomEvent } = useObsStudio();
   const lan = useMemo(() => ({ port: obsPort, password: obsPassword }), [obsPort, obsPassword]);
   // By camera slot (label).
@@ -156,7 +158,7 @@ const ObsSourceMapper: React.FC<Props> = ({ part, cameras, audioMode, refreshKey
   const change = (camera: PlannedCamera, action: ResultAsync<unknown, string>) => {
     setBusy(true);
     action.andThen(load).match(
-      () => { setMessage(undefined); setBusy(false); },
+      () => { setMessage(undefined); setBusy(false); onChanged?.(); },
       error => { setMessage(`Unable to change ${camera.scene}: ${error}`); setBusy(false); }
     );
   };
@@ -175,7 +177,7 @@ const ObsSourceMapper: React.FC<Props> = ({ part, cameras, audioMode, refreshKey
   const changeAudioDevice = (device: string) =>
     callObs('SetInputSettings', { inputName: SOURCE_NAMES.audio, inputSettings: { device_id: device } })
       .andThen(loadAudio)
-      .match(setAudio, error => setMessage(`Unable to change ${SOURCE_NAMES.audio}: ${error}`));
+      .match(audio => { setAudio(audio); onChanged?.(); }, error => setMessage(`Unable to change ${SOURCE_NAMES.audio}: ${error}`));
 
   const renderSource = (row: CameraRow) => {
     const cameraStatus = row.status;
@@ -250,17 +252,7 @@ const ObsSourceMapper: React.FC<Props> = ({ part, cameras, audioMode, refreshKey
   return (
     <div>
       <h3>Cameras</h3>
-      <p>Pick the source for each camera. Every scene that shows a camera follows this choice.</p>
-      <details className="obs-camera-help">
-        <summary>More about cameras</summary>
-        <p>When one camera covers two roles, set the second to "{CAMERA_TYPE_LABELS.shared}".</p>
-        <p>
-          For a webcam plugged into another computer on the event network, open <CameraPageAddress /> on that
-          computer (or click Create LAN Camera at the top of this site there), name the camera and click Start sending.
-          Then set the camera here to "{CAMERA_TYPE_LABELS.lan}" and pick that name.
-        </p>
-        <p>To use something else (a switcher, a second capture card, a media file), put it in the camera's scene in OBS.</p>
-      </details>
+      <p>Pick the source for each camera. Every scene that shows a camera follows this choice. The help explains each type.</p>
       <div className="obs-setup-actions">
         <button onClick={reload} disabled={!status.connected || busy} title="Reads the cameras from OBS again and looks for new devices and NDI sources.">
           Refresh

@@ -1,5 +1,7 @@
 import React from 'react';
 import { SetupStepId } from './steps';
+import HelpPanel from '../components/HelpPanel';
+import { lanCameraPageUrl } from '../lanCamera/urls';
 
 // The help sidebar's text for each Setup step: what the step does and how to do it.
 const HELP: Record<SetupStepId, React.ReactNode> = {
@@ -43,13 +45,17 @@ const HELP: Record<SetupStepId, React.ReactNode> = {
         <li><strong>Update for this event</strong>: for the next event, or when FTC Live gains a field. Camera choices and anything you added are kept, and new scenes go in their place in the list.</li>
         <li><strong>Wipe and set up</strong>: deletes everything in the current collection first.</li>
       </ul>
+      <p>When OBS does not match this event (a scene missing, or the overlay showing another event), a warning above the buttons says what is wrong. <strong>Update for this event</strong> fixes it.</p>
       <h3>Choosing a camera type</h3>
       <ul>
         <li><strong>Video Capture Device</strong>: a webcam or capture card plugged into this computer.</li>
-        <li><strong>LAN Camera</strong>: a webcam on another computer, sent over the network. <a href="/camera">Set up a camera computer</a>.</li>
+        <li><strong>LAN Camera</strong>: a webcam on another computer on the event network. On that computer, open{' '}
+          <a href={lanCameraPageUrl()} target="_blank" rel="noopener noreferrer">{lanCameraPageUrl()}</a> (or click Create LAN Camera at the
+          top of this site there), name the camera and click Start sending. Then pick that name here.</li>
         <li><strong>NDI Source</strong>: a network camera or another computer running NDI.</li>
         <li><strong>Same as another camera</strong>: one camera covering two roles, such as Field 1 and the ceremony.</li>
       </ul>
+      <p>To use something else, such as a video switcher, a second capture card or a media file, put it in the camera's scene in OBS (the scenes named "Camera - ..."). Every scene that shows that camera follows.</p>
       <h3>Custom cameras</h3>
       <p>Add a camera for anything else worth showing, like the audience or the pits. It gets a scene named after it, with a button on Run, and the FTC Live overlay on top unless you untick it: a pit camera during a long field delay may look better without the score bar.</p>
       <p>A pit camera is not the Pit Display scene, which is FTC Live's full-screen rankings and results with no camera.</p>
@@ -90,16 +96,16 @@ const HELP: Record<SetupStepId, React.ReactNode> = {
   ),
 };
 
-const SetupHelp: React.FC<{ step: SetupStepId; title: string; onClose: () => void }> = ({ step, title, onClose }) => (
-  <aside className="help-sidebar" aria-label="Help">
-    <div className="help-sidebar-header">
-      <h2>{title}</h2>
-      <button className="icon-button" onClick={onClose} aria-label="Hide help" title="Hide help">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 6l6 6-6 6M13 6l6 6-6 6" /></svg>
-      </button>
-    </div>
-    <div className="help-sidebar-body">{HELP[step]}</div>
-  </aside>
+interface Props {
+  step: SetupStepId;
+  title: string;
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+}
+
+const SetupHelp: React.FC<Props> = ({ step, title, open, onOpen, onClose }) => (
+  <HelpPanel title={title} open={open} onOpen={onOpen} onClose={onClose}>{HELP[step]}</HelpPanel>
 );
 
 export default SetupHelp;

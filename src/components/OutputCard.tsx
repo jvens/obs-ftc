@@ -1,7 +1,7 @@
 import React from 'react';
 
 export interface OutputStatus {
-  tone: 'ok' | 'live' | 'off';
+  tone: 'ok' | 'live' | 'warn' | 'off';
   text: string;
 }
 
@@ -23,7 +23,7 @@ const OutputCard: React.FC<Props> = ({ title, hint, status, toggle, children }) 
       <h2>{title}</h2>
       {status && (
         <span className={`status-pill ${status.tone}`}>
-          {status.tone === 'live' && <span className="status-dot" aria-hidden="true" />}
+          {(status.tone === 'live' || status.tone === 'warn') && <span className="status-dot" aria-hidden="true" />}
           {status.text}
         </span>
       )}

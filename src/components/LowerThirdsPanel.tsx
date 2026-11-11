@@ -122,7 +122,8 @@ const LowerThirdsPanel: React.FC = () => {
   // While live: the list with Show and Hide. Editing the list and the browser source settings are
   // for before the event, so they stay out of the way until asked for.
   return (
-    <div className="section lower-thirds">
+    // Editing takes the whole width of Run, so the name and title boxes are wide enough to type in.
+    <div className={`section lower-thirds${editing ? ' full-width editing' : ''}`}>
       <div className="lower-thirds-header">
         <h2>Lower Thirds</h2>
         <span className="lower-thirds-on-air">
@@ -147,9 +148,9 @@ const LowerThirdsPanel: React.FC = () => {
               <table className="trigger-table lower-third-table">
                 <thead>
                   <tr>
-                    <th>Name</th>
+                    <th className="lower-third-name-col">Name</th>
                     <th>Title</th>
-                    <th></th>
+                    <th><span className="visually-hidden">Order and delete</span></th>
                   </tr>
                 </thead>
                 <tbody>

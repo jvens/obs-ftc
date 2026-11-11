@@ -78,4 +78,27 @@ describe('setupStepStates', () => {
     expect(states.audio).toEqual({ status: 'info', detail: 'Event audio from the cameras' });
     expect(states.settings.status).toBe('info');
   });
+
+  it('marks Scenes out of date when OBS does not match the event', () => {
+    const connected = { obsConnected: true, scenes: allScenes };
+    expect(setupStepStates(facts({ ...connected, issues: [{ area: 'scenes', message: 'The FTC Live sources show event a, not b.' }] })).scenes)
+      .toEqual({ status: 'todo', detail: 'Out of date: update for this event' });
+    expect(setupStepStates(facts({ ...connected, issues: [] })).scenes).toEqual({ status: 'done', detail: 'All 9 scenes in OBS' });
+  });
+
+  it('ticks off Audio once OBS matches the audio choice', () => {
+    const connected = { obsConnected: true, scenes: allScenes };
+    expect(setupStepStates(facts({ ...connected, issues: [{ area: 'audio', message: '"Event Audio" is muted.' }] })).audio)
+      .toEqual({ status: 'todo', detail: 'Out of date: update OBS' });
+    expect(setupStepStates(facts({ ...connected, issues: [{ area: 'scenes', message: 'x' }] })).audio)
+      .toEqual({ status: 'done', detail: 'Event audio from an input device' });
+  });
+
+  it('ticks off the settings once OBS has every recommended one', () => {
+    const row = (ok: boolean) => ({ id: 'x', label: 'X', current: 'a', recommended: 'b', ok });
+    expect(setupStepStates(facts({ obsConnected: true, settings: [row(true), row(false), row(false)] })).settings)
+      .toEqual({ status: 'todo', detail: '2 settings to change' });
+    expect(setupStepStates(facts({ obsConnected: true, settings: [row(true)] })).settings)
+      .toEqual({ status: 'done', detail: 'Recommended: 1080p, 30 fps' });
+  });
 });

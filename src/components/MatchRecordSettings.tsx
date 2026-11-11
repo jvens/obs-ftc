@@ -24,7 +24,7 @@ const MatchRecordSettings: React.FC = () => {
   return (
     <OutputCard
       title="Match Recording"
-      hint="Starts and stops OBS recording for each match, so each match is a video of its own. Leave it off for one recording of the whole event."
+      hint={<><strong>Not recommended:</strong> use Individual Match Recording instead. This starts and stops OBS's own recording for each match, so there is no recording of the whole event, and it stops a recording started in OBS by hand.</>}
       status={recordingStatus}
       toggle={{ label: 'Record each match', checked: enableMatchRecording, onChange: setEnableMatchRecording, disabled: !status.connected }}
     >

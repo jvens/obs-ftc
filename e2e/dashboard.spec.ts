@@ -21,8 +21,8 @@ test('the dashboard has a view for setting up, running the event, what it saves,
 
   await views.getByRole('link', { name: 'Run' }).click();
   await expect(page).toHaveURL(/#run$/);
-  await expect(page.getByRole('heading', { name: 'Lower Thirds' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'On the Fields' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Lower Thirds', level: 2 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'On the Fields', level: 2 })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Match Events' })).toBeHidden();
   await expect(stepArea(page, 'ftc-live')).toBeHidden();
 
@@ -30,12 +30,12 @@ test('the dashboard has a view for setting up, running the event, what it saves,
   await expect(page.getByRole('heading', { name: 'Match Events' })).toBeVisible();
 
   await views.getByRole('link', { name: 'Outputs' }).click();
-  await expect(page.getByRole('heading', { name: 'Match Recording' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'YouTube Chapters' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Match Recording', exact: true, level: 2 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'YouTube Chapters', level: 2 })).toBeVisible();
 
   // A reload, or a link to a view, opens that view.
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Match Recording' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Match Recording', exact: true, level: 2 })).toBeVisible();
 });
 
 test('the header shows whether FTC Live and OBS are connected, on every view', async ({ page, obs }) => {
@@ -52,6 +52,28 @@ test('the header shows whether FTC Live and OBS are connected, on every view', a
   await page.getByRole('link', { name: 'Run' }).click();
   await expect(status.getByText('OBS', { exact: true })).toBeVisible();
   await expect(status).toContainText('Not recording');
+  // Individual Match Recording is on, and this OBS has no replay buffer to save matches from.
+  const matchRecording = status.getByRole('link', { name: /Replay buffer off in OBS/ });
+  await expect(matchRecording).toBeVisible();
+  await matchRecording.click();
+  await expect(page.getByRole('heading', { name: 'Individual Match Recording', level: 2 })).toBeVisible();
+});
+
+test('Run and Outputs have help, and Outputs puts the recommended match recording first', async ({ page }) => {
+  await page.goto('/#run');
+  const help = page.getByRole('complementary', { name: 'Help' });
+  await expect(help.getByRole('heading', { name: 'Running the event' })).toBeVisible();
+
+  await page.goto('/#outputs');
+  await expect(help.getByRole('heading', { name: 'What each output saves' })).toBeVisible();
+  const outputs = page.getByRole('region', { name: 'Outputs' }).getByRole('heading', { level: 2 });
+  await expect(outputs).toHaveText(['Outputs', 'Individual Match Recording', 'Screenshots', 'YouTube Chapters', 'Match Recording', 'What each output saves']);
+
+  // The help folds away on every view at once.
+  await help.getByRole('button', { name: 'Hide help' }).click();
+  await expect(help).toBeHidden();
+  await page.goto('/#run');
+  await expect(page.getByRole('button', { name: 'Show help' })).toBeVisible();
 });
 
 test('the dashboard links to the LAN camera page', async ({ page }) => {

@@ -5,6 +5,7 @@ import { useAppSelector } from '../store/hooks';
 import { selectSelectedEvent } from '../store/connectionSlice';
 import { VIEWS, ViewId } from '../helpers/views';
 import { Theme } from '../helpers/theme';
+import { useMatchReplay } from '../helpers/useMatchReplay';
 
 interface Props {
   view: ViewId;
@@ -14,7 +15,7 @@ interface Props {
 
 // A short label keeps the header on two lines. An off pill is grey with no dot; its tooltip and
 // screen readers get the whole phrase ("OBS not connected").
-const Pill: React.FC<{ tone: 'ok' | 'live' | 'off'; label: string; offText: string }> = ({ tone, label, offText }) =>
+const Pill: React.FC<{ tone: 'ok' | 'live' | 'warn' | 'off'; label: string; offText: string }> = ({ tone, label, offText }) =>
   tone === 'off' ? (
     <span className="status-pill off" title={offText}>
       <span aria-hidden="true">{label}</span>
@@ -33,6 +34,7 @@ const AppHeader: React.FC<Props> = ({ view, theme, onToggleTheme }) => {
   const { isConnected: ftcConnected } = useFtcLive();
   const { status } = useObsStudio();
   const event = useAppSelector(selectSelectedEvent);
+  const matchReplay = useMatchReplay();
 
   return (
     <header className="App-header">
@@ -62,6 +64,14 @@ const AppHeader: React.FC<Props> = ({ view, theme, onToggleTheme }) => {
           <Pill tone={status.connected ? 'ok' : 'off'} label="OBS" offText="OBS not connected" />
           <Pill tone={status.recording ? 'live' : 'off'} label="Recording" offText="Not recording" />
           <Pill tone={status.streaming ? 'live' : 'off'} label="Streaming" offText="Not streaming" />
+        {/* Only while Individual Match Recording is on and OBS is connected: a match it cannot save is easy to miss. */}
+        {matchReplay.enabled && status.connected && (
+          <a className="status-pill-link" href="#outputs" title="Individual Match Recording, on Outputs">
+            <Pill tone={matchReplay.status.tone}
+              label={matchReplay.status.tone === 'ok' ? 'Waiting for match' : matchReplay.status.text}
+              offText={`Match recording: ${matchReplay.status.text}`} />
+          </a>
+        )}
         </div>
 
         <div className="header-links">

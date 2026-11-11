@@ -120,15 +120,15 @@ const MatchVideos: React.FC = () => (
 
     <h3 className="about-subtitle">During the event</h3>
     <p className="about-text">
-      In <a href="#outputs">Outputs</a>, turn on <strong>Record each match</strong> or <strong>Save a replay after each
-      match</strong> (or both), and <strong>Take screenshots</strong>. The files go to OBS's recording folder; screenshots
+      In <a href="#outputs">Outputs</a>, turn on <strong>Individual Match Recording</strong> (it saves each match from the
+      replay buffer) and <strong>Take screenshots</strong>. The files go to OBS's recording folder; screenshots
       are named after the event and the match, such as <code>usmnrq1_Q12_preview.png</code>.
     </p>
 
     <h3 className="about-subtitle">Afterwards</h3>
     <ol className="about-steps">
       <Step number={1} title="Find the files">
-        Open <a href="#matches">Matches</a> and tick Show File Paths: each match lists its recording, replay and screenshots.
+        Open <a href="#matches">Matches</a> and tick Show file paths: each match lists its recording, replay and screenshots.
       </Step>
       <Step number={2} title="Upload to YouTube">
         In YouTube Studio, click Create, then Upload videos, and pick the match files. Name each after the match and its

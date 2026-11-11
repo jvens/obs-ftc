@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import OutputCard from './OutputCard';
 import { useObsStudio } from '../contexts/ObsStudioContext';
 import { useFtcLive } from '../contexts/FtcLiveContext';
-import { usePersistentState } from '../helpers/persistant';
 import { MATCH_TIME_SECONDS } from '../ftcLive/matchController';
+import { useMatchReplay } from '../helpers/useMatchReplay';
 
 
 const MatchRecordingSettings: React.FC = () => {
@@ -21,11 +21,10 @@ const MatchRecordingSettings: React.FC = () => {
     setEnableReplayBuffer,
     postMatchReplayTime,
     setPostMatchReplayTime,
-    isRecordingReplay,
-    currentRecordingMatch
+    preMatchReplayTime: preMatchTime,
+    setPreMatchReplayTime: setPreMatchTime,
   } = useFtcLive();
-
-  const [preMatchTime, setPreMatchTime] = usePersistentState<number>('Replay_PreMatchTime', 15);
+  const { neededLength: recommendedBufferLength, status: replayStatus } = useMatchReplay();
   const [starting, setStarting] = useState(false);
   const [fixing, setFixing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -48,29 +47,15 @@ const MatchRecordingSettings: React.FC = () => {
     setFixing(false);
   };
 
-  // Calculate recommended buffer length: pre + match + post + 5 seconds buffer
-  const recommendedBufferLength = preMatchTime + MATCH_TIME_SECONDS + postMatchReplayTime + 5;
-
-  // Check if buffer length is correctly configured (must be exact match)
-  const isBufferLengthOk = replayBufferLength !== null && replayBufferLength === recommendedBufferLength;
-
-  // Ready only when connected, replay buffer enabled in OBS, feature enabled, buffer is actively running, AND buffer length is correct
-  const isReady = status.connected && status.replayBufferEnabled && enableReplayBuffer && status.replayBufferRecording && isBufferLengthOk;
-
-  const replayStatus = !status.connected ? { tone: 'off' as const, text: 'OBS not connected' }
-    : !enableReplayBuffer ? { tone: 'off' as const, text: 'Off' }
-    : !isReady ? { tone: 'off' as const, text: 'Not ready' }
-    : isRecordingReplay ? { tone: 'live' as const, text: `Saving ${currentRecordingMatch}` }
-    : { tone: 'ok' as const, text: 'Waiting for a match' };
 
   const formula = <small>(Pre-match: {preMatchTime}s + Match: {MATCH_TIME_SECONDS}s + Post-match: {postMatchReplayTime}s + Buffer: 5s)</small>;
 
   return (
     <OutputCard
-      title="Replays"
-      hint="Saves each match from the OBS replay buffer, which keeps the last few minutes in memory, so each match is saved without recording the whole event."
+      title="Individual Match Recording"
+      hint={<><strong>Recommended.</strong> Saves each match as a video of its own from the OBS replay buffer, which keeps the last few minutes in memory. The stream and any recording of the whole event carry on untouched.</>}
       status={replayStatus}
-      toggle={{ label: 'Save a replay after each match', checked: enableReplayBuffer, onChange: setEnableReplayBuffer, disabled: !status.connected }}
+      toggle={{ label: 'Save each match', checked: enableReplayBuffer, onChange: setEnableReplayBuffer, disabled: !status.connected }}
     >
       {!status.connected ? (
         <div className="error-message">

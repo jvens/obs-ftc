@@ -82,7 +82,7 @@ const refreshCamera = (call: ObsCall, camera: PlannedCamera, options: SetupOptio
     .map(updated => { if (updated) log(`Updating the LAN camera receiver of "${camera.scene}"`); });
 
 // Compares setting values regardless of the key order OBS returns nested objects (e.g. fonts) in.
-const canonical = (value: unknown): string =>
+export const canonical = (value: unknown): string =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
     ? `{${Object.keys(value).sort().map(key => `${key}:${canonical((value as Record<string, unknown>)[key])}`).join(',')}}`
     : JSON.stringify(value);

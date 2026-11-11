@@ -43,6 +43,9 @@ interface FtcLiveContextData {
   setTransitionTriggers: React.Dispatch<React.SetStateAction<UpdateType[]>>;
   postMatchReplayTime: number;
   setPostMatchReplayTime: React.Dispatch<React.SetStateAction<number>>;
+  // How much before the match each replay keeps; with the post-match time, it sets the replay buffer length.
+  preMatchReplayTime: number;
+  setPreMatchReplayTime: React.Dispatch<React.SetStateAction<number>>;
   enableReplayBuffer: boolean;
   setEnableReplayBuffer: React.Dispatch<React.SetStateAction<boolean>>;
   isRecordingReplay: boolean;
@@ -153,6 +156,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
   const [screenshotResultDelay, setScreenshotResultDelay] = usePersistentState<number>('Screenshot_Result_Delay', 11000);
 
   const [postMatchReplayTime, setPostMatchReplayTime] = usePersistentState<number>('Replay_PostMatchTime', 15);
+  const [preMatchReplayTime, setPreMatchReplayTime] = usePersistentState<number>('Replay_PreMatchTime', 15);
   const [enableReplayBuffer, setEnableReplayBuffer] = usePersistentState<boolean>('Replay_Enabled', true);
   const [recordingMatch, setRecordingMatch] = useState<string | null>(null);
   const [isRecordingReplay, setIsRecordingReplay] = useState<boolean>(false);
@@ -344,6 +348,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
       connectWebSocket, isConnected, connectionFailed,
       transitionTriggers, setTransitionTriggers,
       postMatchReplayTime, setPostMatchReplayTime,
+      preMatchReplayTime, setPreMatchReplayTime,
       enableReplayBuffer, setEnableReplayBuffer,
       isRecordingReplay, currentRecordingMatch: recordingMatch,
       enableMatchRecording, setEnableMatchRecording,
