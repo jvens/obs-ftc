@@ -8,6 +8,7 @@ import type { Event, FtcMatch, UpdateType } from '../../src/types/FtcLive';
 export interface MockFtcLive {
   // What to type as the FTC Live server: 127.0.0.1:port.
   host: string;
+  port: number;
   // The one event on the server; changes show in later requests.
   event: Event;
   // Sends a match event to every connected dashboard, for a match on `field`.
@@ -28,7 +29,8 @@ const match = (number: number, field: number): FtcMatch => ({
   time: Date.UTC(2026, 10, 7, 14) + number * 7 * 60_000,
 });
 
-export const startMockFtcLive = ({ eventCode = 'usmnrq1', fieldCount = 2 } = {}) => new Promise<MockFtcLive>(resolve => {
+// `listen` is the address to listen on: 0.0.0.0 to be reachable on this computer's network addresses too.
+export const startMockFtcLive = ({ eventCode = 'usmnrq1', fieldCount = 2, listen = '127.0.0.1' } = {}) => new Promise<MockFtcLive>(resolve => {
   const event: Event = {
     eventCode,
     name: 'Mock Qualifier',
@@ -62,10 +64,11 @@ export const startMockFtcLive = ({ eventCode = 'usmnrq1', fieldCount = 2 } = {})
     listeners.forEach(listener => listener());
   });
 
-  server.listen(0, '127.0.0.1', () => {
+  server.listen(0, listen, () => {
     const { port } = server.address() as AddressInfo;
     resolve({
       host: `127.0.0.1:${port}`,
+      port,
       event,
       send: (updateType, { number, field }) => {
         const message = JSON.stringify({ updateTime: Date.now(), updateType, payload: { number, shortName: `Q${number}`, field } });

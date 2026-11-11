@@ -59,8 +59,9 @@ const discoverCameras = (port: number) => new Promise<string[]>((resolve, reject
   setTimeout(() => { socket.close(); resolve([...names]); }, 1000);
 });
 
-export const startMockObs = () => new Promise<MockObs>(resolve => {
-  const server = new WebSocketServer({ port: 0, host: '127.0.0.1' });
+// `listen` is the address to listen on: 0.0.0.0 to be reachable on this computer's network addresses too.
+export const startMockObs = ({ listen = '127.0.0.1' } = {}) => new Promise<MockObs>(resolve => {
+  const server = new WebSocketServer({ port: 0, host: listen });
   const clients = new Set<WebSocket>();
   server.on('connection', socket => {
     socket.send(JSON.stringify({ op: 0, d: { obsWebSocketVersion: '5.5.0', rpcVersion: 1 } }));

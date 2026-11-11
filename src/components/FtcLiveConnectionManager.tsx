@@ -1,29 +1,34 @@
-// src/components/WebSocketManager.tsx
 import React, { useState, useContext } from 'react';
+import { ResultAsync } from 'neverthrow';
 import { FtcLiveContext } from '../contexts/FtcLiveContext';
 import { Event } from '../types/FtcLive';
 import { fetchAllEvents } from '../services/ftcLiveApi';
 import { selectFtcServerUrl, selectSelectedEvent, setFtcServerUrl, setSelectedEvent } from '../store/connectionSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import NetworkAccessHelp from './NetworkAccessHelp';
 
 
 const FtcLiveConnectionManager: React.FC = () => {
-  const { isConnected, connectWebSocket, isReconnecting, reconnectCountdown, cancelReconnect } = useContext(FtcLiveContext);
+  const { isConnected, connectionFailed, connectWebSocket, isReconnecting, reconnectCountdown, cancelReconnect } = useContext(FtcLiveContext);
   const dispatch = useAppDispatch();
   const selectedEvent = useAppSelector(selectSelectedEvent);
   const serverUrl = useAppSelector(selectFtcServerUrl);
   const [events, setEvents] = useState<Event[]>([]);
+  const [fetchFailed, setFetchFailed] = useState(false);
 
   // Fetch event codes from the server
-  const fetchEvents = async () => {
-    try {
-      const events = await fetchAllEvents(serverUrl);
-      setEvents(events);
-    } catch (error) {
-      console.error('Fetching events failed:', error);
-      setEvents([]);
-    }
-  };
+  const fetchEvents = () =>
+    ResultAsync.fromPromise(fetchAllEvents(serverUrl), error => error).match(
+      events => {
+        setEvents(events);
+        setFetchFailed(false);
+      },
+      error => {
+        console.error('Fetching events failed:', error);
+        setEvents([]);
+        setFetchFailed(true);
+      },
+    );
 
   const selectEvent = (eventCode: string) => {
     const event = events.find(evt => evt.eventCode === eventCode) || null;
@@ -74,16 +79,7 @@ const FtcLiveConnectionManager: React.FC = () => {
         </div>
       )}
 
-      {!isConnected && !isReconnecting && <div className="connection-helper">
-        <p>You may need to enable "Insecure content" in your browser settings<br/>for this tool to access the scoring system. For example, in Chrome:</p>
-        <div className="connection-helper-steps">
-        <ol>
-          <li>Select the icon next to the URL and go to "Site settings"</li>
-          <li>Find "Insecure content" and set it to "Allow"</li>
-          <li>Refresh this page</li>
-        </ol>
-        </div>
-      </div>}
+      {!isConnected && <NetworkAccessHelp service="FTC Live" address={serverUrl} failed={fetchFailed || connectionFailed} />}
     </div>
   );
 };

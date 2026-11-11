@@ -2,23 +2,28 @@ import OBSWebSocket, { EventSubscription } from 'obs-websocket-js';
 import { ResultAsync } from 'neverthrow';
 import { LanCameraMessage, parseLanCameraMessage, stampLanCameraMessage } from './protocol';
 import { SignalingChannel } from './signaling';
+import { hostKind } from '../helpers/browserNetwork';
 
-const isLocalHost = (host: string) => /^(localhost|127\.|\[?::1\]?$)/i.test(host.trim());
+export interface ObsConnectError {
+  message: string;
+  // OBS was not reached at all, which the browser may have blocked (as opposed to a wrong password).
+  unreachable: boolean;
+}
 
-const describeConnectError = (host: string) => (error: unknown): string => {
+export const describeConnectError = (host: string) => (error: unknown): ObsConnectError => {
   const code = (error as { code?: unknown })?.code;
   if (code === 4009)
-    return 'OBS rejected the password. Check the password in OBS (Tools > WebSocket Server Settings).';
-  // Browsers refuse ws:// from an https page unless the page is allowed insecure content.
+    return { unreachable: false, message: 'OBS rejected the password. Check the password in OBS (Tools > WebSocket Server Settings).' };
+  // Some browsers refuse ws:// from an https page by throwing rather than failing to connect.
   if (error instanceof DOMException && error.name === 'SecurityError')
-    return 'The browser blocked the connection to OBS. Allow "Insecure content" for this site (click the icon left of the address, then Site settings).';
-  if (!isLocalHost(host))
-    return `Unable to reach OBS at ${host}. Check the address, that the OBS WebSocket server is on, that the OBS computer's firewall allows the port, that "Insecure content" is allowed for this site, and allow local network access if the browser asks.`;
-  return 'Unable to reach OBS. Check that the OBS WebSocket server is on (Tools > WebSocket Server Settings).';
+    return { unreachable: true, message: 'The browser blocked the connection to OBS.' };
+  if (hostKind(host) !== 'loopback')
+    return { unreachable: true, message: `Unable to reach OBS at ${host}. Check the address, that the OBS WebSocket server is on, and that the OBS computer's firewall allows the port.` };
+  return { unreachable: true, message: 'Unable to reach OBS. Check that the OBS WebSocket server is on (Tools > WebSocket Server Settings).' };
 };
 
 // Connects only to the General events, which carry the custom events signaling uses.
-export const connectObs = (obs: OBSWebSocket, host: string, port: number, password: string): ResultAsync<void, string> =>
+export const connectObs = (obs: OBSWebSocket, host: string, port: number, password: string): ResultAsync<void, ObsConnectError> =>
   ResultAsync.fromPromise(
     obs.connect(`ws://${host.trim()}:${port}`, password || undefined, { eventSubscriptions: EventSubscription.General }),
     describeConnectError(host)
