@@ -118,6 +118,8 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   const [isConnected, setIsConnected] = useState(false);
   const [scenes, setScenes] = useState<string[]>([]);
   const [programScene, setProgramScene] = useState('');
+  // The scene the dashboard last asked OBS to switch to, while OBS transitions to it.
+  const switchingToRef = useRef<{ scene: string; at: number } | undefined>(undefined);
   const [field0Scene, setField0Scene] = usePersistentState<string | undefined>('Field0_Scene', undefined)
   const [field1Scene, setField1Scene] = usePersistentState<string | undefined>('Field1_Scene', undefined)
   const [field2Scene, setField2Scene] = usePersistentState<string | undefined>('Field2_Scene', undefined)
@@ -218,6 +220,15 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
         setProgramScene(String(currentProgramSceneName ?? ''));
       }, error => console.error('Error fetching scenes:', error)), []);
 
+  // OBS only sends CurrentProgramSceneChanged when a transition finishes. A transition cut short (by
+  // another switch to the same scene during it) never sends it, though the scene has changed, so the
+  // program scene is also read back after each switch and whenever a transition ends.
+  const refreshProgramScene = useCallback(() =>
+    ResultAsync.fromPromise(obs.call('GetCurrentProgramScene'), toErrorMessage)
+      .match(({ currentProgramSceneName }) => {
+        if (typeof currentProgramSceneName === 'string') setProgramScene(currentProgramSceneName);
+      }, error => console.error('Error reading the program scene:', error)), []);
+
   // Follow scenes being added, removed or renamed, and scene collection switches. Field assignments
   // follow a renamed scene.
   useEffect(() => {
@@ -225,18 +236,27 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     const onSceneNameChanged = ({ oldSceneName, sceneName }: { oldSceneName: string; sceneName: string }) =>
       [setField0Scene, setField1Scene, setField2Scene, setField3Scene]
         .forEach(setScene => setScene(current => current === oldSceneName ? sceneName : current));
-    const onProgramSceneChanged = ({ sceneName }: { sceneName: string }) => setProgramScene(sceneName);
+    const onProgramSceneChanged = ({ sceneName }: { sceneName: string }) => {
+      switchingToRef.current = undefined;
+      setProgramScene(sceneName);
+    };
+    const onTransitionEnded = () => {
+      switchingToRef.current = undefined;
+      refreshProgramScene();
+    };
     obs.on('SceneListChanged', onSceneListChanged);
     obs.on('SceneNameChanged', onSceneNameChanged);
     obs.on('CurrentSceneCollectionChanged', refreshScenes);
     obs.on('CurrentProgramSceneChanged', onProgramSceneChanged);
+    obs.on('SceneTransitionEnded', onTransitionEnded);
     return () => {
       obs.off('SceneListChanged', onSceneListChanged);
       obs.off('SceneNameChanged', onSceneNameChanged);
       obs.off('CurrentSceneCollectionChanged', refreshScenes);
       obs.off('CurrentProgramSceneChanged', onProgramSceneChanged);
+      obs.off('SceneTransitionEnded', onTransitionEnded);
     };
-  }, [refreshScenes, setField0Scene, setField1Scene, setField2Scene, setField3Scene]);
+  }, [refreshScenes, refreshProgramScene, setField0Scene, setField1Scene, setField2Scene, setField3Scene]);
 
   const connectToObsInternal = useCallback(async () => {
     // Cancel any pending reconnect when manually connecting
@@ -501,10 +521,23 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     }
   }
 
+  // Several match events in a row switch to the same field. Asking again while OBS transitions to
+  // that scene cuts the transition short, so a repeat is skipped (for a few seconds at most, in case
+  // the transition's end is never heard).
   const switchScenes = async (scene: string) => {
     if (obs && isConnectedRef.current) {
+      const switching = switchingToRef.current;
+      if (switching?.scene === scene && Date.now() - switching.at < 5000) {
+        console.log('Already switching to', scene);
+        return;
+      }
       console.log('Switch Scenes to', scene)
-      obs.call('SetCurrentProgramScene', { sceneName: scene });
+      switchingToRef.current = { scene, at: Date.now() };
+      await ResultAsync.fromPromise(obs.call('SetCurrentProgramScene', { sceneName: scene }), toErrorMessage)
+        .match(refreshProgramScene, error => {
+          switchingToRef.current = undefined;
+          console.error(`Unable to switch to ${scene}:`, error);
+        });
     } else {
       console.error("Unable to switch scene. Not connected");
     }
