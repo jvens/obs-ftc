@@ -100,6 +100,13 @@ export interface Rect {
   height: number;
 }
 
+// A camera beyond the fields and the ceremony (the audience, the pits), with a scene of its own
+// named after it. The FTC Live overlay is always in that scene, shown or hidden by `overlay`.
+export interface CustomCamera {
+  name: string;
+  overlay: boolean;
+}
+
 export interface SetupOptions {
   ftcHost: string;
   eventCode: string;
@@ -109,6 +116,7 @@ export interface SetupOptions {
   safeBackgroundUrl: string;
   lowerThirdUrl: string;
   lanReceiver: LanReceiverConfig;
+  customCameras: CustomCamera[];
 }
 
 export interface PlannedInput {
@@ -126,6 +134,8 @@ export interface PlannedItem {
   source: string;
   rect: Rect;
   fit: Fit;
+  // Added hidden (the eye in OBS's source list off); only applied when the item is created.
+  hidden?: boolean;
 }
 
 export interface PlannedScene {
@@ -184,13 +194,13 @@ const browserSource = (name: string, url: string, extra: JsonObject = {}): Plann
 
 const fieldNumbers = (fieldCount: number) => Array.from({ length: Math.max(1, fieldCount) }, (_, index) => index + 1);
 
-export const plannedCameras = (fieldCount: number): PlannedCamera[] =>
-  [...fieldNumbers(fieldCount).map(field => `Field ${field}`), 'Ceremony']
+export const plannedCameras = (fieldCount: number, customCameras: CustomCamera[] = []): PlannedCamera[] =>
+  [...fieldNumbers(fieldCount).map(field => `Field ${field}`), 'Ceremony', ...customCameras.map(camera => camera.name)]
     .map(label => ({ label, scene: cameraSceneName(label) }));
 
 export const buildPlan = (options: SetupOptions, platform: ObsPlatform): Plan => {
   const fields = fieldNumbers(options.fieldCount);
-  const cameras = plannedCameras(options.fieldCount);
+  const cameras = plannedCameras(options.fieldCount, options.customCameras);
   const ceremonyCamera = cameraSceneName('Ceremony');
 
   const audio: PlannedItem[] = options.audioMode === 'device' ? [fullScreen(SOURCE_NAMES.audio)] : [];
@@ -231,6 +241,11 @@ export const buildPlan = (options: SetupOptions, platform: ObsPlatform): Plan =>
     ]),
     programScene(SCENE_NAMES.pit, [fullScreen(SOURCE_NAMES.pit)]),
     programScene(SCENE_NAMES.sponsor, [fullScreen(SOURCE_NAMES.sponsor)]),
+    ...options.customCameras.map(camera => programScene(camera.name, [
+      fullScreen(SOURCE_NAMES.lowerThird),
+      { ...fullScreen(SOURCE_NAMES.overlay), hidden: !camera.overlay },
+      fullScreen(cameraSceneName(camera.name)),
+    ])),
   ];
 
   return { inputs, cameras, scenes };

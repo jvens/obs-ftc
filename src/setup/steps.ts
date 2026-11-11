@@ -1,4 +1,4 @@
-import { AudioMode, SCENE_NAMES, plannedCameras } from '../obsSetup/layout';
+import { AudioMode, CustomCamera, SCENE_NAMES, plannedCameras } from '../obsSetup/layout';
 
 // The steps on the Setup view, in the order a volunteer works through them before going live.
 export const SETUP_STEPS = [
@@ -34,6 +34,7 @@ export interface SetupFacts {
   scenes: string[];
   fieldCount: number;
   audioMode: AudioMode;
+  customCameras: CustomCamera[];
   // Scene switching: the scene for each field (index 0 = field 1) and for finals.
   fieldScenes: string[];
   finalsScene: string;
@@ -45,21 +46,22 @@ const AUDIO_DETAIL: Record<AudioMode, string> = {
   none: 'No event audio',
 };
 
-// The scenes Configure OBS Studio builds for this many fields.
-export const expectedScenes = (fieldCount: number) => [
+// The scenes Configure OBS Studio builds for this many fields and these custom cameras.
+export const expectedScenes = (fieldCount: number, customCameras: CustomCamera[] = []) => [
   ...Array.from({ length: Math.max(1, fieldCount) }, (_, index) => SCENE_NAMES.field(index + 1)),
   SCENE_NAMES.ceremony,
   SCENE_NAMES.allianceSelection,
   SCENE_NAMES.pit,
   SCENE_NAMES.sponsor,
-  ...plannedCameras(fieldCount).map(camera => camera.scene),
+  ...customCameras.map(camera => camera.name),
+  ...plannedCameras(fieldCount, customCameras).map(camera => camera.scene),
 ];
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
 export const setupStepStates = (facts: SetupFacts): Record<SetupStepId, StepState> => {
   const inObs = new Set(facts.scenes);
-  const expected = expectedScenes(facts.fieldCount);
+  const expected = expectedScenes(facts.fieldCount, facts.customCameras);
   const built = expected.filter(scene => inObs.has(scene)).length;
 
   const needed = [

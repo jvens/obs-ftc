@@ -50,6 +50,9 @@ const HELP: Record<SetupStepId, React.ReactNode> = {
         <li><strong>NDI Source</strong>: a network camera or another computer running NDI.</li>
         <li><strong>Same as another camera</strong>: one camera covering two roles, such as Field 1 and the ceremony.</li>
       </ul>
+      <h3>Custom cameras</h3>
+      <p>Add a camera for anything else worth showing, like the audience or the pits. It gets a scene named after it, with a button on Run, and the FTC Live overlay on top unless you untick it: a pit camera during a long field delay may look better without the score bar.</p>
+      <p>A pit camera is not the Pit Display scene, which is FTC Live's full-screen rankings and results with no camera.</p>
     </>
   ),
   audio: (

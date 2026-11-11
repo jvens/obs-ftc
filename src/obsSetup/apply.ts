@@ -136,7 +136,10 @@ const fillScene = (call: ObsCall, state: ObsState, plan: Plan, scene: PlannedSce
         ? call('CreateInput', { sceneName: scene.name, inputName: planned.name, inputKind: planned.kind, inputSettings: planned.settings })
             .map(result => { state.inputs.set(planned.name, planned.kind); return result; })
         : call('CreateSceneItem', { sceneName: scene.name, sourceName: item.source });
-      return create.andThen(({ sceneItemId }) => setTransform(call, state, scene, item, sceneItemId));
+      return create.andThen(({ sceneItemId }) => setTransform(call, state, scene, item, sceneItemId)
+        .andThen(() => item.hidden
+          ? call('SetSceneItemEnabled', { sceneName: scene.name, sceneItemId, sceneItemEnabled: false })
+          : okAsync(undefined)));
     });
     return add.andThen(() => missing.length > 0 && sceneItems.length > 0 ? restack(call, scene) : okAsync(undefined));
   });

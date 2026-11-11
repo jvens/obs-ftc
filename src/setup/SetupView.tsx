@@ -6,7 +6,7 @@ import SceneMapper from '../components/SceneMapper';
 import { useFtcLive } from '../contexts/FtcLiveContext';
 import { useObsStudio } from '../contexts/ObsStudioContext';
 import { usePersistentState } from '../helpers/persistant';
-import { AudioMode } from '../obsSetup/layout';
+import { AudioMode, CustomCamera } from '../obsSetup/layout';
 import { useAppSelector } from '../store/hooks';
 import { selectFieldCount, selectSelectedEvent } from '../store/connectionSlice';
 import SetupHelp from './SetupHelp';
@@ -37,6 +37,7 @@ const SetupView: React.FC<Props> = ({ sub, helpOpen, onCloseHelp }) => {
   useEffect(() => { if (fromUrl) setRememberedStep(fromUrl); }, [fromUrl, setRememberedStep]);
 
   const [audioMode, setAudioMode] = usePersistentState<AudioMode>('obsSetupAudioMode', 'device');
+  const [customCameras, setCustomCameras] = usePersistentState<CustomCamera[]>('obsSetupCustomCameras', []);
   const { isConnected: ftcConnected } = useFtcLive();
   const { status, scenes, obsUrl, obsPort, field0Scene, field1Scene, field2Scene, field3Scene } = useObsStudio();
   const event = useAppSelector(selectSelectedEvent);
@@ -50,6 +51,7 @@ const SetupView: React.FC<Props> = ({ sub, helpOpen, onCloseHelp }) => {
     scenes,
     fieldCount,
     audioMode,
+    customCameras,
     fieldScenes: [field1Scene ?? '', field2Scene ?? '', field3Scene ?? ''],
     finalsScene: field0Scene ?? '',
   });
@@ -94,7 +96,7 @@ const SetupView: React.FC<Props> = ({ sub, helpOpen, onCloseHelp }) => {
 
         <div hidden={step !== 'ftc-live'}><FtcLiveConnectionManager /></div>
         <div hidden={step !== 'obs'}><ObsStudioManager /></div>
-        <ObsSetupPanel step={step} audioMode={audioMode} setAudioMode={setAudioMode} />
+        <ObsSetupPanel step={step} audioMode={audioMode} setAudioMode={setAudioMode} customCameras={customCameras} setCustomCameras={setCustomCameras} />
         <div hidden={step !== 'switching'}><SceneMapper /></div>
 
         <div className="setup-step-nav">

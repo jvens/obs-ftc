@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
+import { okAsync } from 'neverthrow';
 import { useObsStudio } from '../contexts/ObsStudioContext';
 import { useAppSelector } from '../store/hooks';
 import { selectFieldCount, selectFtcServerUrl, selectObsUrl, selectSelectedEvent } from '../store/connectionSlice';
 import { usePersistentState } from '../helpers/persistant';
 import { lowerThirdUrl } from '../helpers/lowerThird';
-import { AudioMode, DEFAULT_SAFE_BACKGROUND_URL, SCENE_NAMES, SetupOptions, plannedCameras } from '../obsSetup/layout';
+import { AudioMode, CustomCamera, DEFAULT_SAFE_BACKGROUND_URL, SCENE_NAMES, SetupOptions, cameraSceneName, plannedCameras } from '../obsSetup/layout';
+import { customCameraNameError, removeCustomCameraScenes, setOverlayShown } from '../obsSetup/customCameras';
 import { SetupMode, applySetup } from '../obsSetup/apply';
 import { applyRecommendedSettings } from '../obsSetup/outputSettings';
 import ObsSourceMapper from './ObsSourceMapper';
@@ -44,9 +46,11 @@ interface Props {
   // Held by the Setup view, which shows the choice in the step list too.
   audioMode: AudioMode;
   setAudioMode: (mode: AudioMode) => void;
+  customCameras: CustomCamera[];
+  setCustomCameras: (cameras: CustomCamera[]) => void;
 }
 
-const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode }) => {
+const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode, customCameras, setCustomCameras }) => {
   const { status, callObs, refreshReplayBufferStatus, obsPort, obsPassword } = useObsStudio();
   const selectedEvent = useAppSelector(selectSelectedEvent);
   const ftcHost = useAppSelector(selectFtcServerUrl);
@@ -61,7 +65,9 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode }) => {
   const [settings, setSettings] = useState<Outcome>(emptyOutcome);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const cameras = useMemo(() => plannedCameras(fieldCount), [fieldCount]);
+  const cameras = useMemo(() => plannedCameras(fieldCount, customCameras), [fieldCount, customCameras]);
+  const [newCameraName, setNewCameraName] = useState('');
+  const [customMessage, setCustomMessage] = useState<string>();
   const live = status.streaming || status.recording;
   const canRun = status.connected && !!selectedEvent && !running;
 
@@ -69,7 +75,8 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode }) => {
   // when both run on the same computer.
   const remoteObs = !isLocalHost(obsHost);
 
-  const run = (mode: SetupMode) => {
+  // `withCameras` builds with a custom camera list that has just changed and is not in state yet.
+  const run = (mode: SetupMode, withCameras: CustomCamera[] = customCameras) => {
     if (!selectedEvent) return;
     if (mode === 'wipe' && !window.confirm('Delete every scene and source in the current OBS scene collection and set it up again? This cannot be undone.'))
       return;
@@ -82,6 +89,7 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode }) => {
       safeBackgroundUrl,
       lowerThirdUrl: lowerThirdUrl({ channel: lowerThirdChannel }),
       lanReceiver: { port: obsPort, password: obsPassword },
+      customCameras: withCameras,
     };
     setRunning(true);
     setSetup(emptyOutcome);
@@ -119,6 +127,40 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode }) => {
         setRunning(false);
         refreshReplayBufferStatus();
       });
+  };
+
+  // Adding a custom camera builds its scenes straight away when OBS and the event are ready.
+  const addCustomCamera = () => {
+    const error = customCameraNameError(newCameraName, customCameras, fieldCount);
+    if (error) {
+      setCustomMessage(error);
+      return;
+    }
+    const next = [...customCameras, { name: newCameraName.trim(), overlay: true }];
+    setCustomCameras(next);
+    setNewCameraName('');
+    setCustomMessage(canRun ? undefined : 'Added. Its scenes are built the next time you set up OBS.');
+    if (canRun) run('update', next);
+  };
+
+  const setCustomOverlay = (camera: CustomCamera, overlay: boolean) => {
+    setCustomCameras(customCameras.map(other => other.name === camera.name ? { ...other, overlay } : other));
+    if (status.connected)
+      setOverlayShown(callObs, camera, overlay).mapErr(error => setCustomMessage(`Unable to change the overlay in OBS: ${error}`));
+  };
+
+  const removeCustomCamera = (camera: CustomCamera) => {
+    if (!window.confirm(`Remove the ${camera.name} camera? Its scenes, "${camera.name}" and "${cameraSceneName(camera.name)}", are deleted from OBS.`))
+      return;
+    const remove = status.connected ? removeCustomCameraScenes(callObs, camera) : okAsync(undefined);
+    remove.match(
+      () => {
+        setCustomCameras(customCameras.filter(other => other.name !== camera.name));
+        setCustomMessage(status.connected ? undefined : `Removed. OBS was not connected: delete its scenes in OBS if they are there.`);
+        setRefreshKey(key => key + 1);
+      },
+      error => setCustomMessage(`Unable to remove the ${camera.name} scenes from OBS: ${error}`),
+    );
   };
 
   const updateButton = (label: string) => (
@@ -176,6 +218,35 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode }) => {
         <OutcomeView outcome={setup} errorHint='Fix the problem and run "Update for this event" to finish.' />
 
         <ObsSourceMapper part="cameras" cameras={cameras} audioMode={audioMode} refreshKey={refreshKey} active={step === 'scenes'} />
+
+        <div className="custom-cameras">
+          <h3>Custom Cameras</h3>
+          <p>
+            More cameras, such as the audience or a camera in the pits. Each gets a scene of its own named after it,
+            with a button on Run, and its camera is picked above like the others.
+          </p>
+          {customCameras.length > 0 && (
+            <ul>
+              {customCameras.map(camera => (
+                <li key={camera.name} className="custom-camera-row">
+                  <span className="custom-camera-name">{camera.name}</span>
+                  <label title="The FTC Live score bar and graphics on top of the camera. A pit camera during a long field delay may look better without them.">
+                    <input type="checkbox" checked={camera.overlay} onChange={(e) => setCustomOverlay(camera, e.target.checked)} />
+                    FTC Live overlay
+                  </label>
+                  <button onClick={() => removeCustomCamera(camera)} disabled={running}>Remove</button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="custom-camera-add">
+            <input type="text" aria-label="New camera name" placeholder="Name, e.g. Audience or Pit Camera" value={newCameraName}
+              onChange={(e) => { setNewCameraName(e.target.value); setCustomMessage(undefined); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') addCustomCamera(); }} />
+            <button onClick={addCustomCamera} disabled={running}>Add camera</button>
+          </div>
+          {customMessage && <p className="custom-camera-message" role="status">{customMessage}</p>}
+        </div>
       </div>
 
       <div className="section" hidden={step !== 'audio'}>

@@ -133,3 +133,27 @@ test('Run puts a scene on the stream with one click', async ({ page, obs }) => {
   await expect(scenes.getByRole('button', { name: /^Ceremony/ })).toHaveAttribute('aria-pressed', 'true');
   await expect(scenes.getByRole('button', { name: /^Field 1/ })).toHaveAttribute('aria-pressed', 'false');
 });
+
+test('custom cameras are kept in a list until OBS is there to build them', async ({ page }) => {
+  await page.goto('/#setup/scenes');
+  const custom = page.locator('.custom-cameras');
+  await custom.getByLabel('New camera name').fill('Pit Camera');
+  await custom.getByRole('button', { name: 'Add camera' }).click();
+  await expect(custom.getByRole('listitem')).toHaveText([/Pit Camera/]);
+  await expect(custom).toContainText('Its scenes are built the next time you set up OBS.');
+
+  // A name setup already uses is refused.
+  await custom.getByLabel('New camera name').fill('pit display');
+  await custom.getByRole('button', { name: 'Add camera' }).click();
+  await expect(custom).toContainText('"pit display" is already used.');
+
+  const row = custom.getByRole('listitem').filter({ hasText: 'Pit Camera' });
+  await expect(row.getByLabel('FTC Live overlay')).toBeChecked();
+  await row.getByLabel('FTC Live overlay').uncheck();
+  await page.reload();
+  await expect(custom.getByRole('listitem').filter({ hasText: 'Pit Camera' }).getByLabel('FTC Live overlay')).not.toBeChecked();
+
+  page.once('dialog', dialog => dialog.accept());
+  await custom.getByRole('listitem').filter({ hasText: 'Pit Camera' }).getByRole('button', { name: 'Remove' }).click();
+  await expect(custom.getByRole('listitem')).toHaveCount(0);
+});

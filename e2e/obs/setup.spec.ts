@@ -1,5 +1,5 @@
 // Configure OBS Studio, run from the dashboard against a real OBS Studio.
-import { connectFtcLive, connectObs, expect, section, setUpObs, showStep, test } from './fixtures';
+import { connectFtcLive, connectObs, expect, section, setUpObs, showStep, showView, test } from './fixtures';
 
 test('builds the event\'s scenes and applies the recommended settings', async ({ page, realObs, ftcLive }) => {
   const { control } = realObs;
@@ -53,4 +53,38 @@ test('updates the scenes for the next event, keeping camera choices', async ({ p
   expect(pit.inputSettings.url).toBe(`http://${ftcLive.host}/event/${ftcLive.event.eventCode}/display/?type=pit`);
   expect((await control.call('GetSceneItemList', { sceneName: 'Camera - Field 2' })).sceneItems.map(item => item.sourceName))
     .toEqual(['Camera - Field 1']);
+});
+
+test('adds a custom camera with a scene of its own, and removes it', async ({ page, realObs, ftcLive }) => {
+  const { control } = realObs;
+  const sceneNames = async () => (await control.call('GetSceneList')).scenes.map(scene => String(scene.sceneName));
+  const overlayShown = async () => {
+    const { sceneItemId } = await control.call('GetSceneItemId', { sceneName: 'Pit Camera', sourceName: 'FTC Live Overlay' });
+    return (await control.call('GetSceneItemEnabled', { sceneName: 'Pit Camera', sceneItemId })).sceneItemEnabled;
+  };
+  await page.goto('/');
+  await connectFtcLive(page, ftcLive);
+  await connectObs(page, realObs);
+  const panel = await setUpObs(page, ftcLive);
+
+  const custom = panel.locator('.custom-cameras');
+  await custom.getByLabel('New camera name').fill('Pit Camera');
+  await custom.getByRole('button', { name: 'Add camera' }).click();
+  await expect.poll(sceneNames, { timeout: 60_000 }).toEqual(expect.arrayContaining(['Pit Camera', 'Camera - Pit Camera']));
+  expect(await overlayShown()).toBe(true);
+  // Its camera is picked like the others.
+  await expect(page.locator('.obs-camera-card', { has: page.getByText('Pit Camera', { exact: true }) })).toBeVisible();
+
+  await custom.getByRole('listitem').filter({ hasText: 'Pit Camera' }).getByLabel('FTC Live overlay').uncheck();
+  await expect.poll(overlayShown).toBe(false);
+
+  await showView(page, 'Run');
+  await expect(section(page, 'Scenes').getByRole('button', { name: /^Pit Camera/ })).toBeVisible();
+
+  await showStep(page, 'scenes');
+  page.once('dialog', dialog => dialog.accept());
+  await custom.getByRole('listitem').filter({ hasText: 'Pit Camera' }).getByRole('button', { name: 'Remove' }).click();
+  await expect.poll(sceneNames).not.toContain('Pit Camera');
+  expect(await sceneNames()).not.toContain('Camera - Pit Camera');
+  expect(await sceneNames()).toContain('Field 1');
 });

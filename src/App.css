@@ -848,6 +848,64 @@ button.btn-primary:hover {
   max-width: none;
 }
 
+/* Setup: custom cameras, under the camera cards. */
+.custom-cameras {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  text-align: left;
+}
+
+.custom-cameras > p {
+  color: var(--muted);
+  margin: 4px 0 12px;
+}
+
+.custom-cameras ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.custom-camera-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.custom-camera-name {
+  flex: 1 1 160px;
+  font-weight: 600;
+}
+
+.custom-camera-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.custom-camera-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.custom-camera-add input {
+  flex: 1 1 240px;
+  margin-right: 0;
+}
+
+.custom-camera-message {
+  margin-top: 8px;
+  color: var(--muted);
+}
+
 /* Modal styles */
 .modal-overlay {
   position: fixed;

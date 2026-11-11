@@ -8,6 +8,7 @@ const facts = (overrides: Partial<SetupFacts> = {}): SetupFacts => ({
   scenes: [],
   fieldCount: 2,
   audioMode: 'device',
+  customCameras: [],
   fieldScenes: ['', '', ''],
   finalsScene: '',
   ...overrides,
@@ -27,6 +28,15 @@ describe('expectedScenes', () => {
     expect(expectedScenes(2)).toEqual([
       'Field 1', 'Field 2', 'Ceremony', 'Alliance Selection', 'Pit Display', 'Sponsor Loop',
       'Camera - Field 1', 'Camera - Field 2', 'Camera - Ceremony',
+    ]);
+  });
+});
+
+describe('expectedScenes with custom cameras', () => {
+  it('adds each custom camera\'s scene and camera scene', () => {
+    expect(expectedScenes(1, [{ name: 'Pit Camera', overlay: false }])).toEqual([
+      'Field 1', 'Ceremony', 'Alliance Selection', 'Pit Display', 'Sponsor Loop', 'Pit Camera',
+      'Camera - Field 1', 'Camera - Ceremony', 'Camera - Pit Camera',
     ]);
   });
 });

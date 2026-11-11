@@ -18,6 +18,8 @@ interface SceneItem {
   sceneItemId: number;
   sourceName: string;
   transform: Settings;
+  // Shown in the scene (the eye in OBS's source list).
+  enabled: boolean;
 }
 
 interface Collection {
@@ -162,7 +164,7 @@ export class FakeObs {
   }
 
   addItem(sceneName: string, sourceName: string) {
-    const item: SceneItem = { sceneItemId: this.nextItemId++, sourceName, transform: {} };
+    const item: SceneItem = { sceneItemId: this.nextItemId++, sourceName, transform: {}, enabled: true };
     this.collection.items.get(sceneName)!.push(item);
     return item.sceneItemId;
   }
@@ -345,6 +347,7 @@ export class FakeObs {
             sourceName: item.sourceName,
             sourceType: input ? INPUT_TYPE : SCENE_TYPE,
             inputKind: input ? input.kind : null,
+            sceneItemEnabled: item.enabled,
           };
         }),
       });
@@ -373,6 +376,21 @@ export class FakeObs {
         return errAsync(`No scene item ${sceneItemId} in "${sceneName}".`);
       const [item] = items.splice(index, 1);
       items.splice(Number(sceneItemIndex), 0, item);
+      return okAsync({});
+    },
+    GetSceneItemId: ({ sceneName, sourceName }) => {
+      const item = this.sceneItems(sceneName)?.find(item => item.sourceName === sourceName);
+      return item ? okAsync({ sceneItemId: item.sceneItemId }) : errAsync(`No source named "${sourceName}" in "${sceneName}".`);
+    },
+    GetSceneItemEnabled: ({ sceneName, sceneItemId }) => {
+      const item = this.sceneItems(sceneName)?.find(item => item.sceneItemId === sceneItemId);
+      return item ? okAsync({ sceneItemEnabled: item.enabled }) : errAsync(`No scene item ${sceneItemId} in "${sceneName}".`);
+    },
+    SetSceneItemEnabled: ({ sceneName, sceneItemId, sceneItemEnabled }) => {
+      const item = this.sceneItems(sceneName)?.find(item => item.sceneItemId === sceneItemId);
+      if (!item)
+        return errAsync(`No scene item ${sceneItemId} in "${sceneName}".`);
+      item.enabled = Boolean(sceneItemEnabled);
       return okAsync({});
     },
     GetSceneItemTransform: ({ sceneName, sceneItemId }) => {

@@ -29,6 +29,7 @@ const options = (overrides: Partial<SetupOptions> = {}): SetupOptions => ({
   safeBackgroundUrl: 'about:blank#background',
   lowerThirdUrl: 'about:blank#lower-third',
   lanReceiver: { port: 4455, password: 'pw' },
+  customCameras: [],
   ...overrides,
 });
 

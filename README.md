@@ -63,7 +63,7 @@ help sidebar for each step (the **?** button in the header shows and hides it):
 
 1. **Connect to FTC Live**: Enter the FTC Live server IP address, fetch events, select your event and connect
 2. **Connect to OBS Studio**: Enter your OBS WebSocket connection details. Run the dashboard on the OBS computer and connect to OBS as `localhost`
-3. **Scenes and cameras**: Click **Set up in a new scene collection** to build everything, then choose each camera. For the next event, select it and click **Update for this event**
+3. **Scenes and cameras**: Click **Set up in a new scene collection** to build everything, then choose each camera. For the next event, select it and click **Update for this event**. Under **Custom Cameras**, add more cameras (the audience, a pit camera): each gets a scene of its own, with the FTC Live overlay on top unless you untick it
 4. **Audio**: Choose where the stream's sound comes from and pick the audio device
 5. **Stream and recording settings**: Click **Apply recommended settings**
 6. **Scene switching**: Setup assigns its field scenes automatically; adjust them if you use your own scenes, and choose which match events switch scenes
