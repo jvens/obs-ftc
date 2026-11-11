@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import OBSWebSocket from 'obs-websocket-js';
 import { ResultAsync } from 'neverthrow';
 import { usePersistentState } from '../helpers/persistant';
-import { connectObs, obsSignaling } from './obsSignaling';
+import { ObsConnectError, connectObs, obsSignaling } from './obsSignaling';
+import NetworkAccessHelp from '../components/NetworkAccessHelp';
 import { SignalingChannel } from './signaling';
 import { CameraSender, SenderPeer, startCameraSender } from './sender';
 
@@ -72,7 +73,7 @@ const CameraPage: React.FC = () => {
   const [bitrate, setBitrate] = usePersistentState<number>('lanCameraBitrateKbps', 8000);
 
   const [obsState, setObsState] = useState<ObsState>('disconnected');
-  const [obsError, setObsError] = useState<string>();
+  const [obsError, setObsError] = useState<ObsConnectError>();
   // Set while the user wants to be connected, so a dropped connection is retried.
   const [wantConnected, setWantConnected] = useState(false);
   const [channel, setChannel] = useState<SignalingChannel>();
@@ -199,7 +200,8 @@ const CameraPage: React.FC = () => {
               : obsState === 'connecting' ? 'Connecting...'
               : wantConnected ? 'Not connected, retrying...' : 'Not connected.'}
           </p>
-          {obsError && <div className="error-message"><p>{obsError}</p></div>}
+          {obsError && <div className="error-message"><p>{obsError.message}</p></div>}
+          {obsState !== 'connected' && <NetworkAccessHelp service="OBS" address={obsHost} failed={!!obsError?.unreachable} />}
         </div>
 
         <div className="section tall">

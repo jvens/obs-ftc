@@ -33,12 +33,22 @@ A web application that integrates OBS Studio with the FTC Live scoring system, e
 
 ### Browser Configuration
 
-Since the FTC Live scoring system uses HTTP (not HTTPS), you may need to allow insecure content in your browser:
+Use **Chrome or Edge**. FTC Live and OBS use plain HTTP and WebSockets (not HTTPS), and the hosted
+dashboard is an HTTPS page, so the browser has to allow the connections:
 
-1. Navigate to the hosted application or `http://localhost:3000`
-2. Click the icon next to the URL and go to "Site settings"
-3. Find "Insecure content" and set it to "Allow"
-4. Refresh the page
+- **Chrome and Edge** ask to access devices on your local network the first time the dashboard
+  connects to FTC Live or OBS. Choose **Allow**. If the connection is blocked, the dashboard shows how
+  to allow it: click the icon next to the address, open "Site settings" and set
+  "Local network access" to "Allow". If you enter a host name (such as `scoring.example.com`) rather
+  than an IP address or a `.local` name, also set "Insecure content" to "Allow".
+- **Firefox** blocks these connections for any computer but its own (`localhost`), and has no
+  setting to allow them for one site. The dashboard and the LAN camera page warn when the address is
+  another computer. Firefox can only be made to work by changing two settings in `about:config`,
+  `security.mixed_content.block_active_content` (to `false`) and
+  `network.websocket.allowInsecureFromHTTPS` (to `true`). These apply to every website you visit and
+  weaken Firefox's protection everywhere, so use Chrome or Edge instead where you can.
+
+Served over plain HTTP (`npm start`, at `http://localhost:3000`), the dashboard needs none of this.
 
 ## Usage
 
@@ -59,9 +69,9 @@ connection.
 1. On the OBS computer, let OBS accept connections from the network: allow OBS through the firewall
    (Windows asks the first time the WebSocket server is reached from another computer) and note the
    computer's IP address (the WebSocket Server Settings window shows it under **Show Connect Info**).
-2. On the camera computer, open this site and click **Create LAN Camera** at the top (or open
-   `/camera`). Allow **Insecure content** for the site (see Browser Configuration above), and
-   allow camera access and local network access when Chrome asks.
+2. On the camera computer, open this site in Chrome or Edge and click **Create LAN Camera** at the
+   top (or open `/camera`). Allow camera access and local network access when the browser asks (see
+   Browser Configuration above). Firefox cannot send a camera to OBS on another computer.
 3. Enter the OBS computer's address, port and password and click **Connect**. Name the camera (for
    example "Field 1 tripod" or "Pit Cam"), pick the webcam, then click **Start sending**.
 4. In **Configure OBS Studio > Cameras** on the dashboard, set the camera (for example Field 1) to

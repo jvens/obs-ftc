@@ -27,6 +27,8 @@ interface ObsStudioContextData {
   setObsPassword: (password: string) => void;
   // isConnected: boolean;
   error: string | undefined;
+  // The last attempt to connect could not reach OBS (as opposed to OBS refusing the password).
+  connectionFailed: boolean;
   connectToObs: () => void;
   disconnectFromObs: () => void;
   // Scene names as listed in OBS (top first), kept up to date while connected.
@@ -125,6 +127,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
   const [outputMode, setOutputMode] = useState<'Simple' | 'Advanced' | null>(null);
   const [replayBufferConfigError, setReplayBufferConfigError] = useState<string | null>(null);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [connectionFailed, setConnectionFailed] = useState(false);
   const [recordingError, setRecordingError] = useState<string | undefined>(undefined);
   const [startStreamTime, setStartStreamTime] = useState<number>(0);
   const [recordDirectory, setRecordDirectory] = useState<string>('');
@@ -234,6 +237,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     try {
       const hello = await obs.connect(`ws://${obsUrl}:${obsPort}`, obsPassword);
       console.log('Hello message:', hello)
+      setConnectionFailed(false);
 
       obs.removeAllListeners('ConnectionClosed');
       obs.on('ConnectionClosed', (err) => {
@@ -301,6 +305,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
     } catch (error: any) {
       console.error('Failed to connect to OBS:', error);
       setIsConnected(false);
+      setConnectionFailed(error?.code !== 4009);
       if (error.code) {
         console.log('Error code:', error.code)
         if (error.code === 1006)
@@ -608,6 +613,7 @@ export const ObsStudioProvider: React.FC<ObsStudioProviderProps> = ({ children }
       saveReplayBuffer,
       startReplayBuffer,
       error,
+      connectionFailed,
       startStreamTime,
       setRecording,
       recordingError,

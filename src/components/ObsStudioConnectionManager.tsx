@@ -1,5 +1,6 @@
 import React from 'react';
 import { useObsStudio } from '../contexts/ObsStudioContext';
+import NetworkAccessHelp from './NetworkAccessHelp';
 
 const ObsStudioManager: React.FC = () => {
   const {
@@ -9,6 +10,7 @@ const ObsStudioManager: React.FC = () => {
     status,
     connectToObs, disconnectFromObs,
     error,
+    connectionFailed,
     isReconnecting, reconnectCountdown, cancelReconnect
   } = useObsStudio();
 
@@ -63,6 +65,8 @@ const ObsStudioManager: React.FC = () => {
           Error: <p>{error}</p>
         </div>
       )}
+
+      {!status.connected && <NetworkAccessHelp service="OBS" address={obsUrl} failed={connectionFailed} />}
 
     </div>
   );

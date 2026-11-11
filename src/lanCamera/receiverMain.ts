@@ -60,7 +60,7 @@ const connect = () => {
       });
     },
     error => {
-      showStatus(`${slot}: ${error}`);
+      showStatus(`${slot}: ${error.message}`);
       setTimeout(connect, RETRY_MS);
     }
   );

@@ -1,6 +1,6 @@
 // src/contexts/FtcLiveContext.tsx
 import React, { createContext, useContext, useState, useCallback, ReactNode, useRef, useEffect } from 'react';
-import { ResultAsync } from 'neverthrow';
+import { Result, ResultAsync } from 'neverthrow';
 import { FtcLiveSteamData, UpdateType } from '../types/FtcLive';
 import { useObsStudio } from './ObsStudioContext';
 import { usePersistentState } from '../helpers/persistant';
@@ -36,6 +36,8 @@ export const RecordStopConditions: { value: RecordStopCondition; label: string }
 // Define the context data types
 interface FtcLiveContextData {
   isConnected: boolean;
+  // The last attempt to open the match event stream failed before it opened.
+  connectionFailed: boolean;
   connectWebSocket: (connect: boolean) => void;
   transitionTriggers: UpdateType[];
   setTransitionTriggers: React.Dispatch<React.SetStateAction<UpdateType[]>>;
@@ -86,6 +88,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
   const selectedEvent = useAppSelector(selectSelectedEvent);
 
   const [isConnected, setConnected] = useState<boolean>(false);
+  const [connectionFailed, setConnectionFailed] = useState(false);
   const [socket, setSocket] = useState<WebSocket | undefined>();
   const [transitionTriggers, setTransitionTriggers] = usePersistentState<UpdateType[]>('Selected_Trigers', ['SHOW_PREVIEW', 'SHOW_MATCH', 'SHOW_RANDOM', 'MATCH_START', 'MATCH_POST']);
 
@@ -265,11 +268,24 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
         error => console.error(`Refreshing event ${eventCode} failed:`, error),
       );
 
-      const newSocket = new WebSocket(`ws://${serverUrl}/api/v2/stream/?code=${selectedEvent.eventCode}`);
+      // Some browsers refuse ws:// from an HTTPS page by throwing rather than failing to connect.
+      const opened = Result.fromThrowable(
+        () => new WebSocket(`ws://${serverUrl}/api/v2/stream/?code=${selectedEvent.eventCode}`),
+        error => error,
+      )();
+      if (opened.isErr()) {
+        console.error('Unable to open the FTC Live stream:', opened.error);
+        setConnectionFailed(true);
+        return;
+      }
+      const newSocket = opened.value;
       setSocket(newSocket)
+      let didOpen = false;
 
       newSocket.onopen = () => {
         console.log('WebSocket connected');
+        didOpen = true;
+        setConnectionFailed(false);
         wasConnectedRef.current = true;
         setConnected(true);
         trackEvent(AnalyticsEvents.FTC_LIVE_CONNECTED);
@@ -285,6 +301,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
       newSocket.onclose = () => {
         console.log('WebSocket disconnected');
         setConnected(false);
+        if (!didOpen) setConnectionFailed(true);
 
         // Only auto-reconnect if user didn't manually disconnect and we were previously connected
         if (!userDisconnectedRef.current && wasConnectedRef.current) {
@@ -323,7 +340,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
   // Provide the context value to children
   return (
     <FtcLiveContext.Provider value={{
-      connectWebSocket, isConnected,
+      connectWebSocket, isConnected, connectionFailed,
       transitionTriggers, setTransitionTriggers,
       postMatchReplayTime, setPostMatchReplayTime,
       enableReplayBuffer, setEnableReplayBuffer,
