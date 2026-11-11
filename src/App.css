@@ -1014,7 +1014,9 @@ button.btn-primary:hover {
   border-right: 1px solid var(--border);
 }
 
-.about-toc ol {
+.about-toc ol,
+.about-toc ul {
+  padding: 0;
   list-style: none;
   display: flex;
   flex-direction: column;
@@ -1209,6 +1211,53 @@ button.btn-primary:hover {
 
 .about-words dd {
   color: var(--ink-2);
+}
+
+.about-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.about-subtitle {
+  margin-top: 16px;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.about-text {
+  color: var(--ink-2);
+  line-height: 1.6;
+  max-width: 760px;
+}
+
+.about-list {
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--ink-2);
+  line-height: 1.55;
+  max-width: 760px;
+}
+
+.about-main code {
+  font-size: 0.9em;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+.about-toc .setup-step[aria-current='page'] {
+  background: var(--accent-soft);
+}
+
+.about-start-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .about-start {

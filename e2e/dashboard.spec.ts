@@ -190,7 +190,7 @@ test('a first visit opens About, which leads on to Setup', async ({ browser, bas
   await expect(page.getByRole('heading', { name: 'Stream your FTC event, and let the matches run the camera.' })).toBeVisible();
 
   // The section list jumps to a section and marks it.
-  const sections = page.getByRole('navigation', { name: 'On this page' });
+  const sections = page.getByRole('navigation', { name: 'About pages' });
   await sections.getByRole('link', { name: 'What you need' }).click();
   await expect(page).toHaveURL(/#about\/needs$/);
   await expect(page.getByRole('heading', { name: 'What you need' })).toBeInViewport();
@@ -203,4 +203,26 @@ test('a first visit opens About, which leads on to Setup', async ({ browser, bas
   await page.goto('/');
   await expect(views.getByRole('link', { name: 'Setup' })).toHaveAttribute('aria-current', 'page');
   await context.close();
+});
+
+test('About has guides beneath the overview, each a page of its own', async ({ page }) => {
+  await page.goto('/#about');
+  const sidebar = page.getByRole('navigation', { name: 'About pages' });
+
+  await sidebar.getByRole('link', { name: 'Webcams on any computer' }).click();
+  await expect(page).toHaveURL(/#about\/lan-cameras$/);
+  await expect(page.getByRole('heading', { name: 'Webcams on any computer', level: 2 })).toBeVisible();
+  await expect(page.getByText('The field display computer')).toBeVisible();
+  await expect(sidebar.getByRole('link', { name: 'Webcams on any computer' })).toHaveAttribute('aria-current', 'page');
+  // The overview is not shown alongside a guide.
+  await expect(page.getByRole('heading', { name: 'How it fits together' })).toHaveCount(0);
+
+  // The overview links into the guides too.
+  await page.getByRole('link', { name: 'Overview', exact: true }).click();
+  await page.getByRole('link', { name: 'NDI', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'NDI cameras', level: 2 })).toBeVisible();
+  await expect(page.getByText('winget install --exact --id DistroAV.DistroAV')).toBeVisible();
+
+  await sidebar.getByRole('link', { name: 'Where to put the cameras' }).click();
+  await expect(page.getByText('Coming soon.')).toBeVisible();
 });
