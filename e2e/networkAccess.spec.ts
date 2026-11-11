@@ -7,7 +7,7 @@ import { Browser, BrowserContext, Page, test as base, expect } from '@playwright
 import { HttpsSite, networkAddress, startHttpsSite } from './support/httpsSite';
 import { MockFtcLive, startMockFtcLive } from './support/mockFtcLive';
 import { MockObs, startMockObs } from './support/mockObs';
-import { showStep } from './support/dashboard';
+import { showStep, stepArea } from './support/dashboard';
 
 interface Fixtures {
   // This computer's network address, as another computer at the event would reach it.
@@ -65,8 +65,8 @@ test.skip(({ browserName }) => browserName === 'webkit', 'Not checked against Sa
 const section = (page: Page, heading: string) =>
   page.locator('.section', { has: page.getByRole('heading', { name: heading, exact: true }) });
 
-const ftcLivePanel = (page: Page) => section(page, 'FTC Live Server');
-const obsPanel = (page: Page) => section(page, 'OBS Studio Connection');
+const ftcLivePanel = (page: Page) => stepArea(page, 'ftc-live');
+const obsPanel = (page: Page) => stepArea(page, 'obs');
 
 // Opens the Connect to OBS Studio step and fills in OBS's address.
 const fillObs = async (page: Page, host: string, port: number) => {

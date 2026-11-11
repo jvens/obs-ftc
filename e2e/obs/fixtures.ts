@@ -4,9 +4,9 @@ import { Page } from '@playwright/test';
 import { ObsStudio, startObsStudio } from '../../integration/obs/obsStudio';
 import { MockFtcLive, startMockFtcLive } from '../support/mockFtcLive';
 import { expect, test as base } from '../support/fixtures';
-import { showStep } from '../support/dashboard';
+import { showStep, stepArea } from '../support/dashboard';
 
-export { showStep, showView } from '../support/dashboard';
+export { showStep, showView, stepArea } from '../support/dashboard';
 
 export { expect };
 
@@ -85,7 +85,7 @@ export const section = (page: Page, heading: string) =>
 // Connects the dashboard to OBS the way a volunteer does.
 export const connectObs = async (page: Page, obs: Pick<RealObs, 'host' | 'port' | 'password'>) => {
   await showStep(page, 'obs');
-  const panel = section(page, 'OBS Studio Connection');
+  const panel = stepArea(page, 'obs');
   await panel.getByPlaceholder('Enter OBS Studio IP').fill(obs.host);
   await panel.getByPlaceholder('Port').fill(String(obs.port));
   await panel.getByPlaceholder('OBS Websocket Password').fill(obs.password);
@@ -104,7 +104,7 @@ export interface FtcLiveWithEvent {
 // Picks the event on FTC Live and, with `listen`, follows its match events.
 export const connectFtcLive = async (page: Page, ftcLive: FtcLiveWithEvent, { listen = false } = {}) => {
   await showStep(page, 'ftc-live');
-  const panel = section(page, 'FTC Live Server');
+  const panel = stepArea(page, 'ftc-live');
   await panel.getByPlaceholder('Enter server IP').fill(ftcLive.host);
   await panel.getByRole('button', { name: 'Get Event Codes' }).click();
   await panel.getByRole('combobox').selectOption(ftcLive.event.eventCode);
@@ -118,7 +118,7 @@ export const connectFtcLive = async (page: Page, ftcLive: FtcLiveWithEvent, { li
 // Builds the event's scenes with "Set up in a new scene collection" and waits for it to finish.
 export const setUpObs = async (page: Page, ftcLive: FtcLiveWithEvent) => {
   await showStep(page, 'scenes');
-  const panel = section(page, 'Scenes and Cameras');
+  const panel = stepArea(page, 'scenes');
   await panel.getByRole('button', { name: 'Set up in a new scene collection' }).click();
   // "FTC <code>", or "FTC <code> (2)" and so on when an earlier test set the same event up.
   await expect(panel.getByText(new RegExp(`Scene collection: FTC ${ftcLive.event.eventCode}( \\(\\d+\\))?(?!\\w)`))).toBeVisible({ timeout: 60_000 });

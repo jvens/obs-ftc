@@ -82,9 +82,9 @@ const HELP: Record<SetupStepId, React.ReactNode> = {
     <>
       <h3>What this step does</h3>
       <p>Chooses which OBS scene shows each field's matches, and which match events switch to it.</p>
-      <h3>Scene assignments</h3>
+      <h3>Field scenes</h3>
       <p>Setup assigns the Field scenes it builds. Change them only if you use scenes of your own. With more than one field, finals are played on one of them: pick its scene too.</p>
-      <h3>Transition triggers</h3>
+      <h3>Switch on these match events</h3>
       <p>The match events that switch the stream to the match's field. The defaults switch when the match preview, the randomization and the match are shown, when the match starts, and when its results are posted.</p>
     </>
   ),

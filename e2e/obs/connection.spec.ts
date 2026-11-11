@@ -1,5 +1,5 @@
 // The dashboard's connection to a real OBS Studio.
-import { connectObs, expect, section, showStep, showView, test } from './fixtures';
+import { connectObs, expect, section, showStep, showView, test, stepArea } from './fixtures';
 
 test('connects to OBS and lists its scenes', async ({ page, realObs }) => {
   await realObs.control.call('CreateScene', { sceneName: 'Interview' });
@@ -10,7 +10,7 @@ test('connects to OBS and lists its scenes', async ({ page, realObs }) => {
   await expect(panel.getByText('Connected', { exact: true })).toBeVisible();
   // Scene Switching Settings offers OBS's scenes for each field.
   await showStep(page, 'switching');
-  await expect(section(page, 'Scene Switching Settings').getByRole('option', { name: 'Interview' }).first()).toBeAttached();
+  await expect(stepArea(page, 'switching').getByRole('option', { name: 'Interview' }).first()).toBeAttached();
 });
 
 test('follows scenes added in OBS while connected', async ({ page, realObs }) => {
@@ -20,7 +20,7 @@ test('follows scenes added in OBS while connected', async ({ page, realObs }) =>
   await realObs.control.call('CreateScene', { sceneName: 'Added Later' });
 
   await showStep(page, 'switching');
-  await expect(section(page, 'Scene Switching Settings').getByRole('option', { name: 'Added Later' }).first()).toBeAttached();
+  await expect(stepArea(page, 'switching').getByRole('option', { name: 'Added Later' }).first()).toBeAttached();
 });
 
 test('explains a wrong password', async ({ page, realObs }) => {

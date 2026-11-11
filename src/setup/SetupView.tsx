@@ -10,7 +10,7 @@ import { AudioMode, CustomCamera } from '../obsSetup/layout';
 import { useAppSelector } from '../store/hooks';
 import { selectFieldCount, selectSelectedEvent } from '../store/connectionSlice';
 import SetupHelp from './SetupHelp';
-import { DEFAULT_STEP, SETUP_STEPS, StepState, setupStepStates, stepFromId } from './steps';
+import { DEFAULT_STEP, SETUP_STEPS, StepState, setupStepStates, stepFromId, stepTitle } from './steps';
 
 interface Props {
   // The step in the URL (#setup/<step>); empty for the last step shown.
@@ -94,10 +94,10 @@ const SetupView: React.FC<Props> = ({ sub, helpOpen, onCloseHelp }) => {
           <h2>{current.title}</h2>
         </div>
 
-        <div hidden={step !== 'ftc-live'}><FtcLiveConnectionManager /></div>
-        <div hidden={step !== 'obs'}><ObsStudioManager /></div>
+        <section aria-label={stepTitle('ftc-live')} hidden={step !== 'ftc-live'}><FtcLiveConnectionManager /></section>
+        <section aria-label={stepTitle('obs')} hidden={step !== 'obs'}><ObsStudioManager /></section>
         <ObsSetupPanel step={step} audioMode={audioMode} setAudioMode={setAudioMode} customCameras={customCameras} setCustomCameras={setCustomCameras} />
-        <div hidden={step !== 'switching'}><SceneMapper /></div>
+        <section aria-label={stepTitle('switching')} hidden={step !== 'switching'}><SceneMapper /></section>
 
         <div className="setup-step-nav">
           {previous ? <a className="button-link" href={`#setup/${previous.id}`}>Back: {previous.title}</a> : <span />}

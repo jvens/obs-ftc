@@ -2,7 +2,7 @@
 // and OBS are mocks.
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { showStep, showView } from './support/dashboard';
+import { showStep, showView, stepArea } from './support/dashboard';
 import { MockFtcLive, startMockFtcLive } from './support/mockFtcLive';
 
 const section = (page: Page, heading: string) =>
@@ -10,7 +10,7 @@ const section = (page: Page, heading: string) =>
 
 const connectObs = async (page: Page, port: number) => {
   await showStep(page, 'obs');
-  const panel = section(page, 'OBS Studio Connection');
+  const panel = stepArea(page, 'obs');
   await panel.getByPlaceholder('Port').fill(String(port));
   await panel.getByRole('button', { name: 'Connect' }).click();
   await expect(panel.getByText('Connected', { exact: true })).toBeVisible();
@@ -18,7 +18,7 @@ const connectObs = async (page: Page, port: number) => {
 
 const connectFtcLive = async (page: Page, ftcLive: MockFtcLive) => {
   await showStep(page, 'ftc-live');
-  const panel = section(page, 'FTC Live Server');
+  const panel = stepArea(page, 'ftc-live');
   await panel.getByPlaceholder('Enter server IP').fill(ftcLive.host);
   await panel.getByRole('button', { name: 'Get Event Codes' }).click();
   await panel.getByRole('combobox').selectOption(ftcLive.event.eventCode);

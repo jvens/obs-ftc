@@ -15,41 +15,29 @@ const ObsStudioManager: React.FC = () => {
   } = useObsStudio();
 
   return (
-    <div className="section">
-      <h2>OBS Studio Connection</h2>
-      <input
-        type="text"
-        placeholder='Enter OBS Studio IP'
-        value={obsUrl}
-        onChange={(e) => setObsUrl(e.target.value)}
-      />
-      <input
-        type="number"
-        placeholder='Port'
-        value={obsPort}
-        onChange={(e) => setObsPort(parseInt(e.target.value))}
-      />
-      <br />
-      <input
-        type="text"
-        placeholder='OBS Websocket Password'
-        value={obsPassword}
-        onChange={(e) => setObsPassword(e.target.value)}
-      />
+    <div className="section setup-card">
+      <div className="form-grid">
+        <label>
+          OBS computer
+          <input type="text" placeholder='Enter OBS Studio IP' value={obsUrl} onChange={(e) => setObsUrl(e.target.value)} />
+        </label>
+        <label>
+          Port
+          <input type="number" placeholder='Port' value={obsPort} onChange={(e) => setObsPort(parseInt(e.target.value))} />
+        </label>
+        <label>
+          Password
+          <input type="text" placeholder='OBS Websocket Password' value={obsPassword} onChange={(e) => setObsPassword(e.target.value)} />
+        </label>
+      </div>
 
-      <button onClick={() => status.connected ? disconnectFromObs() : connectToObs()} disabled={!obsUrl || !obsPort}>
-        {status.connected ? 'Disconnect' : 'Connect'}
-      </button>
-
-      <div>Connection Status:
-        <span className={`connection-status ${status.connected ? 'connected' : 'disconnected'}`}>
+      <div className="setup-card-actions">
+        <button className={status.connected ? undefined : 'btn-primary'} onClick={() => status.connected ? disconnectFromObs() : connectToObs()} disabled={!obsUrl || !obsPort}>
+          {status.connected ? 'Disconnect' : 'Connect'}
+        </button>
+        <span className={`status-pill ${status.connected ? 'ok' : 'off'}`}>
+          {status.connected && <span className="status-dot" aria-hidden="true" />}
           {status.connected ? 'Connected' : 'Disconnected'}
-        </span>
-        <span className={`connection-status ${status.streaming ? 'connected' : 'disconnected'}`}>
-          {status.streaming ? 'Streaming' : 'Not Streaming'}
-        </span>
-        <span className={`connection-status ${status.recording ? 'connected' : 'disconnected'}`}>
-          {status.recording ? 'Recording' : 'Not Recording'}
         </span>
       </div>
 
@@ -62,12 +50,11 @@ const ObsStudioManager: React.FC = () => {
 
       {error && (
         <div className="error-message">
-          Error: <p>{error}</p>
+          <p>{error}</p>
         </div>
       )}
 
       {!status.connected && <NetworkAccessHelp service="OBS" address={obsUrl} failed={connectionFailed} />}
-
     </div>
   );
 };

@@ -16,6 +16,8 @@ export const DEFAULT_STEP: SetupStepId = 'ftc-live';
 
 export const stepFromId = (id: string): SetupStepId | undefined => SETUP_STEPS.find(step => step.id === id)?.id;
 
+export const stepTitle = (id: SetupStepId) => SETUP_STEPS.find(step => step.id === id)!.title;
+
 // 'done' and 'todo' are checked against FTC Live and OBS; 'info' steps have nothing the dashboard can
 // check, so they only describe the choice.
 export type StepStatus = 'done' | 'todo' | 'info';

@@ -10,7 +10,7 @@ import { customCameraNameError, removeCustomCameraScenes, setOverlayShown } from
 import { SetupMode, applySetup } from '../obsSetup/apply';
 import { applyRecommendedSettings } from '../obsSetup/outputSettings';
 import ObsSourceMapper from './ObsSourceMapper';
-import { SetupStepId } from '../setup/steps';
+import { SetupStepId, expectedScenes, stepTitle } from '../setup/steps';
 
 const AUDIO_MODE_LABELS: Record<AudioMode, string> = {
   device: 'Audio input device (capture card, mixer, Dante Virtual Soundcard, mic)',
@@ -51,7 +51,7 @@ interface Props {
 }
 
 const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode, customCameras, setCustomCameras }) => {
-  const { status, callObs, refreshReplayBufferStatus, obsPort, obsPassword } = useObsStudio();
+  const { status, scenes, callObs, refreshReplayBufferStatus, obsPort, obsPassword } = useObsStudio();
   const selectedEvent = useAppSelector(selectSelectedEvent);
   const ftcHost = useAppSelector(selectFtcServerUrl);
   const obsHost = useAppSelector(selectObsUrl);
@@ -66,6 +66,8 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode, customC
   const [refreshKey, setRefreshKey] = useState(0);
 
   const cameras = useMemo(() => plannedCameras(fieldCount, customCameras), [fieldCount, customCameras]);
+  // The scenes the stream shows (not the camera scenes), to list which OBS has.
+  const programScenes = useMemo(() => expectedScenes(fieldCount, customCameras).filter(scene => !scene.startsWith('Camera - ')), [fieldCount, customCameras]);
   const [newCameraName, setNewCameraName] = useState('');
   const [customMessage, setCustomMessage] = useState<string>();
   const live = status.streaming || status.recording;
@@ -173,12 +175,20 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode, customC
   // One card per Setup step; the step on screen shows its card, the others stay mounted but hidden.
   return (
     <>
-      <div className="section" hidden={step !== 'scenes'}>
-        <h2>Scenes and Cameras</h2>
-        <p>
-          Builds the scenes and sources for streaming this event in OBS: one scene per field, Ceremony, Alliance Selection,
-          Pit Display and Sponsor Loop, plus a scene for each camera.
+      <div className="section setup-card" role="region" aria-label={stepTitle('scenes')} hidden={step !== 'scenes'}>
+        <h3>Scenes in OBS</h3>
+        <p className="setup-card-note">
+          One scene per field, Ceremony, Alliance Selection, Pit Display and Sponsor Loop, plus a scene for each camera.
         </p>
+        {status.connected && (
+          <ul className="scene-pills" aria-label="Scenes setup builds">
+            {programScenes.map(scene => (
+              <li key={scene} className={`status-pill ${scenes.includes(scene) ? 'ok' : 'off'}`}>
+                {scene}{scenes.includes(scene) ? '' : ' (missing)'}
+              </li>
+            ))}
+          </ul>
+        )}
         {remoteObs && (
           <p><em>
             OBS is on another computer. Run this dashboard on the OBS computer and connect to OBS as localhost, so OBS
@@ -249,31 +259,31 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode, customC
         </div>
       </div>
 
-      <div className="section" hidden={step !== 'audio'}>
-        <h2>Audio</h2>
-        <div className="obs-setup-options">
+      <div className="section setup-card" role="region" aria-label={stepTitle('audio')} hidden={step !== 'audio'}>
+        <div className="form-grid">
           <label>
-            Stream audio:
+            Stream audio
             <select value={audioMode} onChange={(e) => setAudioMode(e.target.value as AudioMode)}>
               {(Object.keys(AUDIO_MODE_LABELS) as AudioMode[]).map(mode => (
                 <option key={mode} value={mode}>{AUDIO_MODE_LABELS[mode]}</option>
               ))}
             </select>
           </label>
+          <ObsSourceMapper part="audio" cameras={cameras} audioMode={audioMode} refreshKey={refreshKey} active={step === 'audio'} />
+        </div>
+        <div className="check-grid">
           <label title="Plays the FTC Live match sounds (start, end, buzzers) on the stream. Turn off if the venue audio feed already includes them.">
             <input type="checkbox" checked={overlaySounds} onChange={(e) => setOverlaySounds(e.target.checked)} />
             FTC Live match sounds on stream
           </label>
         </div>
-        <ObsSourceMapper part="audio" cameras={cameras} audioMode={audioMode} refreshKey={refreshKey} active={step === 'audio'} />
-        <p>OBS gets these choices when the scenes are built. After changing them, update OBS.</p>
+        <p className="setup-card-note">OBS gets these choices when the scenes are built. After changing them, update OBS.</p>
         <div className="obs-setup-actions">{updateButton('Update OBS')}</div>
         <OutcomeView outcome={setup} errorHint='Fix the problem and click "Update OBS" to finish.' />
       </div>
 
-      <div className="section" hidden={step !== 'settings'}>
-        <h2>Stream and Recording Settings</h2>
-        <p>
+      <div className="section setup-card" role="region" aria-label={stepTitle('settings')} hidden={step !== 'settings'}>
+        <p className="setup-card-note">
           1080p at 30 fps, 6000 kbps video and 160 kbps audio, recordings at stream quality, and the replay buffer turned on
           for match replays. The stream key and encoder are left as they are.
         </p>

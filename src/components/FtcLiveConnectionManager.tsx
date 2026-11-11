@@ -38,36 +38,44 @@ const FtcLiveConnectionManager: React.FC = () => {
   const eventList = events.length > 0 ? events : selectedEvent ? [selectedEvent] : [];
 
   return (
-    <div className="section">
-      <h2>FTC Live Server</h2>
-      <input
-        type="text"
-        placeholder="Enter server IP"
-        value={serverUrl}
-        disabled={isConnected}
-        onChange={(e) => dispatch(setFtcServerUrl(e.target.value))}
-      />
-      <button onClick={fetchEvents} disabled={isConnected}>Get Event Codes</button>
-      <br />
-      <select
-        value={selectedEvent?.eventCode}
-        onChange={(e) => selectEvent(e.target.value)}
-        disabled={events.length === 0 || isConnected}
-      >
-        <option value="">Select an event</option>
-        {eventList.map((event) => (
-          <option key={event.eventCode} value={event.eventCode}>
-            {event.eventCode} - {event.name}
-          </option>
-        ))}
-      </select>
+    <div className="section setup-card">
+      <div className="form-grid">
+        <label>
+          FTC Live address
+          <span className="field-row">
+            <input
+              type="text"
+              placeholder="Enter server IP"
+              value={serverUrl}
+              disabled={isConnected}
+              onChange={(e) => dispatch(setFtcServerUrl(e.target.value))}
+            />
+            <button onClick={fetchEvents} disabled={isConnected}>Get Event Codes</button>
+          </span>
+        </label>
+        <label>
+          Event
+          <select
+            value={selectedEvent?.eventCode}
+            onChange={(e) => selectEvent(e.target.value)}
+            disabled={events.length === 0 || isConnected}
+          >
+            <option value="">Select an event</option>
+            {eventList.map((event) => (
+              <option key={event.eventCode} value={event.eventCode}>
+                {event.eventCode} - {event.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
-      <button onClick={() => connectWebSocket(!isConnected)} disabled={!selectedEvent}>
-        {isConnected ? 'Disconnect' : 'Connect'}
-      </button>
-      <div>
-        Connection Status:
-        <span className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
+      <div className="setup-card-actions">
+        <button className={isConnected ? undefined : 'btn-primary'} onClick={() => connectWebSocket(!isConnected)} disabled={!selectedEvent}>
+          {isConnected ? 'Disconnect' : 'Connect'}
+        </button>
+        <span className={`status-pill ${isConnected ? 'ok' : 'off'}`}>
+          {isConnected && <span className="status-dot" aria-hidden="true" />}
           {isConnected ? 'Connected' : 'Disconnected'}
         </span>
       </div>

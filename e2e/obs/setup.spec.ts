@@ -1,5 +1,5 @@
 // Configure OBS Studio, run from the dashboard against a real OBS Studio.
-import { connectFtcLive, connectObs, expect, section, setUpObs, showStep, showView, test } from './fixtures';
+import { connectFtcLive, connectObs, expect, section, setUpObs, showStep, showView, test, stepArea } from './fixtures';
 
 test('builds the event\'s scenes and applies the recommended settings', async ({ page, realObs, ftcLive }) => {
   const { control } = realObs;
@@ -10,6 +10,9 @@ test('builds the event\'s scenes and applies the recommended settings', async ({
   const panel = await setUpObs(page, ftcLive);
 
   expect((await control.call('GetSceneCollectionList')).currentSceneCollectionName).toBe(`FTC ${ftcLive.event.eventCode}`);
+  // The step lists the scenes setup builds, none of them missing now.
+  const built = panel.getByRole('list', { name: 'Scenes setup builds' });
+  await expect(built.getByRole('listitem')).toHaveText(['Field 1', 'Field 2', 'Ceremony', 'Alliance Selection', 'Pit Display', 'Sponsor Loop']);
   const scenes = (await control.call('GetSceneList')).scenes.map(scene => scene.sceneName).reverse();
   expect(scenes).toEqual([
     'Field 1', 'Field 2', 'Ceremony', 'Alliance Selection', 'Pit Display', 'Sponsor Loop',
@@ -19,10 +22,10 @@ test('builds the event\'s scenes and applies the recommended settings', async ({
   expect(overlay.inputSettings.url).toMatch(`http://${ftcLive.host}/event/${ftcLive.event.eventCode}/display/?type=audience&`);
   // The dashboard assigns the new field scenes for scene switching.
   await showStep(page, 'switching');
-  await expect(section(page, 'Scene Switching Settings').getByRole('combobox').first()).toHaveValue('Field 1');
+  await expect(stepArea(page, 'switching').getByRole('combobox').first()).toHaveValue('Field 1');
 
   await showStep(page, 'settings');
-  const settings = section(page, 'Stream and Recording Settings');
+  const settings = stepArea(page, 'settings');
   await settings.getByRole('button', { name: 'Apply recommended settings' }).click();
   await expect(settings.getByText('Changed:').or(settings.getByText('OBS already uses the recommended settings.'))).toBeVisible({ timeout: 60_000 });
   const bitrate = await control.call('GetProfileParameter', { parameterCategory: 'SimpleOutput', parameterName: 'VBitrate' });
@@ -58,9 +61,10 @@ test('updates the scenes for the next event, keeping camera choices', async ({ p
 test('adds a custom camera with a scene of its own, and removes it', async ({ page, realObs, ftcLive }) => {
   const { control } = realObs;
   const sceneNames = async () => (await control.call('GetSceneList')).scenes.map(scene => String(scene.sceneName));
+  // Undefined until setup has put the overlay in the scene: it creates every scene first, then fills them.
   const overlayShown = async () => {
-    const { sceneItemId } = await control.call('GetSceneItemId', { sceneName: 'Pit Camera', sourceName: 'FTC Live Overlay' });
-    return (await control.call('GetSceneItemEnabled', { sceneName: 'Pit Camera', sceneItemId })).sceneItemEnabled;
+    const item = await control.call('GetSceneItemId', { sceneName: 'Pit Camera', sourceName: 'FTC Live Overlay' }).catch(() => undefined);
+    return item && (await control.call('GetSceneItemEnabled', { sceneName: 'Pit Camera', sceneItemId: item.sceneItemId })).sceneItemEnabled;
   };
   await page.goto('/');
   await connectFtcLive(page, ftcLive);
@@ -71,9 +75,10 @@ test('adds a custom camera with a scene of its own, and removes it', async ({ pa
   await custom.getByLabel('New camera name').fill('Pit Camera');
   await custom.getByRole('button', { name: 'Add camera' }).click();
   await expect.poll(sceneNames, { timeout: 60_000 }).toEqual(expect.arrayContaining(['Pit Camera', 'Camera - Pit Camera']));
-  expect(await overlayShown()).toBe(true);
+  await expect.poll(overlayShown, { timeout: 60_000 }).toBe(true);
   // Its camera is picked like the others.
-  await expect(page.locator('.obs-camera-card', { has: page.getByText('Pit Camera', { exact: true }) })).toBeVisible();
+  // Reading the cameras lists each one's devices, which takes OBS a while.
+  await expect(page.locator('.obs-camera-card', { has: page.getByText('Pit Camera', { exact: true }) })).toBeVisible({ timeout: 30_000 });
 
   await custom.getByRole('listitem').filter({ hasText: 'Pit Camera' }).getByLabel('FTC Live overlay').uncheck();
   await expect.poll(overlayShown).toBe(false);

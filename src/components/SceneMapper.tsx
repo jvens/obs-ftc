@@ -8,6 +8,18 @@ import { SCENE_NAMES } from "../obsSetup/layout";
 
 type SceneSetter = React.Dispatch<React.SetStateAction<string | undefined>>;
 
+// The match events that can switch scenes, in the order a match goes through them.
+const TRIGGERS: { type: UpdateType; label: string }[] = [
+  { type: 'MATCH_LOAD', label: 'Match Load' },
+  { type: 'SHOW_PREVIEW', label: 'Show Preview' },
+  { type: 'SHOW_RANDOM', label: 'Show Random' },
+  { type: 'SHOW_MATCH', label: 'Show Match' },
+  { type: 'MATCH_START', label: 'Match Start' },
+  { type: 'MATCH_ABORT', label: 'Match Abort' },
+  { type: 'MATCH_COMMIT', label: 'Match Commit' },
+  { type: 'MATCH_POST', label: 'Match Post' },
+];
+
 const SceneMapper = () => {
   const {
     scenes,
@@ -24,7 +36,6 @@ const SceneMapper = () => {
   const {
     transitionTriggers: selectedTriggers,
     setTransitionTriggers: setSelectedTriggers,
-    isConnected: isFtcLiveConnected,
   } = useFtcLive();
   const fieldCount = useAppSelector(selectFieldCount);
 
@@ -50,22 +61,13 @@ const SceneMapper = () => {
     );
   };
 
-  // Determine if status is ready based on field count
-  const getStatus = () => {
-    if (!status.connected || !isFtcLiveConnected) return false;
-    if (fieldCount === 1) return !!field1Scene;
-    if (fieldCount === 2) return !!field1Scene && !!field2Scene && !!field0Scene;
-    if (fieldCount === 3) return !!field1Scene && !!field2Scene && !!field3Scene && !!field0Scene;
-    return false;
-  };
-
   const renderSceneSelect = (
     label: string,
     value: string | undefined,
     onChange: (scene: string | undefined) => void
   ) => (
-    <>
-      {label}:
+    <label>
+      {label}
       <select
         onChange={(e) => onChange(scenes.find((s) => s === e.target.value))}
         value={value || "Select Scene"}
@@ -78,141 +80,35 @@ const SceneMapper = () => {
           </option>
         ))}
       </select>
-      <br />
-    </>
+    </label>
   );
 
   return (
-    <div className="section tall">
-      <h2>Scene Switching Settings</h2>
-      <div>
-        <h3>Scene Assignments</h3>
+    <div className="section setup-card">
+      <h3>Field scenes</h3>
+      <p className="setup-card-note">The OBS scene that shows each field's matches.</p>
+      <div className="form-grid">
         {fieldCount === 1 ? (
-          // Single field - just one scene assignment
-          renderSceneSelect("Scene", field1Scene, setField1Scene)
+          renderSceneSelect("Field scene", field1Scene, setField1Scene)
         ) : (
-          // Multiple fields - show field 1, 2, optionally 3, and finals
           <>
-            {renderSceneSelect("Field 1 Scene", field1Scene, setField1Scene)}
-            {renderSceneSelect("Field 2 Scene", field2Scene, setField2Scene)}
-            {fieldCount >= 3 && renderSceneSelect("Field 3 Scene", field3Scene, setField3Scene)}
-            {renderSceneSelect("Finals Scene", field0Scene, setField0Scene)}
+            {renderSceneSelect("Field 1", field1Scene, setField1Scene)}
+            {renderSceneSelect("Field 2", field2Scene, setField2Scene)}
+            {fieldCount >= 3 && renderSceneSelect("Field 3", field3Scene, setField3Scene)}
+            {renderSceneSelect("Finals", field0Scene, setField0Scene)}
           </>
         )}
       </div>
-      <br />
-      <div>
-        <h3>Transition Triggers</h3>
-        <p>Select the events that will cause the OBS scene to switch.</p>
-        <table className="trigger-table">
-          <thead>
-            <tr>
-              <th>Event</th>
-              <th>Switch Scene</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><label htmlFor="trigger-MATCH_LOAD">Match Load</label></td>
-              <td>
-                <input
-                  id="trigger-MATCH_LOAD"
-                  type="checkbox"
-                  checked={selectedTriggers.includes("MATCH_LOAD")}
-                  onChange={() => handleTriggerChange("MATCH_LOAD")}
-                />
-              </td>
-            </tr>
-            <tr>
-              <td><label htmlFor="trigger-SHOW_PREVIEW">Show Preview</label></td>
-              <td>
-                <input
-                  id="trigger-SHOW_PREVIEW"
-                  type="checkbox"
-                  checked={selectedTriggers.includes("SHOW_PREVIEW")}
-                  onChange={() => handleTriggerChange("SHOW_PREVIEW")}
-                />
-              </td>
-            </tr>
-            <tr>
-              <td><label htmlFor="trigger-SHOW_RANDOM">Show Random</label></td>
-              <td>
-                <input
-                  id="trigger-SHOW_RANDOM"
-                  type="checkbox"
-                  checked={selectedTriggers.includes("SHOW_RANDOM")}
-                  onChange={() => handleTriggerChange("SHOW_RANDOM")}
-                />
-              </td>
-            </tr>
-            <tr>
-              <td><label htmlFor="trigger-SHOW_MATCH">Show Match</label></td>
-              <td>
-                <input
-                  id="trigger-SHOW_MATCH"
-                  type="checkbox"
-                  checked={selectedTriggers.includes("SHOW_MATCH")}
-                  onChange={() => handleTriggerChange("SHOW_MATCH")}
-                />
-              </td>
-            </tr>
-            <tr>
-              <td><label htmlFor="trigger-MATCH_START">Match Start</label></td>
-              <td>
-                <input
-                  id="trigger-MATCH_START"
-                  type="checkbox"
-                  checked={selectedTriggers.includes("MATCH_START")}
-                  onChange={() => handleTriggerChange("MATCH_START")}
-                />
-              </td>
-            </tr>
-            <tr>
-              <td><label htmlFor="trigger-MATCH_COMMIT">Match Commit</label></td>
-              <td>
-                <input
-                  id="trigger-MATCH_COMMIT"
-                  type="checkbox"
-                  checked={selectedTriggers.includes("MATCH_COMMIT")}
-                  onChange={() => handleTriggerChange("MATCH_COMMIT")}
-                />
-              </td>
-            </tr>
-            <tr>
-              <td><label htmlFor="trigger-MATCH_POST">Match Post</label></td>
-              <td>
-                <input
-                  id="trigger-MATCH_POST"
-                  type="checkbox"
-                  checked={selectedTriggers.includes("MATCH_POST")}
-                  onChange={() => handleTriggerChange("MATCH_POST")}
-                />
-              </td>
-            </tr>
-            <tr>
-              <td><label htmlFor="trigger-MATCH_ABORT">Match Abort</label></td>
-              <td>
-                <input
-                  id="trigger-MATCH_ABORT"
-                  type="checkbox"
-                  checked={selectedTriggers.includes("MATCH_ABORT")}
-                  onChange={() => handleTriggerChange("MATCH_ABORT")}
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <br />
-      <div>
-        Status:
-        <span
-          className={`connection-status ${
-            getStatus() ? "connected" : "disconnected"
-          }`}
-        >
-          {getStatus() ? "Running" : "Not Running"}
-        </span>
+
+      <h3>Switch on these match events</h3>
+      <p className="setup-card-note">The stream switches to the match's field when FTC Live sends any of these.</p>
+      <div className="check-grid">
+        {TRIGGERS.map(({ type, label }) => (
+          <label key={type}>
+            <input type="checkbox" checked={selectedTriggers.includes(type)} onChange={() => handleTriggerChange(type)} />
+            {label}
+          </label>
+        ))}
       </div>
     </div>
   );
