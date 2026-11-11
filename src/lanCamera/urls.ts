@@ -4,7 +4,7 @@ export interface LanReceiverConfig {
   password: string;
 }
 
-const RECEIVER_PATH = /\/camera-receiver\.html(\?|#|$)/;
+const RECEIVER_PATH = /\/camera-receiver(\.html)?(\?|#|$)/;
 
 // The pages are served next to this dashboard. `slot` is the camera label ("Field 1") and `camera`
 // the name of the camera computer to show, empty until one is picked. The password goes in the
@@ -12,7 +12,7 @@ const RECEIVER_PATH = /\/camera-receiver\.html(\?|#|$)/;
 export const lanReceiverUrl = (slot: string, camera: string, config: LanReceiverConfig) => {
   const query = new URLSearchParams({ slot, camera, port: String(config.port) });
   const hash = config.password ? `#${new URLSearchParams({ password: config.password })}` : '';
-  return `${window.location.origin}/camera-receiver.html?${query}${hash}`;
+  return `${window.location.origin}/camera-receiver?${query}${hash}`;
 };
 
 export const lanCameraPageUrl = () => `${window.location.origin}/camera`;
