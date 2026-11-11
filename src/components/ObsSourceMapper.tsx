@@ -25,9 +25,13 @@ const DASHBOARD_ID = crypto.randomUUID();
 const CameraPageLink: React.FC = () =>
   <a href={lanCameraPageUrl()} target="_blank" rel="noopener noreferrer">camera page</a>;
 
+// The address to type on the camera computer, as a link that opens the camera page.
+const CameraPageAddress: React.FC = () =>
+  <a className="obs-lan-address" href={lanCameraPageUrl()} target="_blank" rel="noopener noreferrer">{lanCameraPageUrl()}</a>;
+
 const lanStatusText = (camera: string, status: LanStatus | undefined, sending: boolean, now: number): React.ReactNode => {
   if (!camera)
-    return <>Pick the camera computer to show. To add one, open the <CameraPageLink /> on that computer (the "Create LAN Camera" button at the top of this site), name the camera and click Start sending; it appears in this list.</>;
+    return <>Pick the camera computer to show. To add one, open <CameraPageAddress /> on that computer, name the camera and click Start sending; it appears in this list.</>;
   if (!status || status.camera !== camera || now - status.at > LAN_STALE_MS)
     return 'OBS is not running the receiver for this camera.';
   if (status.state === 'live')
@@ -251,9 +255,9 @@ const ObsSourceMapper: React.FC<Props> = ({ part, cameras, audioMode, refreshKey
         <summary>More about cameras</summary>
         <p>When one camera covers two roles, set the second to "{CAMERA_TYPE_LABELS.shared}".</p>
         <p>
-          For a webcam plugged into another computer on the event network, open the <CameraPageLink /> on that
-          computer (the "Create LAN Camera" button at the top of this site), name the camera and click Start sending. Then set the
-          camera here to "{CAMERA_TYPE_LABELS.lan}" and pick that name.
+          For a webcam plugged into another computer on the event network, open <CameraPageAddress /> on that
+          computer (or click Create LAN Camera at the top of this site there), name the camera and click Start sending.
+          Then set the camera here to "{CAMERA_TYPE_LABELS.lan}" and pick that name.
         </p>
         <p>To use something else (a switcher, a second capture card, a media file), put it in the camera's scene in OBS.</p>
       </details>
