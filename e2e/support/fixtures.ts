@@ -24,8 +24,10 @@ export const test = base.extend<Fixtures, { obsBrowser: Browser }>({
     await use(obs);
     await obs.close();
   },
+  // Tests start as a returning visitor, on Setup; a first visit opens About.
   context: async ({ context }, use) => {
     await offline(context);
+    await context.addInitScript(() => { if (!localStorage.getItem('aboutSeen')) localStorage.setItem('aboutSeen', 'true'); });
     await use(context);
   },
   otherComputer: async ({ browser, launchOptions, channel, permissions, baseURL }, use) => {

@@ -15,7 +15,8 @@ body {
 /* Styling the main App container */
 .App {
   text-align: center;
-  overflow-x: hidden;
+  /* clip, not hidden: hidden would stop sticky elements (the About section list) from sticking. */
+  overflow-x: clip;
   min-height: 100vh;
   background: var(--bg);
 }
@@ -994,6 +995,249 @@ button.btn-primary:hover {
 .setup-card .obs-camera-card select {
   width: 100%;
   margin-right: 0;
+}
+
+/* About: one page, its sections listed down the side like Setup's steps. */
+.about-layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.about-toc {
+  flex: 1 1 260px;
+  max-width: 300px;
+  align-self: stretch;
+  padding: 24px 16px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+
+.about-toc ol {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.about-toc hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 12px 8px;
+}
+
+.about-toc .button-link {
+  margin-left: 12px;
+}
+
+/* The section list follows the page down. */
+@media (min-width: 861px) {
+  .about-toc-inner {
+    position: sticky;
+    top: 16px;
+  }
+}
+
+.about-toc .setup-step[aria-current='location'] {
+  background: var(--accent-soft);
+}
+
+.about-main {
+  flex: 999 1 560px;
+  min-width: 0;
+  max-width: 980px;
+  padding: 40px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+
+.about-main section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scroll-margin-top: 16px;
+}
+
+.about-main a {
+  color: var(--accent);
+}
+
+.about-kicker {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.about-title {
+  font-size: 2.4rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.about-section-title {
+  font-size: 1.6rem;
+  font-weight: 600;
+}
+
+.about-lead {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: 760px;
+}
+
+.about-cards {
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.about-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+
+.about-card strong {
+  color: var(--ink);
+}
+
+.about-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.about-flow-box {
+  flex: 1 1 170px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.about-flow-box strong {
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.about-flow-box.highlight {
+  border-color: var(--accent);
+}
+
+.about-flow-where {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.about-flow-box.highlight .about-flow-where {
+  color: var(--accent);
+}
+
+.about-flow-arrow {
+  flex: none;
+  align-self: center;
+  color: var(--muted);
+}
+
+.about-note {
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+.about-note strong {
+  color: var(--ink);
+}
+
+.about-steps {
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.about-steps li {
+  display: flex;
+  gap: 16px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+.about-steps strong {
+  display: block;
+  color: var(--ink);
+}
+
+.about-words {
+  display: grid;
+  grid-template-columns: minmax(130px, 200px) 1fr;
+  gap: 12px 24px;
+}
+
+.about-words dt {
+  font-weight: 600;
+}
+
+.about-words dd {
+  color: var(--ink-2);
+}
+
+.about-start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+@media (max-width: 860px) {
+  .about-toc {
+    max-width: none;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .about-main {
+    padding: 24px 16px;
+  }
+
+  .about-words {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Modal styles */

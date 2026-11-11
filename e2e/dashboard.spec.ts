@@ -179,3 +179,28 @@ test('dark mode is a setting in the header, kept for the dashboard and the camer
   await darkMode.click();
   await expect(html).not.toHaveAttribute('data-theme');
 });
+
+test('a first visit opens About, which leads on to Setup', async ({ browser, baseURL }) => {
+  // A browser that has never opened the dashboard.
+  const context = await browser.newContext({ baseURL });
+  const page = await context.newPage();
+  await page.goto('/');
+  const views = page.getByRole('navigation', { name: 'Views' });
+  await expect(views.getByRole('link', { name: 'About' })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('heading', { name: 'Stream your FTC event, and let the matches run the camera.' })).toBeVisible();
+
+  // The section list jumps to a section and marks it.
+  const sections = page.getByRole('navigation', { name: 'On this page' });
+  await sections.getByRole('link', { name: 'What you need' }).click();
+  await expect(page).toHaveURL(/#about\/needs$/);
+  await expect(page.getByRole('heading', { name: 'What you need' })).toBeInViewport();
+  await expect(sections.getByRole('link', { name: 'What you need' })).toHaveAttribute('aria-current', 'location');
+
+  await sections.getByRole('link', { name: 'Start Setup' }).click();
+  await expect(page.getByText('Step 1 of 6')).toBeVisible();
+
+  // After that, the dashboard opens on Setup.
+  await page.goto('/');
+  await expect(views.getByRole('link', { name: 'Setup' })).toHaveAttribute('aria-current', 'page');
+  await context.close();
+});

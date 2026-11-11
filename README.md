@@ -52,9 +52,10 @@ Served over plain HTTP (`npm start`, at `http://localhost:3000`), the dashboard 
 
 ## Usage
 
-The dashboard has four views, as tabs in its header: **Setup**, **Run** (scenes, lower thirds and
-the fields, during the event), **Outputs** (recording, replays, screenshots and YouTube chapters)
-and **Matches** (the Match Events table).
+The dashboard has five views, as tabs in its header: **About** (what the dashboard does, how it
+fits with FTC Live and OBS, what you need and how event day goes; it opens on a first visit),
+**Setup**, **Run** (scenes, lower thirds and the fields, during the event), **Outputs** (recording,
+replays, screenshots and YouTube chapters) and **Matches** (the Match Events table).
 The header shows whether FTC Live and OBS are connected, and whether OBS is recording and streaming,
 on every view. The moon button in the header switches to dark mode (and the sun back to light); the
 choice is remembered in the browser, and the LAN camera page follows it.

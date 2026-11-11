@@ -18,6 +18,7 @@ import { useLocation } from './helpers/views';
 import { useTheme } from './helpers/theme';
 import { usePersistentState } from './helpers/persistant';
 import SetupView from './setup/SetupView';
+import AboutView from './about/AboutView';
 import SceneButtons from './run/SceneButtons';
 import FieldStatus from './run/FieldStatus';
 import WarningsBanner from './components/WarningsBanner';
@@ -54,6 +55,9 @@ function Dashboard() {
       <AboutModal isOpen={showAbout} onClose={() => setShowAbout(false)} />
       {/* Every view stays mounted, so switching views keeps what each panel holds. */}
       <main>
+        <section className="view" aria-label="About" hidden={view !== 'about'}>
+          <AboutView sub={view === 'about' ? sub : ''} active={view === 'about'} />
+        </section>
         <section className="view" aria-label="Setup" hidden={view !== 'setup'}>
           <SetupView sub={view === 'setup' ? sub : ''} helpOpen={helpOpen} onCloseHelp={() => setHelpOpen(false)} />
         </section>

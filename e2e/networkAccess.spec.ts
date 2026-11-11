@@ -52,6 +52,8 @@ const test = base.extend<Fixtures, { site: HttpsSite }>({
       });
       // Offline apart from the site, the mocks on this computer, and its network address.
       await context.route(url => url.protocol.startsWith('http') && !['localhost', '127.0.0.1', lan].includes(url.hostname), route => route.abort());
+      // A returning visitor, so the dashboard opens on Setup rather than About.
+      await context.addInitScript(() => localStorage.setItem('aboutSeen', 'true'));
       const page = await context.newPage();
       await page.goto(path);
       return page;
