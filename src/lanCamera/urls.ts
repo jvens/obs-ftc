@@ -15,7 +15,7 @@ export const lanReceiverUrl = (slot: string, camera: string, config: LanReceiver
   return `${window.location.origin}/camera-receiver.html?${query}${hash}`;
 };
 
-export const lanCameraPageUrl = () => `${window.location.origin}/camera.html`;
+export const lanCameraPageUrl = () => `${window.location.origin}/camera`;
 
 export const isLanReceiverUrl = (url: string) => RECEIVER_PATH.test(url);
 
