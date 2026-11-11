@@ -69,6 +69,10 @@ help sidebar for each step (the **?** button in the header shows and hides it):
 
 Then turn on recording, replays and screenshots in **Outputs**.
 
+**Run** shows every scene as a button with a live preview: click one to put it on the stream, for
+example for awards or alliance selection. Automatic switching stays on: the next match event
+switches back to that match's field, so there is nothing to remember to turn back on.
+
 ## LAN Cameras
 
 A webcam plugged into any computer on the event network can feed an OBS camera scene, with no software

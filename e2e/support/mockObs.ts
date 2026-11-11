@@ -1,11 +1,13 @@
 // A minimal obs-websocket v5 server for testing the pages without OBS: no authentication,
 // BroadcastCustomEvent relayed to every client (with its data as the event data, as OBS does), a
-// fixed GetSceneList, and every other request answered with success. Listens on a free port, so
+// fixed scene list whose program scene SetCurrentProgramScene changes (with the event OBS sends),
+// and every other request answered with success. Listens on a free port, so
 // every test can have its own.
 import { AddressInfo } from 'node:net';
 import { WebSocket, WebSocketServer } from 'ws';
 
-const SCENES = ['Camera - Ceremony', 'Camera - Field 1', 'Field 1'];
+// Bottom first, as OBS lists them.
+const SCENES = ['Camera - Ceremony', 'Camera - Field 1', 'Ceremony', 'Field 1'];
 
 export interface MockObs {
   port: number;
@@ -14,7 +16,11 @@ export interface MockObs {
   close: () => Promise<void>;
 }
 
-const handle = (socket: WebSocket, clients: Set<WebSocket>, raw: string) => {
+interface State {
+  programScene: string;
+}
+
+const handle = (socket: WebSocket, clients: Set<WebSocket>, state: State, raw: string) => {
   const { op, d } = JSON.parse(raw);
   if (op === 1) {
     clients.add(socket);
@@ -25,13 +31,19 @@ const handle = (socket: WebSocket, clients: Set<WebSocket>, raw: string) => {
   let responseData = {};
   if (d.requestType === 'GetSceneList')
     responseData = {
-      currentProgramSceneName: 'Field 1',
+      currentProgramSceneName: state.programScene,
       scenes: SCENES.map((sceneName, sceneIndex) => ({ sceneName, sceneIndex })),
     };
   // What the dashboard reads when it connects: no outputs running, and no replay buffer.
   if (d.requestType === 'GetOutputList') responseData = { outputs: [] };
   if (d.requestType === 'GetRecordStatus' || d.requestType === 'GetStreamStatus') responseData = { outputActive: false };
   if (d.requestType === 'GetRecordDirectory') responseData = { recordDirectory: '/recordings' };
+  if (d.requestType === 'SetCurrentProgramScene') {
+    state.programScene = d.requestData.sceneName;
+    // Event intent Scenes (1 << 2).
+    for (const client of clients)
+      client.send(JSON.stringify({ op: 5, d: { eventType: 'CurrentProgramSceneChanged', eventIntent: 4, eventData: { sceneName: state.programScene } } }));
+  }
   if (d.requestType === 'BroadcastCustomEvent') {
     const { eventData } = d.requestData;
     for (const client of clients)
@@ -67,9 +79,10 @@ const discoverCameras = (port: number) => new Promise<string[]>((resolve, reject
 export const startMockObs = ({ listen = '127.0.0.1' } = {}) => new Promise<MockObs>(resolve => {
   const server = new WebSocketServer({ port: 0, host: listen });
   const clients = new Set<WebSocket>();
+  const state: State = { programScene: 'Field 1' };
   server.on('connection', socket => {
     socket.send(JSON.stringify({ op: 0, d: { obsWebSocketVersion: '5.5.0', rpcVersion: 1 } }));
-    socket.on('message', raw => handle(socket, clients, String(raw)));
+    socket.on('message', raw => handle(socket, clients, state, String(raw)));
     socket.on('close', () => clients.delete(socket));
   });
   server.on('listening', () => {

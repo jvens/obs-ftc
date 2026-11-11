@@ -91,8 +91,9 @@ test('Setup goes through the steps before going live, with help for each', async
   await expect(help).toBeVisible();
 
   // Setup opens on the last step shown.
-  await page.getByRole('link', { name: 'Run', exact: true }).click();
-  await page.getByRole('link', { name: 'Setup', exact: true }).click();
+  const views = page.getByRole('navigation', { name: 'Views' });
+  await views.getByRole('link', { name: 'Run', exact: true }).click();
+  await views.getByRole('link', { name: 'Setup', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Scenes and Cameras', exact: true })).toBeVisible();
 });
 
@@ -105,4 +106,26 @@ test('Setup ticks off a step once it is done', async ({ page, obs }) => {
   await panel.getByRole('button', { name: 'Connect' }).click();
   await expect(step.getByLabel('Done')).toBeVisible();
   await expect(step).toContainText(`localhost:${obs.port}`);
+});
+
+test('Run puts a scene on the stream with one click', async ({ page, obs }) => {
+  await page.goto('/#run');
+  const scenes = page.locator('.section', { has: page.getByRole('heading', { name: 'Scenes', exact: true }) });
+  await expect(scenes).toContainText('Connect to OBS in Setup to switch scenes here.');
+
+  await showStep(page, 'obs');
+  const obsPanel = page.locator('.section', { has: page.getByRole('heading', { name: 'OBS Studio Connection' }) });
+  await obsPanel.getByPlaceholder('Port').fill(String(obs.port));
+  await obsPanel.getByRole('button', { name: 'Connect' }).click();
+  await page.getByRole('navigation', { name: 'Views' }).getByRole('link', { name: 'Run', exact: true }).click();
+
+  // Camera scenes only hold a camera; they get no button.
+  await expect(scenes.getByRole('button', { name: /^Field 1/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(scenes.getByRole('button', { name: /^Camera/ })).toHaveCount(0);
+  // FTC Live is not connected, so nothing switches scenes by itself yet.
+  await expect(scenes).toContainText('Automatic switching waits for FTC Live');
+
+  await scenes.getByRole('button', { name: /^Ceremony/ }).click();
+  await expect(scenes.getByRole('button', { name: /^Ceremony/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(scenes.getByRole('button', { name: /^Field 1/ })).toHaveAttribute('aria-pressed', 'false');
 });

@@ -17,6 +17,7 @@ import AppHeader from './components/AppHeader';
 import { applyThemeFromUrl, useLocation } from './helpers/views';
 import { usePersistentState } from './helpers/persistant';
 import SetupView from './setup/SetupView';
+import SceneButtons from './run/SceneButtons';
 
 // Checked once at load: when OBS has the dashboard open as a browser source, show only the
 // warning so the hidden copy never connects to FTC Live or OBS.
@@ -55,9 +56,10 @@ function Dashboard() {
         <section className="view" aria-labelledby="view-run" hidden={view !== 'run'}>
           <div className="view-intro">
             <h2 id="view-run">Run</h2>
-            <p>During the event: lower thirds, and what happened in each match.</p>
+            <p>During the event: put scenes on the stream, show lower thirds, and follow each match.</p>
           </div>
           <div className="content-container">
+            <SceneButtons active={view === 'run'} />
             <LowerThirdsPanel />
             <MatchEventsTable />
           </div>

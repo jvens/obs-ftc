@@ -456,6 +456,96 @@ body {
   color: var(--accent);
 }
 
+/* Run: the scenes as big buttons. */
+.run-scenes {
+  text-align: left;
+}
+
+.run-scenes-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.run-scenes-hint,
+.run-scenes-empty {
+  margin: 4px 0 16px;
+  color: var(--muted);
+}
+
+.run-scenes-empty a,
+.run-scenes-hint a {
+  color: var(--accent);
+}
+
+.scene-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.scene-button {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+  text-align: left;
+}
+
+.scene-button:hover {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.scene-button.on-stream {
+  border-color: var(--live-dot);
+  box-shadow: 0 0 0 2px var(--live-dot);
+}
+
+.scene-thumb {
+  aspect-ratio: 16 / 9;
+  display: grid;
+  place-items: center;
+  background: var(--thumb);
+  color: var(--thumb-ink);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.scene-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scene-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  min-height: 48px;
+}
+
+.scene-name {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.run-scenes-previews {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--muted);
+}
+
 /* Modal styles */
 .modal-overlay {
   position: fixed;
