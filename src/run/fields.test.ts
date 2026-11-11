@@ -28,6 +28,10 @@ describe('fieldStatuses', () => {
     expect(fieldStatuses([row('Q1', undefined, { MATCH_START: 5 })], 1)).toEqual([{ field: 1 }]);
   });
 
+  it('takes the later stage when two events arrive in the same millisecond', () => {
+    expect(fieldStatuses([row('Q1', 1, { MATCH_LOAD: 7, MATCH_START: 7 })], 1)[0].match?.phase).toBe('Match running');
+  });
+
   it('names each stage of a match', () => {
     const phase = (events: Partial<MatchRow>) => fieldStatuses([row('Q1', 1, events)], 1)[0].match?.phase;
     expect(phase({ MATCH_LOAD: 1, MATCH_ABORT: 2 })).toBe('Aborted');

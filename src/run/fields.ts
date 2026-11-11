@@ -31,11 +31,12 @@ const PHASES: Record<UpdateType, { phase: string; tone: FieldTone }> = {
 
 const EVENTS = Object.keys(PHASES) as UpdateType[];
 
-// The match's latest event and when it happened.
+// The match's latest event and when it happened. PHASES lists the events in the order a match goes
+// through them, so of two events in the same millisecond the later stage wins.
 const latestEvent = (row: MatchRow): [UpdateType, number] | undefined =>
   EVENTS.reduce<[UpdateType, number] | undefined>((latest, event) => {
     const time = row[event];
-    return time !== undefined && (!latest || time > latest[1]) ? [event, time] : latest;
+    return time !== undefined && (!latest || time >= latest[1]) ? [event, time] : latest;
   }, undefined);
 
 const teams = (...numbers: (number | undefined)[]) => numbers.filter((team): team is number => team !== undefined && team > 0);
