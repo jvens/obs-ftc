@@ -12,6 +12,7 @@ const SECTIONS = [
   { id: 'needs', title: 'What you need' },
   { id: 'day', title: 'Event day, step by step' },
   { id: 'words', title: 'Words you will see' },
+  { id: 'project', title: 'About this project' },
 ] as const;
 
 type SectionId = typeof SECTIONS[number]['id'];
@@ -227,6 +228,25 @@ const AboutView: React.FC<Props> = ({ sub, active }) => {
             <span>Ready? Setup takes you through it one step at a time.</span>
             <a className="button-link primary" href="#setup/ftc-live">Start Setup</a>
           </div>
+
+          <section id={sectionElementId('project')} aria-labelledby="about-project-title">
+            <h2 id="about-project-title" className="about-section-title">About this project</h2>
+            <p>
+              FTC OBS is free and open source under the{' '}
+              <a href="https://github.com/jvens/obs-ftc/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>,
+              written by Jeramie Vens and maintained by volunteers. It is not an official project of <em>FIRST</em>.
+            </p>
+            <div className="about-cards">
+              <a className="about-card about-link-card" href="https://github.com/jvens/obs-ftc/issues" target="_blank" rel="noopener noreferrer">
+                <strong>Report a problem or ask for a feature</strong>
+                <span>On GitHub Issues. Say what you clicked, what you expected and what happened.</span>
+              </a>
+              <a className="about-card about-link-card" href="https://github.com/jvens/obs-ftc" target="_blank" rel="noopener noreferrer">
+                <strong>Source code</strong>
+                <span>On GitHub, where you can read how it works or help build it.</span>
+              </a>
+            </div>
+          </section>
         </div>
       )}
     </div>

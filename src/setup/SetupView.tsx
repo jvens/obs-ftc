@@ -16,6 +16,7 @@ interface Props {
   // The step in the URL (#setup/<step>); empty for the last step shown.
   sub: string;
   helpOpen: boolean;
+  onOpenHelp: () => void;
   onCloseHelp: () => void;
 }
 
@@ -30,7 +31,7 @@ const StepMarker: React.FC<{ number: number; state: StepState; current: boolean 
 
 // The Setup view: the steps before going live down the side, the current step's settings in the
 // middle, and help for it on the right. Every step stays mounted; only the current one shows.
-const SetupView: React.FC<Props> = ({ sub, helpOpen, onCloseHelp }) => {
+const SetupView: React.FC<Props> = ({ sub, helpOpen, onOpenHelp, onCloseHelp }) => {
   const [rememberedStep, setRememberedStep] = usePersistentState<string>('setupStep', DEFAULT_STEP);
   const fromUrl = stepFromId(sub);
   const step = fromUrl ?? stepFromId(rememberedStep) ?? DEFAULT_STEP;
@@ -105,7 +106,15 @@ const SetupView: React.FC<Props> = ({ sub, helpOpen, onCloseHelp }) => {
         </div>
       </div>
 
-      {helpOpen && <SetupHelp step={step} title={current.title} onClose={onCloseHelp} />}
+      {helpOpen ? <SetupHelp step={step} title={current.title} onClose={onCloseHelp} /> : (
+        // Closed, the help folds into a tab on the edge that opens it again.
+        <div className="help-tab-strip">
+          <button className="help-tab" onClick={onOpenHelp} aria-label="Show help" title="Show help">
+            <span className="help-tab-icon" aria-hidden="true">?</span>
+            <span className="help-tab-label" aria-hidden="true">Help</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

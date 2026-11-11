@@ -32,7 +32,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px 24px;
+  gap: 12px 16px;
   padding: 12px 24px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -81,6 +81,13 @@ body {
 
 .header-spacer {
   flex: 1 1 0;
+}
+
+.header-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
 }
 
 .header-status {
@@ -161,8 +168,7 @@ body {
   border: 0;
 }
 
-.icon-link,
-.about-button {
+.icon-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -176,18 +182,9 @@ body {
   color: var(--muted);
 }
 
-.icon-link:hover,
-.about-button:hover {
+.icon-link:hover {
   background: var(--hover);
   color: var(--ink);
-}
-
-.info-icon {
-  font-family: Georgia, serif;
-  font-style: italic;
-  font-weight: bold;
-  font-size: 18px;
-  line-height: 1;
 }
 
 /* Views: one shows at a time; the others stay mounted but hidden. */
@@ -426,6 +423,53 @@ body {
   color: var(--accent);
 }
 
+/* The help, closed: a tab down the right edge that opens it again. */
+.help-tab-strip {
+  flex: none;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+
+.help-tab {
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 44px;
+  min-height: 0;
+  margin: 12px 0;
+  padding: 12px 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.help-tab:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.help-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.help-tab-label {
+  writing-mode: vertical-rl;
+  letter-spacing: 0.04em;
+}
+
 .help-callout {
   display: flex;
   flex-direction: column;
@@ -450,6 +494,24 @@ body {
   .help-sidebar {
     border-top: 1px solid var(--border);
   }
+
+  .help-tab-strip {
+    flex: 1 1 100%;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+
+  .help-tab {
+    position: static;
+    flex-direction: row;
+    justify-content: center;
+    width: 100%;
+    margin: 0;
+  }
+
+  .help-tab-label {
+    writing-mode: horizontal-tb;
+  }
 }
 
 .icon-button {
@@ -461,18 +523,6 @@ body {
   font-size: 1.4rem;
   line-height: 1;
   color: var(--muted);
-}
-
-.help-button {
-  width: 40px;
-  min-height: 40px;
-  padding: 0;
-  font-size: 1.1rem;
-}
-
-.help-button.on {
-  border-color: var(--accent);
-  color: var(--accent);
 }
 
 /* Run: the scenes as big buttons. */
@@ -1160,6 +1210,18 @@ button.btn-primary:hover {
   line-height: 1.5;
 }
 
+.about-link-card {
+  text-decoration: none;
+}
+
+.about-link-card span {
+  color: var(--ink-2);
+}
+
+.about-link-card:hover {
+  border-color: var(--accent);
+}
+
 .about-card strong {
   color: var(--ink);
 }
@@ -1340,77 +1402,6 @@ button.btn-primary:hover {
 }
 
 /* Modal styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--scrim);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: var(--surface);
-  padding: 30px;
-  border-radius: 10px;
-  max-width: 500px;
-  width: 90%;
-  position: relative;
-  text-align: left;
-}
-
-.modal-content h2 {
-  margin-top: 0;
-  margin-bottom: 20px;
-  color: var(--ink);
-}
-
-.modal-content h3 {
-  margin-top: 20px;
-  margin-bottom: 5px;
-  color: var(--muted);
-}
-
-.modal-content p {
-  margin: 5px 0;
-  color: var(--ink);
-  line-height: 1.5;
-}
-
-.modal-content a {
-  color: var(--accent);
-}
-
-.modal-close {
-  position: absolute;
-  top: 10px;
-  right: 15px;
-  background: none;
-  border: none;
-  font-size: 28px;
-  cursor: pointer;
-  color: var(--muted);
-  padding: 0;
-  line-height: 1;
-}
-
-.modal-close:hover {
-  color: var(--ink);
-}
-
-.modal-disclaimer {
-  margin-top: 25px;
-  padding: 15px;
-  background: var(--surface-2);
-  border-left: 4px solid var(--brand);
-  font-size: 0.9em;
-  color: var(--muted);
-}
-
 .App-link {
   color: var(--accent);
 }
