@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import FtcLiveConnectionManager from '../components/FtcLiveConnectionManager';
 import ObsStudioManager from '../components/ObsStudioConnectionManager';
-import ObsSetupPanel from '../components/ObsSetupPanel';
+import ObsSetupPanel, { SetupChecks } from '../components/ObsSetupPanel';
 import SceneMapper from '../components/SceneMapper';
 import { useFtcLive } from '../contexts/FtcLiveContext';
 import { useObsStudio } from '../contexts/ObsStudioContext';
@@ -43,6 +43,7 @@ const SetupView: React.FC<Props> = ({ sub, helpOpen, onOpenHelp, onCloseHelp }) 
   const { status, scenes, obsUrl, obsPort, field0Scene, field1Scene, field2Scene, field3Scene } = useObsStudio();
   const event = useAppSelector(selectSelectedEvent);
   const fieldCount = useAppSelector(selectFieldCount);
+  const [checks, setChecks] = useState<SetupChecks>({});
 
   const states = setupStepStates({
     ftcConnected,
@@ -55,6 +56,8 @@ const SetupView: React.FC<Props> = ({ sub, helpOpen, onOpenHelp, onCloseHelp }) 
     customCameras,
     fieldScenes: [field1Scene ?? '', field2Scene ?? '', field3Scene ?? ''],
     finalsScene: field0Scene ?? '',
+    issues: checks.issues,
+    settings: checks.settings?.rows,
   });
 
   const index = SETUP_STEPS.findIndex(candidate => candidate.id === step);
@@ -97,7 +100,7 @@ const SetupView: React.FC<Props> = ({ sub, helpOpen, onOpenHelp, onCloseHelp }) 
 
         <section aria-label={stepTitle('ftc-live')} hidden={step !== 'ftc-live'}><FtcLiveConnectionManager /></section>
         <section aria-label={stepTitle('obs')} hidden={step !== 'obs'}><ObsStudioManager /></section>
-        <ObsSetupPanel step={step} audioMode={audioMode} setAudioMode={setAudioMode} customCameras={customCameras} setCustomCameras={setCustomCameras} />
+        <ObsSetupPanel step={step} audioMode={audioMode} setAudioMode={setAudioMode} customCameras={customCameras} setCustomCameras={setCustomCameras} onChecks={setChecks} />
         <section aria-label={stepTitle('switching')} hidden={step !== 'switching'}><SceneMapper /></section>
 
         <div className="setup-step-nav">
@@ -106,15 +109,7 @@ const SetupView: React.FC<Props> = ({ sub, helpOpen, onOpenHelp, onCloseHelp }) 
         </div>
       </div>
 
-      {helpOpen ? <SetupHelp step={step} title={current.title} onClose={onCloseHelp} /> : (
-        // Closed, the help folds into a tab on the edge that opens it again.
-        <div className="help-tab-strip">
-          <button className="help-tab" onClick={onOpenHelp} aria-label="Show help" title="Show help">
-            <span className="help-tab-icon" aria-hidden="true">?</span>
-            <span className="help-tab-label" aria-hidden="true">Help</span>
-          </button>
-        </div>
-      )}
+      <SetupHelp step={step} title={current.title} open={helpOpen} onOpen={onOpenHelp} onClose={onCloseHelp} />
     </div>
   );
 };

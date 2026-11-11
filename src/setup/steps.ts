@@ -1,4 +1,6 @@
 import { AudioMode, CustomCamera, SCENE_NAMES, plannedCameras } from '../obsSetup/layout';
+import type { SetupIssue } from '../obsSetup/check';
+import type { SettingRow } from '../obsSetup/outputSettings';
 
 // The steps on the Setup view, in the order a volunteer works through them before going live.
 export const SETUP_STEPS = [
@@ -18,8 +20,8 @@ export const stepFromId = (id: string): SetupStepId | undefined => SETUP_STEPS.f
 
 export const stepTitle = (id: SetupStepId) => SETUP_STEPS.find(step => step.id === id)!.title;
 
-// 'done' and 'todo' are checked against FTC Live and OBS; 'info' steps have nothing the dashboard can
-// check, so they only describe the choice.
+// 'done' and 'todo' are checked against FTC Live and OBS; 'info' is a step that cannot be checked yet
+// (OBS not connected), so it only describes the choice.
 export type StepStatus = 'done' | 'todo' | 'info';
 
 export interface StepState {
@@ -40,6 +42,10 @@ export interface SetupFacts {
   // Scene switching: the scene for each field (index 0 = field 1) and for finals.
   fieldScenes: string[];
   finalsScene: string;
+  // How OBS compares with what setup builds for this event, and with the recommended settings;
+  // undefined until they could be checked.
+  issues?: SetupIssue[];
+  settings?: SettingRow[];
 }
 
 const AUDIO_DETAIL: Record<AudioMode, string> = {
@@ -71,6 +77,9 @@ export const setupStepStates = (facts: SetupFacts): Record<SetupStepId, StepStat
     ...(facts.fieldCount >= 2 ? [facts.finalsScene] : []),
   ];
   const assigned = needed.every(scene => scene !== '' && inObs.has(scene));
+  const sceneIssues = facts.issues?.filter(issue => issue.area === 'scenes');
+  const audioIssues = facts.issues?.filter(issue => issue.area === 'audio');
+  const settingsToChange = facts.settings?.filter(row => !row.ok);
 
   return {
     'ftc-live': facts.ftcConnected
@@ -81,11 +90,21 @@ export const setupStepStates = (facts: SetupFacts): Record<SetupStepId, StepStat
       : { status: 'todo', detail: 'Not connected' },
     scenes: !facts.obsConnected
       ? { status: 'todo', detail: 'Connect to OBS first' }
-      : built === expected.length
-        ? { status: 'done', detail: `All ${expected.length} scenes in OBS` }
-        : { status: 'todo', detail: `${built} of ${expected.length} scenes in OBS` },
-    audio: { status: 'info', detail: AUDIO_DETAIL[facts.audioMode] },
-    settings: { status: 'info', detail: 'Recommended: 1080p, 30 fps' },
+      : built < expected.length
+        ? { status: 'todo', detail: `${built} of ${expected.length} scenes in OBS` }
+        : sceneIssues && sceneIssues.length > 0
+          ? { status: 'todo', detail: 'Out of date: update for this event' }
+          : { status: 'done', detail: `All ${expected.length} scenes in OBS` },
+    audio: facts.obsConnected && audioIssues
+      ? audioIssues.length > 0
+        ? { status: 'todo', detail: 'Out of date: update OBS' }
+        : { status: 'done', detail: AUDIO_DETAIL[facts.audioMode] }
+      : { status: 'info', detail: AUDIO_DETAIL[facts.audioMode] },
+    settings: facts.obsConnected && settingsToChange
+      ? settingsToChange.length > 0
+        ? { status: 'todo', detail: `${plural(settingsToChange.length, 'setting')} to change` }
+        : { status: 'done', detail: 'Recommended: 1080p, 30 fps' }
+      : { status: 'info', detail: 'Recommended: 1080p, 30 fps' },
     switching: facts.obsConnected && assigned
       ? { status: 'done', detail: facts.fieldCount >= 2 ? 'Fields and finals assigned' : 'Field assigned' }
       : { status: 'todo', detail: 'Pick the scene for each field' },

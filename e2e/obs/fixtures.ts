@@ -124,3 +124,14 @@ export const setUpObs = async (page: Page, ftcLive: FtcLiveWithEvent) => {
   await expect(panel.getByText(new RegExp(`Scene collection: FTC ${ftcLive.event.eventCode}( \\(\\d+\\))?(?!\\w)`))).toBeVisible({ timeout: 60_000 });
   return panel;
 };
+
+// Applies every recommended stream and recording setting, as a volunteer does on Setup.
+export const applyRecommendedSettings = async (page: Page) => {
+  await showStep(page, 'settings');
+  const settings = stepArea(page, 'settings');
+  await expect(settings.getByRole('table')).toBeVisible();
+  const applyAll = settings.getByRole('button', { name: 'Apply all recommended settings' });
+  if (await applyAll.isEnabled())
+    await applyAll.click();
+  await expect(settings.getByText('OBS has every recommended setting.')).toBeVisible({ timeout: 60_000 });
+};

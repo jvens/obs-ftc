@@ -1,5 +1,5 @@
 // Configure OBS Studio, run from the dashboard against a real OBS Studio.
-import { connectFtcLive, connectObs, expect, section, setUpObs, showStep, showView, test, stepArea } from './fixtures';
+import { applyRecommendedSettings, connectFtcLive, connectObs, expect, section, setUpObs, showStep, showView, test, stepArea } from './fixtures';
 
 test('builds the event\'s scenes and applies the recommended settings', async ({ page, realObs, ftcLive }) => {
   const { control } = realObs;
@@ -24,10 +24,7 @@ test('builds the event\'s scenes and applies the recommended settings', async ({
   await showStep(page, 'switching');
   await expect(stepArea(page, 'switching').getByRole('combobox').first()).toHaveValue('Field 1');
 
-  await showStep(page, 'settings');
-  const settings = stepArea(page, 'settings');
-  await settings.getByRole('button', { name: 'Apply recommended settings' }).click();
-  await expect(settings.getByText('Changed:').or(settings.getByText('OBS already uses the recommended settings.'))).toBeVisible({ timeout: 60_000 });
+  await applyRecommendedSettings(page);
   const bitrate = await control.call('GetProfileParameter', { parameterCategory: 'SimpleOutput', parameterName: 'VBitrate' });
   expect(bitrate.parameterValue).toBe('6000');
   expect((await control.call('GetReplayBufferStatus')).outputActive).toBe(false);

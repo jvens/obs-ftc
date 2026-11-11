@@ -119,13 +119,23 @@ const MatchEventsTable: React.FC = () => {
   }
 
   return (
-    <div className="section full-width">
-      <h2>Match Events</h2>
-      <button className="matches-button" onClick={handleFetchMatches} disabled={!isConnected || loading}>
-        {loading ? 'Loading...' : 'Get Match List'}
-      </button>
-      <button className="matches-button" onClick={clearRows}>Clear All Data</button>
-      <button className="matches-button" onClick={exportData}>Export Data</button>
+    <div className="section full-width matches-section">
+      <div className="matches-toolbar">
+        <h2>Match Events</h2>
+        <span className="matches-count">{rows.length} {rows.length === 1 ? 'match' : 'matches'}</span>
+        <span className="matches-actions">
+          {(numberVideos > 0 || showScreenshots) && (
+            <label className="matches-paths">
+              <input type="checkbox" checked={showPaths} onChange={(e) => setShowPaths(e.target.checked)} /> Show file paths
+            </label>
+          )}
+          <button onClick={handleFetchMatches} disabled={!isConnected || loading}>
+            {loading ? 'Loading...' : 'Get Match List'}
+          </button>
+          <button onClick={exportData}>Export Data</button>
+          <button onClick={clearRows}>Clear All Data</button>
+        </span>
+      </div>
 
       {error && (
         <div className="error-message">
@@ -134,8 +144,7 @@ const MatchEventsTable: React.FC = () => {
         </div>
       )}
 
-      {(numberVideos > 0 || showScreenshots) && <><input type="checkbox" checked={showPaths} onChange={(e) => setShowPaths(e.target.checked)} /> Show File Paths </>}
-
+      <div className="matches-scroll">
       <table className="matches-table">
         <thead>
           <tr>
@@ -171,16 +180,8 @@ const MatchEventsTable: React.FC = () => {
               <td className="col-info">{row.number}</td>
               <td className="col-info">{row.name}</td>
               <td className="col-info">{row.scheduledTime ? new Date(row.scheduledTime).toLocaleTimeString() : ''}</td>
-              <td className="col-info">
-                {row.blue1}<br />
-                {row.blue2}<br/>
-                {row.blue3}
-              </td>
-              <td className="col-info">
-                {row.red1}<br />
-                {row.red2}<br />
-                {row.red3}
-              </td>
+              <td className="col-info">{[row.blue1, row.blue2, row.blue3].filter(Boolean).join(', ')}</td>
+              <td className="col-info">{[row.red1, row.red2, row.red3].filter(Boolean).join(', ')}</td>
               <td className="col-timestamps">{row.MATCH_LOAD ? new Date(row.MATCH_LOAD).toLocaleTimeString() : ''}</td>
               <td className="col-timestamps">{row.SHOW_PREVIEW ? new Date(row.SHOW_PREVIEW).toLocaleTimeString() : ''}</td>
               <td className="col-timestamps">{row.SHOW_RANDOM ? new Date(row.SHOW_RANDOM).toLocaleTimeString() : ''}</td>
@@ -196,8 +197,16 @@ const MatchEventsTable: React.FC = () => {
               {showScreenshots && <td className="col-screenshots">{row.scoreScreenshot && <span className="file-link" onClick={() => copyToClipboard(row.scoreScreenshot!)} title={row.scoreScreenshot}>{showPaths ? row.scoreScreenshot : 'Copy Path'}</span>}</td>}
             </tr>
           ))}
+          {sortedRows.length === 0 && (
+            <tr>
+              <td className="matches-empty" colSpan={13 + numberVideos + (showScreenshots ? 3 : 0)}>
+                No matches yet. {isConnected ? 'Click Get Match List, or wait for FTC Live to send match events.' : <>Connect to FTC Live in <a href="#setup/ftc-live">Setup</a> first.</>}
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }

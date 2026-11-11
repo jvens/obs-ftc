@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { applyRecommendedSettings } from './outputSettings';
+import { applyOutputSettings, applyRecommendedSettings, readOutputSettings } from './outputSettings';
 import { FakeObs } from '../test/fakeObs';
 
 const RECOMMENDED = {
@@ -44,7 +44,7 @@ describe('applyRecommendedSettings', () => {
       const [parameterCategory, parameterName] = key.split('.');
       expect([key, (await obs.call('GetProfileParameter', { parameterCategory, parameterName }))._unsafeUnwrap().parameterValue]).toEqual([key, value]);
     }
-    expect(report.changes).toContain('Video bitrate: null kbps → 6000 kbps');
+    expect(report.changes).toContain('Video bitrate: not set → 6000 kbps');
     expect(report.changes).toContain('Replay buffer: off → on');
     // A new profile is already in Simple output mode.
     expect(report.changes).not.toContainEqual(expect.stringMatching(/^Output mode/));
@@ -65,7 +65,7 @@ describe('applyRecommendedSettings', () => {
 
     const report = (await apply(obs))._unsafeUnwrap();
 
-    expect(report.changes).toEqual(['Video: 1280x720 canvas, 1280x720 output at 30 fps → 1920x1080 at 30 fps']);
+    expect(report.changes).toEqual(['Resolution: 1280x720 → 1920x1080']);
     expect(obs.video).toMatchObject({ baseWidth: 1920, baseHeight: 1080, outputWidth: 1920, outputHeight: 1080 });
     expect(report.log).toEqual(['Stopping the replay buffer', 'Restarting the replay buffer']);
     expect(obs.replayBufferActive).toBe(true);
@@ -81,5 +81,42 @@ describe('applyRecommendedSettings', () => {
     const obs = recommendedObs();
     obs.profileParameters().set('SimpleOutput.StreamEncoder', 'x264');
     expect((await apply(obs))._unsafeUnwrap().notes).toEqual([expect.stringMatching(/hardware encoder/)]);
+  });
+});
+
+describe('readOutputSettings', () => {
+  it('shows each setting as OBS has it beside the recommendation', async () => {
+    const obs = recommendedObs({ canvas: { width: 1280, height: 720 } });
+    obs.profileParameters().set('SimpleOutput.VBitrate', '2500');
+
+    const { rows } = (await readOutputSettings(obs.call))._unsafeUnwrap();
+
+    expect(rows.find(row => row.id === 'resolution')).toEqual({ id: 'resolution', label: 'Resolution', current: '1280x720', recommended: '1920x1080', ok: false });
+    expect(rows.find(row => row.id === 'frame-rate')).toMatchObject({ current: '30 fps', ok: true });
+    expect(rows.find(row => row.id === 'video-bitrate')).toMatchObject({ current: '2500 kbps', recommended: '6000 kbps', ok: false });
+    expect(rows.filter(row => !row.ok).map(row => row.id)).toEqual(['resolution', 'video-bitrate']);
+  });
+});
+
+describe('applyOutputSettings', () => {
+  it('changes only the settings asked for', async () => {
+    const obs = recommendedObs({ canvas: { width: 1280, height: 720 } });
+    obs.profileParameters().set('SimpleOutput.VBitrate', '2500');
+
+    const report = (await applyOutputSettings(obs.call, ['video-bitrate'], () => {}))._unsafeUnwrap();
+
+    expect(report.changes).toEqual(['Video bitrate: 2500 kbps → 6000 kbps']);
+    expect(obs.profileParameters().get('SimpleOutput.VBitrate')).toBe('6000');
+    expect(obs.video).toMatchObject({ baseWidth: 1280, baseHeight: 720 });
+  });
+
+  it('sets the frame rate without touching the resolution', async () => {
+    const obs = recommendedObs({ canvas: { width: 1280, height: 720 } });
+    obs.video = { ...obs.video, fpsNumerator: 60, fpsDenominator: 1 };
+
+    const report = (await applyOutputSettings(obs.call, ['frame-rate'], () => {}))._unsafeUnwrap();
+
+    expect(report.changes).toEqual(['Frame rate: 60 fps → 30 fps']);
+    expect(obs.video).toMatchObject({ baseWidth: 1280, baseHeight: 720, fpsNumerator: 30, fpsDenominator: 1 });
   });
 });

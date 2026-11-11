@@ -120,6 +120,21 @@ body {
   color: var(--live-ink);
 }
 
+.status-pill.warn {
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  box-shadow: inset 0 0 0 1px var(--warn-border);
+}
+
+.status-pill-link {
+  border-radius: 999px;
+  text-decoration: none;
+}
+
+.status-pill-link:hover .status-pill {
+  filter: brightness(0.95);
+}
+
 .status-dot {
   width: 8px;
   height: 8px;
@@ -376,6 +391,7 @@ body {
 
 .help-sidebar {
   flex: 1 1 300px;
+  text-align: left;
   max-width: 400px;
   padding: 24px;
   background: var(--surface);
@@ -421,6 +437,19 @@ body {
 
 .help-sidebar-body a {
   color: var(--accent);
+}
+
+/* Run and Outputs: the view, with the help on the right like Setup's. */
+.help-layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  min-height: calc(100vh - 69px);
+}
+
+.help-layout-main {
+  flex: 999 1 600px;
+  min-width: 0;
 }
 
 /* The help, closed: a tab down the right edge that opens it again. */
@@ -1593,11 +1622,65 @@ button:disabled {
   cursor: pointer;
 }
 
-.matches-table {
-  border-collapse: collapse;
+/* Matches: the table uses the whole width of the window. */
+.content-container.wide,
+.view-intro.wide {
+  max-width: none;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.matches-section {
+  text-align: left;
+}
+
+.matches-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.matches-count {
+  color: var(--muted);
+}
+
+.matches-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin-left: auto;
-  margin-right: auto;
+}
+
+.matches-paths {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 8px;
+}
+
+.matches-scroll {
+  overflow-x: auto;
+}
+
+.matches-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.matches-table td {
+  white-space: nowrap;
+}
+
+.matches-table td.matches-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  white-space: normal;
 }
 .matches-table th,
 .matches-table td {
@@ -1675,9 +1758,6 @@ button:disabled {
   color: var(--accent-hover);
 }
 
-.matches-button {
-  margin: 10px;
-}
 input, select {
   margin: 5px;
 }
@@ -1840,7 +1920,27 @@ ol li {
 
 .lower-third-table input[type='text'] {
   width: 100%;
-  padding: 4px;
+  min-width: 140px;
+  padding: 6px 8px;
+}
+
+.lower-third-table .lower-third-name-col {
+  width: 35%;
+}
+
+.lower-third-table td:last-child button {
+  min-height: 36px;
+  padding: 0 10px;
+  margin-left: 4px;
+}
+
+/* While editing, the list gets the room and the preview sits under it. */
+.lower-thirds.editing .lower-thirds-list {
+  flex-basis: 100%;
+}
+
+.lower-thirds.editing .lower-thirds-list > button {
+  margin-top: 10px;
 }
 
 .lower-third-table td:last-child {
@@ -1917,6 +2017,89 @@ ol li {
   margin: 10px 0;
 }
 
+/* Setup: what is out of date in OBS, and the button that fixes it. */
+.setup-issues {
+  margin: 12px 0;
+  padding: 12px 16px;
+  border: 1px solid var(--warn-border);
+  border-left: 4px solid var(--warn-ink);
+  border-radius: 10px;
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+}
+
+.setup-issues ul {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+
+.setup-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  color: var(--ok-ink);
+  font-weight: 600;
+}
+
+.setup-main-actions button {
+  min-height: 44px;
+  padding: 0 18px;
+}
+
+.settings-table-wrap {
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.settings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.settings-table th,
+.settings-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.settings-table thead th {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.settings-table tbody th {
+  font-weight: 600;
+}
+
+.settings-table tr.differs td:nth-child(2) {
+  color: var(--warn-ink);
+  font-weight: 600;
+}
+
+.settings-table td:last-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.settings-table button {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.settings-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ok-ink);
+  font-weight: 600;
+}
+
 button.danger {
   background-color: var(--danger);
 }
@@ -1971,15 +2154,6 @@ button.danger:disabled {
 .obs-camera-card select,
 .obs-camera-card input[type='text'] {
   max-width: 240px;
-}
-
-.obs-camera-help {
-  margin-bottom: 10px;
-}
-
-.obs-camera-help p {
-  max-width: 800px;
-  margin: 6px auto;
 }
 
 .obs-camera-preview {

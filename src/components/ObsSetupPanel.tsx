@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { okAsync } from 'neverthrow';
 import { useObsStudio } from '../contexts/ObsStudioContext';
 import { useAppSelector } from '../store/hooks';
@@ -8,7 +8,8 @@ import { lowerThirdUrl } from '../helpers/lowerThird';
 import { AudioMode, CustomCamera, DEFAULT_SAFE_BACKGROUND_URL, SCENE_NAMES, SetupOptions, cameraSceneName, plannedCameras } from '../obsSetup/layout';
 import { customCameraNameError, removeCustomCameraScenes, setOverlayShown } from '../obsSetup/customCameras';
 import { SetupMode, applySetup } from '../obsSetup/apply';
-import { applyRecommendedSettings } from '../obsSetup/outputSettings';
+import { OutputSettings, applyOutputSettings, readOutputSettings } from '../obsSetup/outputSettings';
+import { SetupIssue, checkSetup } from '../obsSetup/check';
 import ObsSourceMapper from './ObsSourceMapper';
 import { SetupStepId, expectedScenes, stepTitle } from '../setup/steps';
 
@@ -40,6 +41,28 @@ const OutcomeView: React.FC<{ outcome: Outcome; errorHint?: string }> = ({ outco
   </>
 );
 
+// What the Setup view's step list shows: how OBS compares with this event and the recommended
+// settings. Undefined while it cannot be checked (OBS not connected, no event picked).
+export interface SetupChecks {
+  issues?: SetupIssue[];
+  settings?: OutputSettings;
+}
+
+const IssueList: React.FC<{ title: string; issues: SetupIssue[]; children: React.ReactNode }> = ({ title, issues, children }) => (
+  <div className="setup-issues" role="status">
+    <strong>{title}</strong>
+    <ul>{issues.map(issue => <li key={issue.message}>{issue.message}</li>)}</ul>
+    {children}
+  </div>
+);
+
+const SetupOk: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <p className="setup-ok" role="status">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10" /></svg>
+    {children}
+  </p>
+);
+
 // Configure OBS Studio, split across the Setup steps it belongs to.
 interface Props {
   step: SetupStepId;
@@ -48,9 +71,10 @@ interface Props {
   setAudioMode: (mode: AudioMode) => void;
   customCameras: CustomCamera[];
   setCustomCameras: (cameras: CustomCamera[]) => void;
+  onChecks: (checks: SetupChecks) => void;
 }
 
-const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode, customCameras, setCustomCameras }) => {
+const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode, customCameras, setCustomCameras, onChecks }) => {
   const { status, scenes, callObs, refreshReplayBufferStatus, obsPort, obsPassword } = useObsStudio();
   const selectedEvent = useAppSelector(selectSelectedEvent);
   const ftcHost = useAppSelector(selectFtcServerUrl);
@@ -77,26 +101,63 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode, customC
   // when both run on the same computer.
   const remoteObs = !isLocalHost(obsHost);
 
+  // What setup builds for this event, also what OBS is checked against.
+  const options = useMemo((): SetupOptions | undefined => selectedEvent ? {
+    ftcHost,
+    eventCode: selectedEvent.eventCode,
+    fieldCount,
+    audioMode,
+    overlaySounds,
+    safeBackgroundUrl,
+    lowerThirdUrl: lowerThirdUrl({ channel: lowerThirdChannel }),
+    lanReceiver: { port: obsPort, password: obsPassword },
+    customCameras,
+  } : undefined, [selectedEvent, ftcHost, fieldCount, audioMode, overlaySounds, safeBackgroundUrl, lowerThirdChannel, obsPort, obsPassword, customCameras]);
+
+  // OBS is checked again after every change made here, when its scene list changes, on another
+  // step, and when the window comes back into focus (after changing something in OBS itself).
+  const [issues, setIssues] = useState<SetupIssue[]>();
+  const [outputSettings, setOutputSettings] = useState<OutputSettings>();
+  const [checkKey, setCheckKey] = useState(0);
+  const recheck = useCallback(() => setCheckKey(key => key + 1), []);
+  useEffect(() => {
+    window.addEventListener('focus', recheck);
+    return () => window.removeEventListener('focus', recheck);
+  }, [recheck]);
+
+  useEffect(() => {
+    if (!status.connected || !options) {
+      setIssues(undefined);
+      return;
+    }
+    if (running) return;
+    let latest = true;
+    checkSetup(callObs, options).match(found => { if (latest) setIssues(found); }, () => { if (latest) setIssues(undefined); });
+    return () => { latest = false; };
+  }, [status.connected, options, running, scenes, checkKey, step, callObs]);
+
+  useEffect(() => {
+    if (!status.connected) {
+      setOutputSettings(undefined);
+      return;
+    }
+    if (running) return;
+    let latest = true;
+    readOutputSettings(callObs).match(found => { if (latest) setOutputSettings(found); }, () => { if (latest) setOutputSettings(undefined); });
+    return () => { latest = false; };
+  }, [status.connected, running, checkKey, step, callObs]);
+
+  useEffect(() => onChecks({ issues, settings: outputSettings }), [issues, outputSettings, onChecks]);
+
   // `withCameras` builds with a custom camera list that has just changed and is not in state yet.
   const run = (mode: SetupMode, withCameras: CustomCamera[] = customCameras) => {
-    if (!selectedEvent) return;
+    if (!options) return;
     if (mode === 'wipe' && !window.confirm('Delete every scene and source in the current OBS scene collection and set it up again? This cannot be undone.'))
       return;
-    const options: SetupOptions = {
-      ftcHost,
-      eventCode: selectedEvent.eventCode,
-      fieldCount,
-      audioMode,
-      overlaySounds,
-      safeBackgroundUrl,
-      lowerThirdUrl: lowerThirdUrl({ channel: lowerThirdChannel }),
-      lanReceiver: { port: obsPort, password: obsPassword },
-      customCameras: withCameras,
-    };
     setRunning(true);
     setSetup(emptyOutcome);
     const log = (line: string) => setSetup(outcome => ({ ...outcome, log: [...outcome.log, line] }));
-    applySetup(callObs, options, mode, log)
+    applySetup(callObs, { ...options, customCameras: withCameras }, mode, log)
       .match(
         report => {
           setSetup(outcome => ({ ...outcome, warnings: report.warnings }));
@@ -107,18 +168,18 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode, customC
       .finally(() => {
         setRunning(false);
         setRefreshKey(key => key + 1);
+        recheck();
       });
   };
 
-  const applySettings = () => {
+  const applySettings = (ids: readonly string[] | 'all') => {
     setRunning(true);
     setSettings(emptyOutcome);
     const log = (line: string) => setSettings(outcome => ({ ...outcome, log: [...outcome.log, line] }));
-    applyRecommendedSettings(callObs, log)
+    applyOutputSettings(callObs, ids, log)
       .match(
         report => setSettings(outcome => ({
           ...outcome,
-          warnings: report.notes,
           log: report.changes.length === 0
             ? ['OBS already uses the recommended settings.']
             : ['Changed:', ...report.changes.map(change => `  ${change}`), ...outcome.log],
@@ -128,6 +189,7 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode, customC
       .finally(() => {
         setRunning(false);
         refreshReplayBufferStatus();
+        recheck();
       });
   };
 
@@ -165,12 +227,19 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode, customC
     );
   };
 
-  const updateButton = (label: string) => (
-    <button onClick={() => run('update')} disabled={!canRun}
+  const updateButton = (label: string, primary: boolean) => (
+    <button className={primary ? 'btn-primary' : undefined} onClick={() => run('update')} disabled={!canRun}
       title="Adds anything missing and points FTC Live sources at the selected event. Camera choices, audio devices, positions and anything you added are kept.">
       {label}
     </button>
   );
+
+  const sceneIssues = issues?.filter(issue => issue.area === 'scenes') ?? [];
+  const audioIssues = issues?.filter(issue => issue.area === 'audio') ?? [];
+  // A collection with none of the scenes yet is set up from scratch; one with some is updated.
+  const hasOurScenes = programScenes.some(scene => scenes.includes(scene));
+  const fresh = status.connected && !hasOurScenes;
+  const settingsToChange = outputSettings?.rows.filter(row => !row.ok) ?? [];
 
   // One card per Setup step; the step on screen shows its card, the others stay mounted but hidden.
   return (
@@ -212,9 +281,15 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode, customC
           </details>
         </div>
 
-        <div className="obs-setup-actions">
-          {updateButton('Update for this event')}
-          <button onClick={() => run('newCollection')} disabled={!canRun || live}
+        {sceneIssues.length > 0 ? (
+          <IssueList title={fresh ? 'OBS has none of the scenes yet' : 'OBS does not match this event'} issues={sceneIssues}>
+            <p>Click <strong>{fresh ? 'Set up in a new scene collection' : 'Update for this event'}</strong> to fix {sceneIssues.length === 1 ? 'it' : 'them'}.</p>
+          </IssueList>
+        ) : issues && <SetupOk>OBS has every scene, set up for {options?.eventCode}.</SetupOk>}
+
+        <div className="obs-setup-actions setup-main-actions">
+          {updateButton('Update for this event', !fresh)}
+          <button className={fresh ? 'btn-primary' : undefined} onClick={() => run('newCollection')} disabled={!canRun || live}
             title="Builds everything from scratch in a new OBS scene collection. The current collection stays available in OBS (Scene Collection menu).">
             Set up in a new scene collection
           </button>
@@ -227,7 +302,7 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode, customC
 
         <OutcomeView outcome={setup} errorHint='Fix the problem and run "Update for this event" to finish.' />
 
-        <ObsSourceMapper part="cameras" cameras={cameras} audioMode={audioMode} refreshKey={refreshKey} active={step === 'scenes'} />
+        <ObsSourceMapper part="cameras" cameras={cameras} audioMode={audioMode} refreshKey={refreshKey} active={step === 'scenes'} onChanged={recheck} />
 
         <div className="custom-cameras">
           <h3>Custom Cameras</h3>
@@ -269,7 +344,7 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode, customC
               ))}
             </select>
           </label>
-          <ObsSourceMapper part="audio" cameras={cameras} audioMode={audioMode} refreshKey={refreshKey} active={step === 'audio'} />
+          <ObsSourceMapper part="audio" cameras={cameras} audioMode={audioMode} refreshKey={refreshKey} active={step === 'audio'} onChanged={recheck} />
         </div>
         <div className="check-grid">
           <label title="Plays the FTC Live match sounds (start, end, buzzers) on the stream. Turn off if the venue audio feed already includes them.">
@@ -278,17 +353,65 @@ const ObsSetupPanel: React.FC<Props> = ({ step, audioMode, setAudioMode, customC
           </label>
         </div>
         <p className="setup-card-note">OBS gets these choices when the scenes are built. After changing them, update OBS.</p>
-        <div className="obs-setup-actions">{updateButton('Update OBS')}</div>
+        {audioIssues.length > 0 ? (
+          <IssueList title="The audio in OBS does not match these choices" issues={audioIssues}>
+            <p>Click <strong>Update OBS</strong> to fix {audioIssues.length === 1 ? 'it' : 'them'}.</p>
+          </IssueList>
+        ) : issues && <SetupOk>The audio in OBS matches these choices.</SetupOk>}
+        <div className="obs-setup-actions setup-main-actions">{updateButton('Update OBS', audioIssues.length > 0)}</div>
         <OutcomeView outcome={setup} errorHint='Fix the problem and click "Update OBS" to finish.' />
       </div>
 
       <div className="section setup-card" role="region" aria-label={stepTitle('settings')} hidden={step !== 'settings'}>
         <p className="setup-card-note">
-          1080p at 30 fps, 6000 kbps video and 160 kbps audio, recordings at stream quality, and the replay buffer turned on
-          for match replays. The stream key and encoder are left as they are.
+          Settings that suit an event stream. The stream key and the encoder are left as they are.
         </p>
-        <div className="obs-setup-actions">
-          <button onClick={applySettings} disabled={!status.connected || running || live}>Apply recommended settings</button>
+        {!outputSettings ? (
+          <p><em>{status.connected ? 'Reading the settings from OBS...' : 'Connect to OBS Studio to see its settings.'}</em></p>
+        ) : (
+          <div className="settings-table-wrap">
+            <table className="settings-table">
+              <thead>
+                <tr>
+                  <th scope="col">Setting</th>
+                  <th scope="col">In OBS now</th>
+                  <th scope="col">Recommended</th>
+                  <th scope="col"><span className="visually-hidden">Action</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {outputSettings.rows.map(row => (
+                  <tr key={row.id} className={row.ok ? undefined : 'differs'}>
+                    <th scope="row">{row.label}</th>
+                    <td>{row.current}</td>
+                    <td>{row.recommended}</td>
+                    <td>
+                      {row.ok ? (
+                        <span className="settings-ok">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10" /></svg>
+                          Matches
+                        </span>
+                      ) : (
+                        <button onClick={() => applySettings([row.id])} disabled={running || live} aria-label={`Use the recommended ${row.label.toLowerCase()}`}>
+                          Use {row.recommended}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {outputSettings && outputSettings.notes.length > 0 && (
+          <ul className="obs-setup-warnings">{outputSettings.notes.map(note => <li key={note}>{note}</li>)}</ul>
+        )}
+        <div className="obs-setup-actions setup-main-actions">
+          <button className={settingsToChange.length > 0 ? 'btn-primary' : undefined} onClick={() => applySettings('all')}
+            disabled={!status.connected || running || live || settingsToChange.length === 0}>
+            Apply all recommended settings
+          </button>
+          {outputSettings && settingsToChange.length === 0 && <SetupOk>OBS has every recommended setting.</SetupOk>}
         </div>
         {live && <p><em>Stop streaming and recording to change the settings.</em></p>}
         <OutcomeView outcome={settings} />
