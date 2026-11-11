@@ -1,6 +1,6 @@
 // Match Replay Recording Settings against a real OBS Studio: the replay buffer has to hold a whole
 // match, and the dashboard sets its length.
-import { connectObs, expect, section, test } from './fixtures';
+import { connectObs, expect, section, showView, test } from './fixtures';
 
 test('sets the replay buffer long enough to hold a match', async ({ page, realObs }) => {
   const { control } = realObs;
@@ -11,6 +11,7 @@ test('sets the replay buffer long enough to hold a match', async ({ page, realOb
   await setup.getByRole('button', { name: 'Apply recommended settings' }).click();
   await expect(setup.getByText('Changed:').or(setup.getByText('OBS already uses the recommended settings.'))).toBeVisible({ timeout: 60_000 });
 
+  await showView(page, 'Outputs');
   const replays = section(page, 'Match Replay Recording Settings');
   const fix = replays.getByRole('button', { name: /^Set to \d+ seconds$/ });
   await expect(fix).toBeVisible();

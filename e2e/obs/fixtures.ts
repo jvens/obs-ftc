@@ -76,6 +76,10 @@ export const test = base.extend<{ realObs: RealObs; ftcLive: MockFtcLive }, { ob
 export const setRecordDirectory = (control: OBSWebSocket, recordDirectory: string) =>
   (control.call as unknown as (type: string, data: object) => Promise<unknown>)('SetRecordDirectory', { recordDirectory });
 
+// Opens one of the dashboard's views (the tabs in its header), as a volunteer would.
+export const showView = (page: Page, name: 'Setup' | 'Run' | 'Outputs') =>
+  page.getByRole('navigation', { name: 'Views' }).getByRole('link', { name, exact: true }).click();
+
 export const section = (page: Page, heading: string) =>
   page.locator('.section', { has: page.getByRole('heading', { name: heading, exact: true }) });
 
