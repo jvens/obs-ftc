@@ -1,4 +1,4 @@
-// Loaded by an OBS browser source: camera-receiver.html?slot=<label>&camera=<name>&port=<port>#password=<password>
+// Loaded by an OBS browser source: /camera-receiver?slot=<label>&camera=<name>&port=<port>#password=<password>
 // Connects to the OBS WebSocket on this computer and shows camera <name>, sent from another computer,
 // in camera slot <label>.
 import OBSWebSocket from 'obs-websocket-js';

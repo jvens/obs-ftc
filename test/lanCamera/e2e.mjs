@@ -89,7 +89,7 @@ const run = async () => {
   try {
     const context = await browser.newContext();
     const receiver = await context.newPage();
-    await receiver.goto(`${BASE}/camera-receiver.html?${new URLSearchParams({ slot: SLOT, camera: CAMERA, port: OBS_PORT })}`);
+    await receiver.goto(`${BASE}/camera-receiver?${new URLSearchParams({ slot: SLOT, camera: CAMERA, port: OBS_PORT })}`);
     await receiver.waitForSelector(`text=waiting for ${CAMERA}`);
     step('receiver waits for the camera computer');
 
