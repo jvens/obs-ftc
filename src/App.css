@@ -192,6 +192,270 @@ body {
   color: var(--muted);
 }
 
+/* Setup view: steps down the side, the current step in the middle, help on the right. Wraps into one
+   column on narrow screens. */
+.setup-layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  text-align: left;
+  min-height: calc(100vh - 69px);
+}
+
+.setup-steps {
+  flex: 1 1 260px;
+  max-width: 320px;
+  padding: 24px 16px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+
+.setup-steps ol {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.setup-steps hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 12px 8px;
+}
+
+.setup-steps-heading {
+  margin: 0 0 8px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.setup-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.setup-step:hover {
+  background: var(--hover);
+}
+
+.setup-step[aria-current='step'] {
+  background: var(--accent-soft);
+}
+
+.setup-step-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setup-step-title {
+  font-weight: 600;
+}
+
+.setup-step-detail {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.setup-step[aria-current='step'] .setup-step-detail {
+  color: var(--accent);
+}
+
+.setup-step-icon {
+  flex: none;
+  color: var(--muted);
+}
+
+.step-marker {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--pending);
+  display: grid;
+  place-items: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.step-marker.current {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.step-marker.done {
+  border: none;
+  background: var(--ok-dot);
+  color: var(--surface);
+}
+
+.setup-main {
+  flex: 999 1 560px;
+  min-width: 0;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.setup-main .section {
+  text-align: center;
+}
+
+.setup-step-header p {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.setup-step-header h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.setup-step-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid var(--control);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.button-link:hover {
+  background: var(--hover);
+}
+
+.button-link.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.button-link.primary:hover {
+  background: var(--accent-hover);
+}
+
+.help-sidebar {
+  flex: 1 1 300px;
+  max-width: 400px;
+  padding: 24px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  line-height: 1.5;
+}
+
+.help-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.help-sidebar-header h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.help-sidebar-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.95rem;
+  color: var(--ink-2);
+}
+
+.help-sidebar-body h3 {
+  margin-top: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.help-sidebar-body ol,
+.help-sidebar-body ul {
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.help-sidebar-body a {
+  color: var(--accent);
+}
+
+.help-callout {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+@media (max-width: 860px) {
+  .setup-steps,
+  .help-sidebar {
+    max-width: none;
+    border-left: none;
+    border-right: none;
+  }
+
+  .setup-steps {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .help-sidebar {
+    border-top: 1px solid var(--border);
+  }
+}
+
+.icon-button {
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.help-button {
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  font-size: 1.1rem;
+}
+
+.help-button.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* Modal styles */
 .modal-overlay {
   position: fixed;

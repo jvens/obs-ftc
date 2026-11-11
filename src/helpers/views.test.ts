@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { applyThemeFromUrl, viewFromHash } from './views';
+import { applyThemeFromUrl, locationFromHash, viewFromHash } from './views';
 
 describe('viewFromHash', () => {
   it('reads the view from the hash', () => {
@@ -11,6 +11,14 @@ describe('viewFromHash', () => {
   it('opens Setup for no hash or an unknown one', () => {
     expect(viewFromHash('')).toBe('setup');
     expect(viewFromHash('#graphics')).toBe('setup');
+  });
+});
+
+describe('locationFromHash', () => {
+  it('reads the part of a view after a slash', () => {
+    expect(locationFromHash('#setup/scenes')).toEqual({ view: 'setup', sub: 'scenes' });
+    expect(locationFromHash('#run')).toEqual({ view: 'run', sub: '' });
+    expect(locationFromHash('#nowhere/scenes')).toEqual({ view: 'setup', sub: '' });
   });
 });
 

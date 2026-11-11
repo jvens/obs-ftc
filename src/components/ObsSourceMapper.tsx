@@ -49,16 +49,20 @@ interface AudioRow {
 }
 
 interface Props {
+  // The cameras, or the Event Audio device: the Setup view shows them in different steps.
+  part: 'cameras' | 'audio';
   cameras: PlannedCamera[];
   audioMode: AudioMode;
   // Bumped by the parent after it changes OBS, so the table reloads.
   refreshKey: number;
+  // On screen: live previews only refresh while someone can see them.
+  active: boolean;
 }
 
 const typeOf = (status: CameraStatus): CameraType | '' =>
   status.state === 'input' ? status.type : status.state === 'shared' ? 'shared' : '';
 
-const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) => {
+const ObsSourceMapper: React.FC<Props> = ({ part, cameras, audioMode, refreshKey, active }) => {
   const { status, callObs, obsPort, obsPassword, onCustomEvent } = useObsStudio();
   const lan = useMemo(() => ({ port: obsPort, password: obsPassword }), [obsPort, obsPassword]);
   // By camera slot (label).
@@ -91,9 +95,9 @@ const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) =>
         ]).map(([{ inputSettings }, devices]) => ({ device: String(inputSettings.device_id ?? ''), devices }))
       : okAsync(undefined)), [callObs]);
 
-  const load = useCallback(() =>
-    ResultAsync.combine([ResultAsync.combine(cameras.map(loadRow)), loadAudio()])
-      .map(([cameraRows, audioRow]) => { setRows(cameraRows); setAudio(audioRow); }), [cameras, loadRow, loadAudio]);
+  const load = useCallback(() => part === 'cameras'
+    ? ResultAsync.combine(cameras.map(loadRow)).map(setRows)
+    : loadAudio().map(setAudio), [part, cameras, loadRow, loadAudio]);
 
   // Senders also announce themselves every few seconds; asking saves waiting for that.
   const discoverLanSenders = useCallback(() => callObs('BroadcastCustomEvent', {
@@ -102,21 +106,21 @@ const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) =>
 
   const reload = useCallback(() => {
     if (!status.connected) return;
-    discoverLanSenders();
-    load().match(() => setMessage(undefined), error => setMessage(`Unable to read cameras from OBS: ${error}`));
-  }, [status.connected, load, discoverLanSenders]);
+    if (part === 'cameras') discoverLanSenders();
+    load().match(() => setMessage(undefined), error => setMessage(`Unable to read ${part === 'cameras' ? 'cameras' : 'the audio device'} from OBS: ${error}`));
+  }, [status.connected, part, load, discoverLanSenders]);
 
   useEffect(reload, [reload, refreshKey]);
 
   useEffect(() => {
-    if (!status.connected || !livePreviews) return;
+    if (!status.connected || !livePreviews || !active || part !== 'cameras') return;
     const scenes = rows.filter(row => row.status.state !== 'missing').map(row => row.camera.scene);
     const capture = () => scenes.forEach(scene =>
       cameraThumbnail(callObs, scene).map(image => setThumbnails(previous => ({ ...previous, [scene]: image }))));
     capture();
     const timer = setInterval(capture, PREVIEW_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [status.connected, livePreviews, rows, callObs]);
+  }, [status.connected, livePreviews, active, part, rows, callObs]);
 
   useEffect(() => onCustomEvent(data => {
     const message = parseLanCameraMessage(data);
@@ -218,6 +222,20 @@ const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) =>
     );
   };
 
+  if (part === 'audio')
+    return audioMode !== 'device' ? (
+      <p>{audioMode === 'camera' ? 'Stream audio comes from each scene\'s camera.' : 'No event audio source is set up.'}</p>
+    ) : audio ? (
+      <label>
+        {SOURCE_NAMES.audio} device:
+        <select value={audio.device} onChange={(e) => changeAudioDevice(e.target.value)} disabled={!status.connected}>
+          {audio.devices.map(device => <option key={device.value} value={device.value}>{device.name}</option>)}
+        </select>
+      </label>
+    ) : (
+      <p><em>Not set up yet: build the scenes first, or click "Update OBS" below.</em></p>
+    );
+
   return (
     <div>
       <h3>Cameras</h3>
@@ -270,19 +288,6 @@ const ObsSourceMapper: React.FC<Props> = ({ cameras, audioMode, refreshKey }) =>
         ))}
       </div>
 
-      <h3>Audio</h3>
-      {audioMode !== 'device' ? (
-        <p>{audioMode === 'camera' ? 'Stream audio comes from each scene\'s camera.' : 'No event audio source is set up.'}</p>
-      ) : audio ? (
-        <label>
-          {SOURCE_NAMES.audio} device:
-          <select value={audio.device} onChange={(e) => changeAudioDevice(e.target.value)} disabled={!status.connected}>
-            {audio.devices.map(device => <option key={device.value} value={device.value}>{device.name}</option>)}
-          </select>
-        </label>
-      ) : (
-        <p><em>Not set up yet</em></p>
-      )}
     </div>
   );
 };

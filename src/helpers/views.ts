@@ -12,19 +12,28 @@ export type ViewId = typeof VIEWS[number]['id'];
 
 const DEFAULT_VIEW: ViewId = 'setup';
 
-export const viewFromHash = (hash: string): ViewId => {
-  const id = hash.replace(/^#\/?/, '').toLowerCase();
-  return VIEWS.find(view => view.id === id)?.id ?? DEFAULT_VIEW;
+export interface Location {
+  view: ViewId;
+  // The part of the view after a slash, such as a Setup step (#setup/scenes); empty when there is none.
+  sub: string;
+}
+
+export const locationFromHash = (hash: string): Location => {
+  const [id = '', sub = ''] = hash.replace(/^#\/?/, '').toLowerCase().split('/');
+  const view = VIEWS.find(candidate => candidate.id === id)?.id;
+  return view ? { view, sub } : { view: DEFAULT_VIEW, sub: '' };
 };
 
-export const useView = (): ViewId => {
-  const [view, setView] = useState(() => viewFromHash(window.location.hash));
+export const viewFromHash = (hash: string): ViewId => locationFromHash(hash).view;
+
+export const useLocation = (): Location => {
+  const [location, setLocation] = useState(() => locationFromHash(window.location.hash));
   useEffect(() => {
-    const onHashChange = () => setView(viewFromHash(window.location.hash));
+    const onHashChange = () => setLocation(locationFromHash(window.location.hash));
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
-  return view;
+  return location;
 };
 
 // A preview of dark mode until it has a setting of its own: ?theme=dark.

@@ -8,6 +8,9 @@ import { VIEWS, ViewId } from '../helpers/views';
 interface Props {
   view: ViewId;
   onAbout: () => void;
+  // Whether the help sidebar is open; undefined on views without one.
+  helpOpen?: boolean;
+  onToggleHelp: () => void;
 }
 
 const Pill: React.FC<{ tone: 'ok' | 'live' | 'off'; children: React.ReactNode }> = ({ tone, children }) => (
@@ -18,7 +21,7 @@ const Pill: React.FC<{ tone: 'ok' | 'live' | 'off'; children: React.ReactNode }>
 );
 
 // The logo, the views, and the connection status, which stays in view on every view.
-const AppHeader: React.FC<Props> = ({ view, onAbout }) => {
+const AppHeader: React.FC<Props> = ({ view, onAbout, helpOpen, onToggleHelp }) => {
   const { isConnected: ftcConnected } = useFtcLive();
   const { status } = useObsStudio();
   const event = useAppSelector(selectSelectedEvent);
@@ -50,6 +53,9 @@ const AppHeader: React.FC<Props> = ({ view, onAbout }) => {
       <div className="header-links">
         {/* Camera computers open this site too, to get to the camera page. */}
         <a href="/camera" className="camera-page-link" title="Send a webcam on this computer to OBS">Create LAN Camera</a>
+        {helpOpen !== undefined && (
+          <button className={`help-button${helpOpen ? ' on' : ''}`} onClick={onToggleHelp} aria-pressed={helpOpen} aria-label="Help" title={helpOpen ? 'Hide help' : 'Show help'}>?</button>
+        )}
         <button className="about-button" onClick={onAbout} title="About" aria-label="About">
           <span className="info-icon" aria-hidden="true">i</span>
         </button>

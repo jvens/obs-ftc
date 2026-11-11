@@ -4,6 +4,9 @@ import { Page } from '@playwright/test';
 import { ObsStudio, startObsStudio } from '../../integration/obs/obsStudio';
 import { MockFtcLive, startMockFtcLive } from '../support/mockFtcLive';
 import { expect, test as base } from '../support/fixtures';
+import { showStep } from '../support/dashboard';
+
+export { showStep, showView } from '../support/dashboard';
 
 export { expect };
 
@@ -76,15 +79,12 @@ export const test = base.extend<{ realObs: RealObs; ftcLive: MockFtcLive }, { ob
 export const setRecordDirectory = (control: OBSWebSocket, recordDirectory: string) =>
   (control.call as unknown as (type: string, data: object) => Promise<unknown>)('SetRecordDirectory', { recordDirectory });
 
-// Opens one of the dashboard's views (the tabs in its header), as a volunteer would.
-export const showView = (page: Page, name: 'Setup' | 'Run' | 'Outputs') =>
-  page.getByRole('navigation', { name: 'Views' }).getByRole('link', { name, exact: true }).click();
-
 export const section = (page: Page, heading: string) =>
   page.locator('.section', { has: page.getByRole('heading', { name: heading, exact: true }) });
 
 // Connects the dashboard to OBS the way a volunteer does.
 export const connectObs = async (page: Page, obs: Pick<RealObs, 'host' | 'port' | 'password'>) => {
+  await showStep(page, 'obs');
   const panel = section(page, 'OBS Studio Connection');
   await panel.getByPlaceholder('Enter OBS Studio IP').fill(obs.host);
   await panel.getByPlaceholder('Port').fill(String(obs.port));
@@ -103,6 +103,7 @@ export interface FtcLiveWithEvent {
 
 // Picks the event on FTC Live and, with `listen`, follows its match events.
 export const connectFtcLive = async (page: Page, ftcLive: FtcLiveWithEvent, { listen = false } = {}) => {
+  await showStep(page, 'ftc-live');
   const panel = section(page, 'FTC Live Server');
   await panel.getByPlaceholder('Enter server IP').fill(ftcLive.host);
   await panel.getByRole('button', { name: 'Get Event Codes' }).click();
@@ -116,7 +117,8 @@ export const connectFtcLive = async (page: Page, ftcLive: FtcLiveWithEvent, { li
 
 // Builds the event's scenes with "Set up in a new scene collection" and waits for it to finish.
 export const setUpObs = async (page: Page, ftcLive: FtcLiveWithEvent) => {
-  const panel = section(page, 'Configure OBS Studio');
+  await showStep(page, 'scenes');
+  const panel = section(page, 'Scenes and Cameras');
   await panel.getByRole('button', { name: 'Set up in a new scene collection' }).click();
   // "FTC <code>", or "FTC <code> (2)" and so on when an earlier test set the same event up.
   await expect(panel.getByText(new RegExp(`Scene collection: FTC ${ftcLive.event.eventCode}( \\(\\d+\\))?(?!\\w)`))).toBeVisible({ timeout: 60_000 });
