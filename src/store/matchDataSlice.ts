@@ -6,6 +6,8 @@ import type { RootState } from './index';
 export interface MatchRow {
   number: number;
   name: string;
+  // The field the match is played on, from its match events (what FTC Live is actually doing).
+  field?: number;
   scheduledTime?: number;
   blue1?: number;
   blue2?: number;
@@ -121,16 +123,19 @@ const matchDataSlice = createSlice({
       number: number;
       updateType: UpdateType;
       updateTime: number;
+      field?: number;
     }>) {
-      const { shortName, number, updateType, updateTime } = action.payload;
+      const { shortName, number, updateType, updateTime, field } = action.payload;
       const existingIndex = state.matches.findIndex(m => m.name === shortName);
 
       if (existingIndex !== -1) {
         state.matches[existingIndex][updateType] = updateTime;
+        if (field !== undefined) state.matches[existingIndex].field = field;
       } else {
         const newMatch: MatchRow = {
           number,
           name: shortName,
+          field,
           [updateType]: updateTime,
         };
         state.matches.push(newMatch);

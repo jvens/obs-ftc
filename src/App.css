@@ -546,6 +546,200 @@ body {
   color: var(--muted);
 }
 
+/* Warnings under the header, on every view. */
+.warnings-banner {
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  border-bottom: 1px solid var(--warn-border);
+  text-align: left;
+}
+
+.warning-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 10px 24px;
+}
+
+.warning-text {
+  flex: 1 1 320px;
+}
+
+.warning-text a {
+  color: inherit;
+  font-weight: 600;
+}
+
+.warning-row button {
+  background: transparent;
+  border-color: var(--warn-border);
+  color: var(--warn-ink);
+}
+
+/* Run: lower thirds as a live list. */
+.lower-thirds,
+.field-status {
+  text-align: left;
+}
+
+.lower-thirds-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.lower-thirds-on-air {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lower-thirds-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.lower-thirds-list {
+  flex: 999 1 280px;
+  min-width: 0;
+}
+
+.lower-thirds-list ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* The 1920x1080 graphic at a sixth of its size, beside the list. */
+.lower-thirds-body .lower-third-preview {
+  flex: none;
+  width: 320px;
+  height: 180px;
+}
+
+.lower-thirds-body .lower-third-preview iframe {
+  transform: scale(0.1666667);
+}
+
+.lower-thirds .lower-third-actions {
+  justify-content: flex-start;
+}
+
+.lower-third-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.lower-third-row.on-stream {
+  box-shadow: inset 0 0 0 2px var(--live-dot);
+}
+
+.lower-third-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.lower-third-name {
+  font-weight: 600;
+}
+
+.lower-third-title {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.lower-thirds-empty {
+  color: var(--muted);
+}
+
+.lower-third-settings {
+  margin-top: 16px;
+}
+
+.lower-third-settings summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.lower-third-settings > * + * {
+  margin-top: 8px;
+}
+
+.lower-third-settings label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 16px;
+}
+
+.lower-third-channel {
+  width: 100px;
+}
+
+.btn-primary,
+button.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+button.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+/* Run: what each field is doing. */
+.field-status ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.field-status-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.field-status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.field-status-name {
+  font-weight: 600;
+}
+
+.field-status-match {
+  color: var(--ink-2);
+}
+
+.field-status-match.muted {
+  color: var(--muted);
+}
+
 /* Modal styles */
 .modal-overlay {
   position: fixed;

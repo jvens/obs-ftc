@@ -227,6 +227,7 @@ export const FtcLiveProvider: React.FC<FtcLiveProviderProps> = ({ children }) =>
             number: streamData.payload.number,
             updateType: streamData.updateType,
             updateTime: streamData.updateTime,
+            field: streamData.payload.field,
           }));
           // Fetch the match's teams if we don't have them yet.
           const connectionState = store.getState().connection;

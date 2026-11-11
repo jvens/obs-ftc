@@ -38,6 +38,7 @@ const LowerThirdsPanel: React.FC = () => {
   const [onAir, setOnAir] = useState<LowerThird>();
   const [hoverId, setHoverId] = useState<string>();
   const [importText, setImportText] = useState('');
+  const [editing, setEditing] = useState(false);
   const [message, setMessage] = useState<string>();
   const onAirTimer = useRef<ReturnType<typeof setTimeout>>();
 
@@ -109,45 +110,85 @@ const LowerThirdsPanel: React.FC = () => {
     navigator.clipboard?.writeText(text);
   };
 
-  return (
-    <div className="section">
-      <h2>Lower Thirds</h2>
-      <p>Show name and title graphics in an OBS browser source. Set up the list before the event, then use Show and Hide while live.</p>
+  const showButton = (entry: LowerThird) => entry.id === onAir?.id ? (
+    <button className="lower-third-show btn-primary" onClick={hide} disabled={!status.connected}>Hide</button>
+  ) : (
+    // Hover is on a wrapper so the preview still works while Show is disabled (not connected).
+    <span onMouseEnter={() => setHoverId(entry.id)} onMouseLeave={() => setHoverId(undefined)}>
+      <button className="lower-third-show" onClick={() => show(entry)} disabled={!status.connected}>Show</button>
+    </span>
+  );
 
-      <div>
-        <h3>Browser Source</h3>
-        <p>
-          Add this URL as a 1920x1080 browser source on top of your scenes:
-        </p>
-        <div className="lower-third-url">
-          <code>{sourceUrl}</code>
-          <button onClick={() => navigator.clipboard?.writeText(sourceUrl)}>Copy</button>
-          <button onClick={addSource} disabled={!status.connected}>Add to Current Scene</button>
-        </div>
-        <label title="Optional. Only needed when running more than one lower-third browser source; each source listens to its own channel.">
-          Channel:
-          <input
-            type="text"
-            value={channel}
-            onChange={(e) => setChannel(e.target.value.trim())}
-            style={{ marginLeft: '10px', width: '100px' }}
-          />
-        </label>
-        <label style={{ marginLeft: '20px' }}>
-          Auto-hide after:
-          <input
-            type="number"
-            value={holdSeconds}
-            onChange={(e) => setHoldSeconds(Math.max(0, parseFloat(e.target.value) || 0))}
-            min={0}
-            step={1}
-            style={{ marginLeft: '10px', width: '80px' }}
-          />
-          s (0 = stay up until Hide)
-        </label>
+  // While live: the list with Show and Hide. Editing the list and the browser source settings are
+  // for before the event, so they stay out of the way until asked for.
+  return (
+    <div className="section lower-thirds">
+      <div className="lower-thirds-header">
+        <h2>Lower Thirds</h2>
+        <span className="lower-thirds-on-air">
+          <span className={`status-pill ${onAir ? 'live' : 'off'}`}>
+            {onAir && <span className="status-dot" aria-hidden="true" />}
+            {onAir ? `On stream: ${onAir.name}` : 'Nothing on stream'}
+          </span>
+          {onAir && <button className="btn-primary" onClick={hide} disabled={!status.connected}>Hide</button>}
+        </span>
       </div>
 
-      <div className="lower-third-live">
+      {message && (
+        <div className="error-message">
+          <p>{message}</p>
+        </div>
+      )}
+
+      <div className="lower-thirds-body">
+        <div className="lower-thirds-list">
+          {editing ? (
+            <>
+              <table className="trigger-table lower-third-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Title</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roster.map((entry, index) => (
+                    <tr key={entry.id} className={entry.id === onAir?.id ? 'on-air' : undefined}>
+                      <td>
+                        <input type="text" aria-label="Name" value={entry.name} onChange={(e) => updateEntry(entry.id, { name: e.target.value })} />
+                      </td>
+                      <td>
+                        <input type="text" aria-label="Title" value={entry.title} onChange={(e) => updateEntry(entry.id, { title: e.target.value })} />
+                      </td>
+                      <td>
+                        <button onClick={() => moveEntry(index, -1)} disabled={index === 0} title="Move up" aria-label="Move up">↑</button>
+                        <button onClick={() => moveEntry(index, 1)} disabled={index === roster.length - 1} title="Move down" aria-label="Move down">↓</button>
+                        <button onClick={() => setRoster(entries => entries.filter(e => e.id !== entry.id))} title="Delete" aria-label="Delete">✕</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button onClick={() => setRoster(entries => [...entries, { id: newId(), name: '', title: '' }])}>Add Row</button>
+            </>
+          ) : roster.length === 0 ? (
+            <p className="lower-thirds-empty">No lower thirds yet. Click <strong>Edit list</strong> to add names and titles, or import them from a spreadsheet.</p>
+          ) : (
+            <ul>
+              {roster.map(entry => (
+                <li key={entry.id} className={`lower-third-row${entry.id === onAir?.id ? ' on-stream' : ''}`}>
+                  <span className="lower-third-text">
+                    <span className="lower-third-name">{entry.name || <em>No name</em>}</span>
+                    <span className="lower-third-title">{entry.title}</span>
+                  </span>
+                  {showButton(entry)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <div className="lower-third-preview">
           {previewEntry && (
             <iframe
@@ -159,77 +200,56 @@ const LowerThirdsPanel: React.FC = () => {
             {previewEntry && previewEntry.id === hoverId ? 'Preview' : 'Live'}
           </span>
         </div>
-        <div>
-          On Air:
-          <span className={`connection-status ${onAir ? 'connected' : 'disconnected'}`}>
-            {onAir?.name ?? 'Nothing'}
-          </span>
-          <div>
-            <button onClick={hide} disabled={!status.connected}>Hide</button>
-          </div>
-        </div>
       </div>
 
-      {message && (
-        <div className="error-message">
-          <p>{message}</p>
+      <div className="lower-third-actions">
+        <button onClick={() => setEditing(on => !on)} aria-pressed={editing}>{editing ? 'Done editing' : 'Edit list'}</button>
+      </div>
+
+      {editing && (
+        <div>
+          <h3>Import / Export</h3>
+          <p>One per line: <code>Name, Title</code>, or paste two columns from a spreadsheet.</p>
+          <textarea
+            className="lower-third-import"
+            aria-label="Lower thirds to import"
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+            placeholder={'Woodie Flowers, Head Referee\nDrivers Meeting at 10:15, On Field'}
+            rows={5}
+          />
+          <div className="lower-third-actions">
+            <button onClick={importRoster} disabled={importText.trim() === ''}>Add to List</button>
+            <button onClick={exportRoster} disabled={roster.length === 0}>Export (copy)</button>
+            <button onClick={() => window.confirm('Remove every lower third from the list?') && setRoster([])} disabled={roster.length === 0}>Clear List</button>
+          </div>
         </div>
       )}
 
-      <table className="trigger-table lower-third-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Title</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {roster.map((entry, index) => (
-            <tr key={entry.id} className={entry.id === onAir?.id ? 'on-air' : undefined}>
-              <td>
-                <input type="text" value={entry.name} onChange={(e) => updateEntry(entry.id, { name: e.target.value })} />
-              </td>
-              <td>
-                <input type="text" value={entry.title} onChange={(e) => updateEntry(entry.id, { title: e.target.value })} />
-              </td>
-              <td>
-                {entry.id === onAir?.id ? (
-                  <button className="lower-third-show" onClick={hide} disabled={!status.connected}>Hide</button>
-                ) : (
-                  // Hover is on a wrapper so the preview still works while Show is disabled (not connected).
-                  <span onMouseEnter={() => setHoverId(entry.id)} onMouseLeave={() => setHoverId(undefined)}>
-                    <button className="lower-third-show" onClick={() => show(entry)} disabled={!status.connected}>
-                      Show
-                    </button>
-                  </span>
-                )}
-                <button onClick={() => moveEntry(index, -1)} disabled={index === 0} title="Move up">↑</button>
-                <button onClick={() => moveEntry(index, 1)} disabled={index === roster.length - 1} title="Move down">↓</button>
-                <button onClick={() => setRoster(entries => entries.filter(e => e.id !== entry.id))} title="Delete">✕</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <button onClick={() => setRoster(entries => [...entries, { id: newId(), name: '', title: '' }])}>Add Row</button>
-
-      <div>
-        <h3>Import / Export</h3>
-        <p>One per line: <code>Name, Title</code>, or paste two columns from a spreadsheet.</p>
-        <textarea
-          className="lower-third-import"
-          value={importText}
-          onChange={(e) => setImportText(e.target.value)}
-          placeholder={'Woodie Flowers, Head Referee\nDrivers Meeting at 10:15, On Field'}
-          rows={5}
-        />
-        <div className="lower-third-actions">
-          <button onClick={importRoster} disabled={importText.trim() === ''}>Add to List</button>
-          <button onClick={exportRoster} disabled={roster.length === 0}>Export (copy)</button>
-          <button onClick={() => window.confirm('Remove every lower third from the list?') && setRoster([])} disabled={roster.length === 0}>Clear List</button>
+      <details className="lower-third-settings">
+        <summary>Browser source settings</summary>
+        <p>Setup puts the lower-third browser source in the Ceremony scene. To show lower thirds in another scene, switch OBS to that scene and click <strong>Add to Current Scene</strong>.</p>
+        <div className="lower-third-url">
+          <code>{sourceUrl}</code>
+          <button onClick={() => navigator.clipboard?.writeText(sourceUrl)}>Copy</button>
+          <button onClick={addSource} disabled={!status.connected}>Add to Current Scene</button>
         </div>
-      </div>
+        <label title="Optional. Only needed when running more than one lower-third browser source; each source listens to its own channel.">
+          Channel:
+          <input type="text" value={channel} onChange={(e) => setChannel(e.target.value.trim())} className="lower-third-channel" />
+        </label>
+        <label>
+          Auto-hide after:
+          <input
+            type="number"
+            value={holdSeconds}
+            onChange={(e) => setHoldSeconds(Math.max(0, parseFloat(e.target.value) || 0))}
+            min={0}
+            step={1}
+          />
+          s (0 = stay up until Hide)
+        </label>
+      </details>
     </div>
   );
 };
