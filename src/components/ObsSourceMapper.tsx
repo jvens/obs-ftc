@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ResultAsync, okAsync } from 'neverthrow';
 import { useObsStudio } from '../contexts/ObsStudioContext';
 import { AudioMode, CAMERA_TYPE_LABELS, CameraType, PlannedCamera, SOURCE_NAMES } from '../obsSetup/layout';
@@ -95,9 +95,16 @@ const ObsSourceMapper: React.FC<Props> = ({ part, cameras, audioMode, refreshKey
         ]).map(([{ inputSettings }, devices]) => ({ device: String(inputSettings.device_id ?? ''), devices }))
       : okAsync(undefined)), [callObs]);
 
-  const load = useCallback(() => part === 'cameras'
-    ? ResultAsync.combine(cameras.map(loadRow)).map(setRows)
-    : loadAudio().map(setAudio), [part, cameras, loadRow, loadAudio]);
+  // Reading the cameras lists each one's devices, which can take OBS seconds, so reads can overlap
+  // (a camera added while one is under way): only the latest read's result is used.
+  const latestLoad = useRef(0);
+  const load = useCallback(() => {
+    const id = ++latestLoad.current;
+    const isLatest = () => id === latestLoad.current;
+    return part === 'cameras'
+      ? ResultAsync.combine(cameras.map(loadRow)).map(rows => { if (isLatest()) setRows(rows); })
+      : loadAudio().map(audio => { if (isLatest()) setAudio(audio); });
+  }, [part, cameras, loadRow, loadAudio]);
 
   // Senders also announce themselves every few seconds; asking saves waiting for that.
   const discoverLanSenders = useCallback(() => callObs('BroadcastCustomEvent', {
@@ -227,7 +234,7 @@ const ObsSourceMapper: React.FC<Props> = ({ part, cameras, audioMode, refreshKey
       <p>{audioMode === 'camera' ? 'Stream audio comes from each scene\'s camera.' : 'No event audio source is set up.'}</p>
     ) : audio ? (
       <label>
-        {SOURCE_NAMES.audio} device:
+        {SOURCE_NAMES.audio} device
         <select value={audio.device} onChange={(e) => changeAudioDevice(e.target.value)} disabled={!status.connected}>
           {audio.devices.map(device => <option key={device.value} value={device.value}>{device.name}</option>)}
         </select>
